@@ -8,8 +8,8 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyProduct("Vision")]
 [assembly: AssemblyCopyright("© 2026 Ali Bedir")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.1.0.0")]
-[assembly: AssemblyFileVersion("1.1.0.0")]
+[assembly: AssemblyVersion("1.2.0.0")]
+[assembly: AssemblyFileVersion("1.2.0.0")]
 
 namespace Vision
 {
@@ -23,7 +23,7 @@ namespace Vision
         /// </summary>
         public const string DataFolder = "TelnetCards";
         public const string Tagline = "Kart terminali, çoklu kart izleme ve kart dosya gezgini";
-        public const string Version = "1.1";
+        public const string Version = "1.2";
         public const string Author = "Ali Bedir";
         public const string Year = "2026";
 

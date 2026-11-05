@@ -234,6 +234,8 @@ Her kartın ekran akışını exe'nin yanındaki `logs` klasöründe ayrı bir d
 **Kart Dosya Gezgini** sekmesi (**Ctrl+2**), kartın cihazlarını, klasörlerini ve dosyalarını `devs` ve `ls` komutlarını elle yazmadan gezmenizi sağlar. Karta sağ tıklayıp **Dosya Gezgininde aç** ile de açılır.
 
 1. Üstten **kartı seçin**. Kart bağlıysa `devs` çalışır ve cihazlar listelenir. Yalnız `devs` çıktısındaki **name** sütunu kullanılır (`drv refs name` ve `drv name` biçimleri desteklenir).
+   - Listede yalnız **içine girilebilen** cihazlar görünür: her cihaz `ll "cihaz"` ile denenir ve dönüş değeri **0** olanlar gösterilir. `/null`, `/tyCo/0` gibi girilemeyen cihazlar gizlenir; adları alttaki durum satırında yazar (ör. *içine girilemeyen 2 cihaz gizlendi (/null, /tyCo/0)*).
+   - Denetim yalnız ilk açılışta yapılır; Cihazlar'a geri dönünce tekrarlanmaz. Kartta bir cihaz sonradan kullanılabilir olduysa Cihazlar'dayken **Yenile** (F5) ile yeniden denetleyin.
 2. Bir cihaza ya da klasöre **çift tıklayın** (veya Enter): `ll "/yol"` çalışır ve içerik **tür, boyut ve tarihle** listelenir. Kartın imajında `ll` yoksa otomatik olarak `ls` kullanılır (bu durumda boyut / tarih görünmez).
 3. Üstteki **yol çubuğundan** (breadcrumb) üst klasörlere doğrudan dönebilirsiniz.
 4. **Geri** (sol ok simgesi, Backspace) önceki klasöre, **Yenile** (dönen ok simgesi, F5) mevcut klasörü yeniden yükler.

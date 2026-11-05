@@ -416,6 +416,7 @@ namespace Vision
             _exec = exec;
             Current = FsLocation.Root;
             Entries = new List<FsEntry>();
+            HiddenDevices = new List<string>();
         }
 
         public FsLocation Current { get; private set; }
@@ -434,6 +435,15 @@ namespace Vision
         public bool CanGoBack { get { return _back.Count > 0; } }
         /// <summary>Listeleme komutu: "ll" (varsayılan) ya da kartta ll yoksa "ls".</summary>
         public string ListCommand { get { return _listCommand; } }
+        /// <summary>
+        /// "devs"in listelediği ama içine girilemeyen (listeleme komutu 0 dışında değer döndüren) cihazlar.
+        /// Bunlar Cihazlar listesinde gösterilmez (ör. /null, /tyCo/0).
+        /// </summary>
+        public List<string> HiddenDevices { get; private set; }
+
+        /// <summary>Cihaz denetiminin önbelleği (cihaz → içine girilebiliyor mu). Yenile / ilk yükleme temizler.</summary>
+        private readonly Dictionary<string, bool> _deviceProbe = new Dictionary<string, bool>();
+
         /// <summary>İçinde bulunulan klasör (kökteyken null).</summary>
         public string CurrentDirectory { get { return Current.IsRoot ? null : Current.Path; } }
 
@@ -462,6 +472,7 @@ namespace Vision
 
         public Task<bool> LoadDevicesAsync()
         {
+            if (!Busy) _deviceProbe.Clear();   // kart yeniden seçildi / bağlandı: cihazlar yeniden denetlenir
             return NavigateAsync(FsLocation.Root, true, null);
         }
 
@@ -489,6 +500,7 @@ namespace Vision
 
         public Task<bool> RefreshAsync()
         {
+            if (Current.IsRoot && !Busy) _deviceProbe.Clear();   // Cihazlar'da Yenile: cihazlar yeniden denetlenir
             return NavigateAsync(Current, false, null);
         }
 
@@ -545,9 +557,29 @@ namespace Vision
                 OpResult common = CheckCommon(resp, "devs");
                 if (common != null) return common;
                 // devs'in dönüş değeri durum kodu değildir (cihaz sayısını döndürür); kontrol edilmez.
-                _lastListing = DevsParser.Parse(resp.OutputLines)
-                    .Select(d => new FsEntry { Name = d, FullPath = d, Kind = FsKind.Device }).ToList();
-                return new OpResult { Ok = true, Message = _lastListing.Count == 0 ? "Kart \"devs\" komutuna cihaz döndürmedi." : null };
+                List<string> devices = DevsParser.Parse(resp.OutputLines);
+                if (devices.Count == 0)
+                {
+                    _lastListing = new List<FsEntry>();
+                    HiddenDevices = new List<string>();
+                    return new OpResult { Ok = true, Message = "Kart \"devs\" komutuna cihaz döndürmedi." };
+                }
+                // Yalnız içine girilebilen cihazlar: her cihaz listeleme komutuyla denenir, dönüş değeri 0 olanlar gösterilir
+                ProbeResult probe = await ProbeDevicesAsync(devices);
+                if (probe.Error != null) return probe.Error;
+                LastResponse = resp;   // ham cevap panelinde devs görünsün
+                if (probe.CannotProbe)
+                {
+                    // Kartta listeleme komutu (ll / ls) hiç yok: süzülemez, tüm cihazlar gösterilir
+                    HiddenDevices = new List<string>();
+                    _lastListing = devices.Select(d => new FsEntry { Name = d, FullPath = d, Kind = FsKind.Device }).ToList();
+                    return new OpResult { Ok = true, Message = "Kartın imajında listeleme komutu (ll / ls) yok; cihazların içine girilip girilemeyeceği denetlenemedi, tümü gösteriliyor." };
+                }
+                HiddenDevices = devices.Where(d => !probe.Usable.Contains(d)).ToList();
+                _lastListing = probe.Usable.Select(d => new FsEntry { Name = d, FullPath = d, Kind = FsKind.Device }).ToList();
+                if (_lastListing.Count == 0)
+                    return new OpResult { Ok = true, Message = "Kartta içine girilebilen cihaz bulunamadı (" + devices.Count + " cihaz denendi: " + string.Join(", ", devices) + ")." };
+                return new OpResult { Ok = true };
             }
 
             string cmd = _listCommand + " " + FsPath.Quote(target.Path);
@@ -582,6 +614,48 @@ namespace Vision
             if (fromEntry != null && fromEntry.Kind == FsKind.Unknown) fromEntry.Kind = FsKind.Folder;
             _lastListing = entries;
             return new OpResult { Ok = true };
+        }
+
+        private sealed class ProbeResult
+        {
+            public readonly List<string> Usable = new List<string>();
+            public bool CannotProbe;
+            /// <summary>Denetim sırasında bağlantı sorunu: listeleme hatası olarak gösterilir.</summary>
+            public OpResult Error;
+        }
+
+        /// <summary>
+        /// Cihazları sırayla listeleme komutuyla (ll, yoksa ls) dener; dönüş değeri 0 olanlar içine girilebilir sayılır.
+        /// Sonuç önbelleğe alınır: Cihazlar'a her dönüşte kart yeniden denenmez (Yenile ve kart değişince yenilenir).
+        /// </summary>
+        private async Task<ProbeResult> ProbeDevicesAsync(List<string> devices)
+        {
+            var result = new ProbeResult();
+            for (int i = 0; i < devices.Count; i++)
+            {
+                string dev = devices[i];
+                bool ok;
+                if (_deviceProbe.TryGetValue(dev, out ok)) { if (ok) result.Usable.Add(dev); continue; }
+
+                string cmd = _listCommand + " " + FsPath.Quote(dev);
+                PendingCommand = "Cihazlar denetleniyor (" + (i + 1) + "/" + devices.Count + ")  ·  " + cmd;
+                Raise();
+                ShellResponse pr = await Exec(cmd, ShortTimeoutSec);
+                if (pr.UndefinedSymbol != null && _listCommand == "ll")
+                {
+                    _listCommand = "ls";   // kartın imajında ll yok: ls ile dene ve bunu hatırla
+                    cmd = "ls " + FsPath.Quote(dev);
+                    PendingCommand = "Cihazlar denetleniyor (" + (i + 1) + "/" + devices.Count + ")  ·  " + cmd;
+                    Raise();
+                    pr = await Exec(cmd, ShortTimeoutSec);
+                }
+                if (pr.UndefinedSymbol != null) { result.CannotProbe = true; return result; }
+                if (pr.Failure != null) { result.Error = CheckCommon(pr, cmd) ?? OpResult.Fail(pr.Failure); return result; }
+                ok = pr.IsSuccess;   // zaman aşımı ya da 0 dışı dönüş değeri: içine girilemiyor
+                _deviceProbe[dev] = ok;
+                if (ok) result.Usable.Add(dev);
+            }
+            return result;
         }
 
         // ---------- Dosya / klasör işlemleri ----------

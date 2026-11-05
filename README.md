@@ -1,4 +1,4 @@
-<img src="docs/vision-icon.png" width="96" align="right" alt="Vision simgesi">
+<img src="docs/simge.png" width="96" align="right" alt="Vision simgesi">
 
 # Vision
 
@@ -39,7 +39,7 @@ Geliştiren: **Ali Bedir**
 | `*.cs` | Kaynak kod (WinForms) |
 | `Yardim\` | Kullanım Kılavuzu ve Gereksinimler (uygulama içi yardımda gösterilir) |
 | `Komutlar\Komutlar.xml` | Komut Kütüphanesi başlangıç dosyası (derlemede yalnız hedefte yoksa kopyalanır) |
-| `Vision.ico` | Uygulama simgesi (`docs/vision-icon.png`: büyük önizleme) |
+| `Vision.ico` | Uygulama simgesi (`docs/simge.png`: büyük önizleme) |
 
 Çalışırken exe'nin yanında `Konfig\config.xml` (gruplar, kartlar, ayarlar) ve `logs\` oluşur; bunlar depoya alınmaz.
 

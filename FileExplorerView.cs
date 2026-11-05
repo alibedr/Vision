@@ -335,7 +335,10 @@ namespace Vision
             else if (busy && _list.Items.Count == 0)
                 overlay = "Yükleniyor…\n\n" + b.PendingCommand;
             else if (b != null && b.Loaded && b.Entries.Count == 0 && b.Error == null)
-                overlay = b.Current.IsRoot ? "Kart cihaz listesi döndürmedi." : "Bu klasör boş.";
+                overlay = !b.Current.IsRoot ? "Bu klasör boş."
+                        : b.HiddenDevices.Count > 0
+                        ? "Kartta içine girilebilen cihaz yok.\n\nDenenen cihazların hiçbiri listelenemedi: " + string.Join(", ", b.HiddenDevices) + "\n\"Yenile\" ile tekrar denetleyin."
+                        : "Kart cihaz listesi döndürmedi.";
             else if (b != null && !b.Loaded && !busy && b.Error != null)
                 overlay = "Cihaz listesi alınamadı.\n\n\"Yenile\" ile tekrar deneyin.";
             _overlay.Text = overlay ?? "";
@@ -369,6 +372,8 @@ namespace Vision
             if (!connected || !b.Loaded) return "";
             string where = b.Current.IsRoot ? "Cihazlar" : b.Current.Path;
             string count = b.Entries.Count + (b.Current.IsRoot ? " cihaz" : " öğe");
+            if (b.Current.IsRoot && b.HiddenDevices.Count > 0)
+                count += "  ·  içine girilemeyen " + b.HiddenDevices.Count + " cihaz gizlendi (" + string.Join(", ", b.HiddenDevices) + ")";
             string rc = b.LastResponse != null && b.LastResponse.ReturnCode.HasValue && !b.Current.IsRoot
                 ? "  ·  son dönüş değeri " + b.LastResponse.ReturnCode.Value : "";
             return count + "  ·  " + where + rc;
