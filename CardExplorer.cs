@@ -322,7 +322,7 @@ namespace Vision
                 bool explored = card == _highlighted;
                 if (explored)
                 {
-                    using (var hb = new SolidBrush(selected ? Color.FromArgb(44, 78, 128) : Color.FromArgb(26, 46, 78))) g.FillRectangle(hb, row);
+                    using (var hb = new SolidBrush(selected ? Theme.TreeSelectedStrong : Theme.TreeSelectedSoft)) g.FillRectangle(hb, row);
                     using (var bar = new SolidBrush(Theme.Accent)) g.FillRectangle(bar, row.X, row.Y + 3, 3, row.Height - 6);
                 }
 
@@ -349,7 +349,7 @@ namespace Vision
                     x += TextRenderer.MeasureText(g, "ekranda", Theme.UiSmall, Size.Empty, TextFormatFlags.NoPrefix).Width;
                 }
                 if (explored)
-                    TextRenderer.DrawText(g, "gezginde", Theme.UiSmall, new Point(x, row.Y + 7), Color.FromArgb(150, 196, 255), TextFormatFlags.NoPrefix);
+                    TextRenderer.DrawText(g, "gezginde", Theme.UiSmall, new Point(x, row.Y + 7), Theme.TreeTag, TextFormatFlags.NoPrefix);
             }
         }
 

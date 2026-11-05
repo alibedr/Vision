@@ -77,6 +77,7 @@ namespace Vision
         {
             Session = session;
             DoubleBuffered = true;
+            Theme.Changed += OnThemeChanged;
             BackColor = Theme.Surface;
             Padding = new Padding(1);   // 1px kenarlık için
             MinimumSize = new Size(260, 160);
@@ -365,12 +366,12 @@ namespace Vision
             {
                 case CardState.Connecting:
                     _stateStrip.Text = "●  Bağlanıyor…";
-                    _stateStrip.BackColor = Color.FromArgb(58, 46, 22);
+                    _stateStrip.BackColor = Theme.StripConnecting;
                     _stateStrip.ForeColor = Theme.Warning;
                     break;
                 case CardState.Error:
                     _stateStrip.Text = "●  Bağlantı yok: " + (Session.LastError ?? "hata") + "  —  komut gönderilemez";
-                    _stateStrip.BackColor = Color.FromArgb(60, 26, 30);
+                    _stateStrip.BackColor = Theme.StripError;
                     _stateStrip.ForeColor = Theme.Danger;
                     break;
                 default:
@@ -388,7 +389,7 @@ namespace Vision
                     (st == CardState.Recovering
                         ? "  ·  kart ulaşılabilir olunca otomatik yeniden bağlanılacak"
                         : "  ·  yeniden bağlanmak için \"Bağlantı Kur\"");
-                _stateStrip.BackColor = Color.FromArgb(120, 28, 34);
+                _stateStrip.BackColor = Theme.StripDropped;
                 _stateStrip.ForeColor = Color.White;
             }
             ApplyLook(st == CardState.Connected, drop);
@@ -651,12 +652,20 @@ namespace Vision
 
         // ---------- Bağlı / bağlı değil görünümü ----------
 
+        /// <summary>Tema değişti: bağlı / bağlı değil renkleri yeni temayla yeniden uygulanır, uyarı satırları yeniden boyanır.</summary>
+        private void OnThemeChanged()
+        {
+            if (IsDisposed) return;
+            _shownConnectedLook = null;
+            RefreshState();
+        }
+
         // Bağlı değilken kullanılan gri tonlar (bağlı kartın renkleri hiç değişmez)
-        private static readonly Color OffOutputBack = Color.FromArgb(27, 29, 33);
-        private static readonly Color OffOutputText = Color.FromArgb(137, 143, 153);   // gri ama okunur (≥ 4.5:1)
-        private static readonly Color OffHeaderBack = Color.FromArgb(31, 33, 38);
-        private static readonly Color OffInputBack = Color.FromArgb(36, 38, 43);
-        private static readonly Color AlertText = Color.FromArgb(255, 99, 99);
+        private static Color OffOutputBack { get { return Theme.OffOutputBack; } }
+        private static Color OffOutputText { get { return Theme.OffOutputText; } }   // gri ama okunur (≥ 4.5:1)
+        private static Color OffHeaderBack { get { return Theme.OffHeaderBack; } }
+        private static Color OffInputBack { get { return Theme.OffInputBack; } }
+        private static Color AlertText { get { return Theme.AlertText; } }
 
         /// <summary>
         /// Bağlıysa normal renkler; değilse tüm kart gri tonlara geçer ve konsol yazmaya kapanır.
@@ -835,6 +844,7 @@ namespace Vision
         {
             if (disposing)
             {
+                Theme.Changed -= OnThemeChanged;
                 Session.DetachView();
                 _tips.Dispose();
                 _toastTimer.Dispose();
@@ -849,8 +859,8 @@ namespace Vision
     /// <summary>Bağlantı kopunca çıktının üstünde görünen kırmızı uyarı kutusu. Tıklanınca gizlenir.</summary>
     internal sealed class AlertBanner : Control
     {
-        private static readonly Color Back = Color.FromArgb(96, 22, 28);
-        private static readonly Color Edge = Color.FromArgb(248, 113, 113);
+        private static Color Back { get { return Theme.ErrorBanner; } }
+        private static Color Edge { get { return Theme.IsDark ? Theme.Danger : Color.FromArgb(255, 170, 170); } }
         private readonly Font _titleFont = new Font("Segoe UI Semibold", 10.5f);
 
         public AlertBanner()
@@ -892,10 +902,10 @@ namespace Vision
             else TextRenderer.DrawText(g, title, _titleFont, new Point(x, y), Color.White, TextFormatFlags.NoPrefix);
             y += _titleFont.Height + 4;
             TextRenderer.DrawText(g, _detail, Font, new Rectangle(x, y, Width - x - 10, Font.Height + 2),
-                Color.FromArgb(255, 205, 205), TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
+                Theme.DropBannerTitle, TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
             y += Font.Height + 6;
             TextRenderer.DrawText(g, "Kartın ekranı ve geçmişi korunuyor. Kapatmak için tıklayın.", Theme.UiSmall,
-                new Point(x, y), Color.FromArgb(220, 160, 160), TextFormatFlags.NoPrefix);
+                new Point(x, y), Theme.DropBannerFaint, TextFormatFlags.NoPrefix);
         }
 
         protected override void Dispose(bool disposing)

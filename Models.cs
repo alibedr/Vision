@@ -213,6 +213,9 @@ namespace Vision
         /// <summary>Kart Gezgini kenar çubuğu daraltılmış mı (tercih hatırlanır).</summary>
         public bool SidebarCollapsed { get; set; }
 
+        /// <summary>Arayüz teması (koyu / açık). Menü çubuğunun sağındaki düğmeyle değiştirilir ve hatırlanır.</summary>
+        public ThemeMode UiTheme { get; set; }
+
         /// <summary>"Birlikte aç (salt okunur)" açıklama penceresi bir daha gösterilmesin.</summary>
         public bool HideReadOnlyOpenInfo { get; set; }
 
@@ -226,6 +229,7 @@ namespace Vision
             if (MaxTerminalLines > MaxTerminalLinesLimit) MaxTerminalLines = MaxTerminalLinesLimit;
             TerminalZoom = ClampZoom(TerminalZoom);
             if (!Enum.IsDefined(typeof(RebootOption), GlobalRebootOption)) GlobalRebootOption = RebootOption.Reboot;
+            if (!Enum.IsDefined(typeof(ThemeMode), UiTheme)) UiTheme = ThemeMode.Dark;
             LogToFile = false;   // sürekli kayıt kaldırıldı: anlık kayıt düğmeleri kullanılır
             if (Transfer != null) Transfer.ApplyNewDefaults();
         }

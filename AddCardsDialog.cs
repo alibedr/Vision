@@ -320,7 +320,7 @@ namespace Vision
         private static void MarkValid(Control c, bool valid)
         {
             c.BackColor = valid ? (c.Parent != null && c.Parent.BackColor == Theme.Input ? Theme.Surface : Theme.Input)
-                                : Color.FromArgb(70, 30, 34);
+                                : Theme.DangerSurface;
         }
 
         private void ShowError(string message)

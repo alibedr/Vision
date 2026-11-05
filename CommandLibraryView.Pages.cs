@@ -319,7 +319,7 @@ namespace Vision
                 g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
                 bool none = _currentModuleKey != null && _currentModuleKey.Length == 0;
                 using (var path = IconRenderer.RoundRect(new RectangleF(0.5f, 4.5f, 44, 44), 9))
-                using (var br = new SolidBrush(none ? Theme.SurfaceHigh : Color.FromArgb(30, 52, 88)))
+                using (var br = new SolidBrush(none ? Theme.SurfaceHigh : Theme.AccentSurface))
                     g.FillPath(br, path);
                 IconRenderer.Draw(g, none ? IconKind.Folder : IconKind.Module, new RectangleF(11, 15, 22, 22), none ? Theme.TextMuted : Theme.Accent);
             };
@@ -459,7 +459,7 @@ namespace Vision
             bool hover = e.Index == _modHover;
             bool focused = (e.State & DrawItemState.Selected) != 0 && _modList.Focused;
             using (var bg = new SolidBrush(hover || focused ? Theme.Hover : Theme.Input)) g.FillRectangle(bg, b);
-            if (e.Index > 0) using (var p = new Pen(Color.FromArgb(32, 36, 44))) g.DrawLine(p, b.X + 14, b.Y, b.Right - 14, b.Y);
+            if (e.Index > 0) using (var p = new Pen(Theme.RowDivider)) g.DrawLine(p, b.X + 14, b.Y, b.Right - 14, b.Y);
 
             int x = b.X + 16;
             int nameW;
@@ -837,7 +837,7 @@ namespace Vision
         private void Accept()
         {
             string err = _library.ValidateModule(_name.Text, _original);
-            if (err != null) { _error.Text = "⚠  " + err; _name.BackColor = Color.FromArgb(70, 30, 34); _name.Focus(); return; }
+            if (err != null) { _error.Text = "⚠  " + err; _name.BackColor = Theme.DangerSurface; _name.Focus(); return; }
             DialogResult = DialogResult.OK;
             Close();
         }

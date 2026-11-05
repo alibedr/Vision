@@ -308,7 +308,7 @@ namespace Vision
                 {
                     Rectangle r = ClientRectangle;
                     bool active = Enabled && (_hover || Focused || DroppedDown);
-                    using (var bg = new SolidBrush(Enabled ? (active ? Color.FromArgb(20, 23, 29) : BackColor) : Theme.Surface)) g.FillRectangle(bg, r);
+                    using (var bg = new SolidBrush(Enabled ? (active ? Theme.ComboActive : BackColor) : Theme.Surface)) g.FillRectangle(bg, r);
                     using (var p = new Pen(Focused || DroppedDown ? Theme.Accent : _hover && Enabled ? Theme.TextFaint : Theme.Border))
                         g.DrawRectangle(p, 0, 0, r.Width - 1, r.Height - 1);
                     string text = SelectedIndex < 0 ? "" : ClosedText != null ? ClosedText(SelectedItem) : GetItemText(SelectedItem);
@@ -334,7 +334,7 @@ namespace Vision
         private bool _hoverMain, _hoverToggle, _pressed;
         private string _text = "";
         private IconKind _icon = IconKind.None;
-        private Color _iconColor = Theme.Danger;
+        private Color _iconColor = Color.Empty;   // boş: temanın tehlike rengi (tema değişince güncel kalır)
 
         public SplitActionButton()
         {
@@ -353,7 +353,7 @@ namespace Vision
 
         public string MainText { get { return _text; } set { _text = value ?? ""; AccessibleName = _text; Invalidate(); } }
         public IconKind MainIcon { get { return _icon; } set { _icon = value; Invalidate(); } }
-        public Color IconColor { get { return _iconColor; } set { _iconColor = value; Invalidate(); } }
+        public Color IconColor { get { return _iconColor.IsEmpty ? Theme.Danger : _iconColor; } set { _iconColor = value; Invalidate(); } }
 
         public override Size GetPreferredSize(Size proposedSize)
         {
@@ -417,7 +417,7 @@ namespace Vision
             int x = 9;
             if (_icon != IconKind.None)
             {
-                IconRenderer.Draw(g, _icon, new RectangleF(x, (Height - 14) / 2f, 14, 14), Enabled ? _iconColor : Theme.TextFaint);
+                IconRenderer.Draw(g, _icon, new RectangleF(x, (Height - 14) / 2f, 14, 14), Enabled ? (_iconColor.IsEmpty ? Theme.Danger : _iconColor) : Theme.TextFaint);
                 x += 21;
             }
             TextRenderer.DrawText(g, _text, Font, new Rectangle(x, 0, Width - ToggleWidth - x - 4, Height), fore,

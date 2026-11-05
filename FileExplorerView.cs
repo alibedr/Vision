@@ -321,9 +321,9 @@ namespace Vision
 
             // Bilgi / hata şeridi
             if (b != null && b.Error != null && b.ErrorIsWarning)
-                ShowBanner("⚠  " + b.Error, Color.FromArgb(92, 66, 18), Color.FromArgb(255, 226, 170));   // uyarı (eksik komut vb.)
-            else if (b != null && b.Error != null) ShowBanner("⚠  " + b.Error, Color.FromArgb(96, 22, 28), Color.White);
-            else if (b != null && b.Notice != null) ShowBanner("ℹ  " + b.Notice, Color.FromArgb(28, 52, 92), Color.FromArgb(214, 228, 255));
+                ShowBanner("⚠  " + b.Error, Theme.WarningBanner, Theme.WarningBannerText);   // uyarı (eksik komut vb.)
+            else if (b != null && b.Error != null) ShowBanner("⚠  " + b.Error, Theme.ErrorBanner, Color.White);
+            else if (b != null && b.Notice != null) ShowBanner("ℹ  " + b.Notice, Theme.InfoBanner, Theme.InfoBannerText);
             else if (!busy) _banner.Visible = false;
 
             // Boş / yükleniyor / bağlı değil katmanı
@@ -616,8 +616,8 @@ namespace Vision
         protected override void OnDrawSubItem(DrawListViewSubItemEventArgs e)
         {
             bool selected = e.Item.Selected;
-            Color back = e.ItemIndex == DropHighlightIndex ? Color.FromArgb(32, 78, 150)
-                       : selected ? Theme.Selection : (e.ItemIndex % 2 == 0 ? Theme.Input : Color.FromArgb(18, 21, 26));
+            Color back = e.ItemIndex == DropHighlightIndex ? Theme.DropHighlight
+                       : selected ? Theme.Selection : (e.ItemIndex % 2 == 0 ? Theme.Input : Theme.ZebraRow);
             using (var bg = new SolidBrush(back)) e.Graphics.FillRectangle(bg, e.Bounds);
 
             var entry = e.Item.Tag as FsEntry;

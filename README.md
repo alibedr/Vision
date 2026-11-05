@@ -17,6 +17,7 @@ Geliştiren: **Ali Bedir**
 - Periyodik bağlantı izleme ve otomatik yeniden bağlanma
 - Kart Dosya Gezgini: `devs` / `ll`, klasör ve dosya işlemleri, FTP üzerinden karta yükleme, salt okunur "Birlikte aç"
 - Komut Kütüphanesi: komutları modüllerde gruplama (ör. "Task komutları")
+- Koyu ve açık tema (menü çubuğundaki düğme ya da Ctrl+Shift+L; seçim hatırlanır)
 - Türkçe arayüz ve hata mesajları, uygulama içi yardım (F1)
 
 ## Gereksinimler

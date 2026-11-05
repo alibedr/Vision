@@ -14,9 +14,9 @@ namespace Vision
     /// </summary>
     public sealed class GlobalCommandBar : UserControl
     {
-        private static readonly Color BarBack = Color.FromArgb(22, 32, 50);
-        private static readonly Color FieldBack = Color.FromArgb(12, 18, 30);
-        private static readonly Color FieldBorder = Color.FromArgb(52, 92, 160);
+        private static Color BarBack { get { return Theme.CommandBarBack; } }
+        private static Color FieldBack { get { return Theme.CommandFieldBack; } }
+        private static Color FieldBorder { get { return Theme.CommandFieldBorder; } }
 
         private readonly Func<IList<CardSession>> _targets;
         private readonly CommandHistory _history = new CommandHistory();

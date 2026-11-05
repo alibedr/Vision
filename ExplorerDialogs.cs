@@ -101,7 +101,7 @@ namespace Vision
             ok.Click += (s, e) =>
             {
                 string err = _validate != null ? _validate(_box.Text) : null;
-                if (err != null) { _error.Text = err; _box.BackColor = Color.FromArgb(70, 30, 34); return; }
+                if (err != null) { _error.Text = err; _box.BackColor = Theme.DangerSurface; return; }
                 DialogResult = DialogResult.OK;
                 Close();
             };
@@ -180,7 +180,7 @@ namespace Vision
             base.OnPaint(e);
             Graphics g = e.Graphics;
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-            using (var b = new SolidBrush(_danger ? Color.FromArgb(70, 34, 38) : Color.FromArgb(30, 52, 88)))
+            using (var b = new SolidBrush(_danger ? Theme.DangerSurface : Theme.AccentSurface))
                 g.FillEllipse(b, 22, 18, 42, 42);
             IconRenderer.Draw(g, _danger ? IconKind.Warning : IconKind.Info, new RectangleF(32, 28, 22, 22), _danger ? Theme.Danger : Theme.Accent);
         }

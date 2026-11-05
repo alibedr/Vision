@@ -764,7 +764,50 @@ namespace Vision
             var dd = help.DropDown as ToolStripDropDownMenu;
             if (dd != null) dd.ShowImageMargin = false;
             menu.Items.Add(help);
+
+            // En sağda: koyu / açık tema geçişi (seçim kaydedilir, uygulama yeniden açılınca hatırlanır)
+            _themeItem = new ToolStripMenuItem
+            {
+                Alignment = ToolStripItemAlignment.Right,
+                ForeColor = Theme.Text,
+                ShortcutKeys = Keys.Control | Keys.Shift | Keys.L,
+                DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
+                ImageScaling = ToolStripItemImageScaling.None,
+                Margin = new Padding(0, 0, 8, 0),
+            };
+            _themeItem.Click += (s, e) => ToggleTheme();
+            menu.Items.Add(_themeItem);
+            RefreshThemeItem();
             return menu;
+        }
+
+        private ToolStripMenuItem _themeItem;
+
+        /// <summary>Tema düğmesi: geçilecek temayı gösterir (koyudayken "Açık tema" + güneş, açıktayken "Koyu tema" + ay).</summary>
+        private void RefreshThemeItem()
+        {
+            if (_themeItem == null) return;
+            bool dark = Theme.IsDark;
+            _themeItem.Text = dark ? "Açık tema" : "Koyu tema";
+            _themeItem.ToolTipText = (dark ? "Açık temaya geç" : "Koyu temaya geç") + "  (Ctrl+Shift+L)";
+            _themeItem.AccessibleName = _themeItem.ToolTipText;
+            _themeItem.ForeColor = Theme.Text;
+            var bmp = new Bitmap(16, 16);
+            using (Graphics g = Graphics.FromImage(bmp))
+                IconRenderer.Draw(g, dark ? IconKind.Sun : IconKind.Moon, new RectangleF(0, 0, 16, 16), dark ? Theme.Warning : Theme.Accent);
+            Image old = _themeItem.Image;
+            _themeItem.Image = bmp;
+            if (old != null) old.Dispose();
+        }
+
+        /// <summary>Koyu ↔ açık tema: açık tüm pencereler hemen yeni temaya geçer; bağlantılar ve terminaller etkilenmez.</summary>
+        private void ToggleTheme()
+        {
+            ThemeMode next = Theme.IsDark ? ThemeMode.Light : ThemeMode.Dark;
+            Theme.SetMode(next);
+            _config.Settings.UiTheme = next;
+            RefreshThemeItem();
+            SaveConfig();
         }
 
         private void OnUiTick()

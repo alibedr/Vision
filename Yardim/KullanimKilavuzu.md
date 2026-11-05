@@ -8,13 +8,22 @@ Vision; donanım kartlarına telnet ile bağlanmak, kartlara komut göndermek, b
 
 | Bölüm | Konum | Ne işe yarar |
 |---|---|---|
-| Menü çubuğu | Pencerenin en üstü | **Yardım** menüsü: Kullanım Kılavuzu, Gereksinimler, Yardım klasörü, Hakkında. |
+| Menü çubuğu | Pencerenin en üstü | **Yardım** menüsü: Kullanım Kılavuzu, Gereksinimler, Yardım klasörü, Hakkında. En sağda **tema düğmesi** (koyu ↔ açık; aşağıya bakın). |
 | Kart Gezgini | Sol kenar | Grupları ve kartları listeler; kart ekleme, seçme, bağlanma ve gösterme buradan yapılır. Sekme şeridinin en solundaki kenar çubuğu düğmesi (Ctrl+B) ile gizlenip gösterilir. |
 | Sekmeler | Sağ alanın üstü | **Telnet** (kart terminalleri), **Kart Dosya Gezgini** ve **Komut Kütüphanesi** arasında geçiş (Ctrl+1 / 2 / 3). |
 | Telnet sekmesi | Sağ alan | Seçilen kartların terminal pencereleri ızgara düzeninde görünür (en fazla 24 kart). |
 | Terminal ayarları | Telnet sekmesinin üst çubuğu | Satır sonu, yerel eko, zaman damgası, dosyaya kaydet, satır sınırı ve "Tümünü kapat". |
 | Genel komut çubuğu | Telnet sekmesinin altı | Bir komutu ekrandaki tüm kartlara aynı anda gönderir. |
 | Durum çubuğu | Pencerenin en altı | Grup, kart ve bağlı kart sayıları; kısayol ipuçları ve geliştirici imzası. |
+
+### Koyu ve açık tema
+
+Uygulama koyu ya da açık temayla kullanılabilir. Geçiş için menü çubuğunun en sağındaki düğmeye tıklayın (ya da **Ctrl+Shift+L**):
+
+- Koyu temadayken düğmede güneş simgesi ve **Açık tema**, açık temadayken ay simgesi ve **Koyu tema** yazar.
+- Geçiş anında olur: açık tüm pencereler (kart terminalleri, Dosya Gezgini, Komut Kütüphanesi, başlık ve kaydırma çubukları) yeni temaya geçer. Bağlantılar kesilmez, terminal içerikleri silinmez.
+- Seçim ayarlarla birlikte kaydedilir; uygulama bir sonraki açılışta aynı temayla açılır. Her kullanıcının seçimi kendi bilgisayarındadır.
+- Yardım sayfası da açıldığında o anki temanın renkleriyle gösterilir.
 
 ### Düğme simgeleri
 
