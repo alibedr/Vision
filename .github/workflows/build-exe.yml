@@ -1,0 +1,46 @@
+name: Vision exe derle
+
+# Windows'ta Release derlemesi yapar ve hazır exe paketini (zip) GitHub Releases'a koyar.
+# Her dal kendi ön sürümünü günceller: "build-<dal-adı>".
+on:
+  push:
+    branches: ["**"]
+    paths-ignore: ["**.md", "docs/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: microsoft/setup-msbuild@v2
+
+      - name: Derle (Release)
+        run: msbuild Vision.sln /p:Configuration=Release /p:Platform="Any CPU" /m /v:minimal
+
+      - name: Paketle
+        shell: pwsh
+        run: |
+          $out = "HazirExe\Vision"
+          New-Item -ItemType Directory -Force $out | Out-Null
+          Copy-Item bin\Release\Vision.exe $out
+          if (Test-Path bin\Release\Vision.exe.config) { Copy-Item bin\Release\Vision.exe.config $out }
+          Copy-Item -Recurse bin\Release\Komutlar $out
+          Copy-Item -Recurse bin\Release\Yardim $out
+          Compress-Archive -Path $out -DestinationPath Vision.zip -Force
+
+      - name: Ön sürümü güncelle
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $branch = "${{ github.ref_name }}" -replace '[^A-Za-z0-9._-]', '-'
+          $tag = "build-$branch"
+          gh release delete $tag --yes --cleanup-tag 2>$null
+          gh release create $tag Vision.zip --prerelease --target "${{ github.sha }}" `
+            --title "Vision derlemesi ($branch)" `
+            --notes "Otomatik derleme: ${{ github.sha }}. Zip'i açıp Vision.exe'yi çalıştırın (.NET Framework 4.6.1+)."
