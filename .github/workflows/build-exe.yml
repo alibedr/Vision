@@ -56,7 +56,15 @@ jobs:
         run: |
           $branch = "${{ github.ref_name }}" -replace '[^A-Za-z0-9._-]', '-'
           $tag = "build-$branch"
+          $notes = "Otomatik derleme: ${{ github.sha }}. Zip'i açıp Vision.exe'yi çalıştırın (.NET Framework 4.6.1+)."
           gh release delete $tag --yes --cleanup-tag 2>$null
-          gh release create $tag Vision.zip --prerelease --target "${{ github.sha }}" `
-            --title "Vision derlemesi ($branch)" `
-            --notes "Otomatik derleme: ${{ github.sha }}. Zip'i açıp Vision.exe'yi çalıştırın (.NET Framework 4.6.1+)."
+          # Etiketin silinmesi GitHub'da birkaç saniye sürebilir: oluşturma birkaç kez denenir
+          for ($i = 1; $i -le 5; $i++) {
+            Start-Sleep -Seconds (3 * $i)
+            gh release create $tag Vision.zip --prerelease --target "${{ github.sha }}" --title "Vision derlemesi ($branch)" --notes $notes
+            if ($LASTEXITCODE -eq 0) { exit 0 }
+            # Sürüm oluştuysa ama dosya yüklenemediyse dosyayı yeniden yükle
+            gh release upload $tag Vision.zip --clobber 2>$null
+            if ($LASTEXITCODE -eq 0) { exit 0 }
+          }
+          exit 1
