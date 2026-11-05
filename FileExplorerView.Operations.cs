@@ -19,15 +19,18 @@ namespace Vision
         private readonly IconButton _newFolderBtn = new IconButton(IconKind.NewFolder, IconTone.Ghost);
         private readonly IconButton _uploadBtn = new IconButton(IconKind.Upload, IconTone.Primary);
         private readonly IconButton _ftpBtn = new IconButton(IconKind.Settings, IconTone.Ghost);
+        private readonly IconButton _ftpCopiesBtn = new IconButton(IconKind.Trash, IconTone.Ghost);
         private readonly ContextMenuStrip _itemMenu = new ContextMenuStrip();
         private readonly ToolTip _opTips = new DarkToolTip();
 
         private void BuildOperationButtons()
         {
-            foreach (var b in new[] { _newFolderBtn, _uploadBtn, _ftpBtn }) b.Size = new Size(32, 32);
+            foreach (var b in new[] { _newFolderBtn, _uploadBtn, _ftpCopiesBtn, _ftpBtn }) b.Size = new Size(32, 32);
+            _ftpCopiesBtn.Enabled = false;
+            _ftpCopiesBtn.SetTip(_opTips, "FTP kopyalarını sil — yükleme sırasında FTP sunucusuna gönderilen kopyalar (yalnız bu kart)");
             _newFolderBtn.SetTip(_opTips, "Yeni klasör — bu klasörde oluşturur (mkdir)  ·  Ctrl+Shift+N");
             _uploadBtn.SetTip(_opTips, "Yükle — bilgisayardan dosya / klasör yükler (FTP + kartta copy / xcopy).\nWindows Gezgini'nden listeye sürükleyip bırakabilirsiniz.");
-            _ftpBtn.SetTip(_opTips, "FTP ayarları — yükleme ve 'Birlikte aç' için FTP sunucusu ve kartın o klasörü gördüğü yol");
+            _ftpBtn.SetTip(_opTips, "FTP — bu kartın FTP bilgisi (karttan otomatik), bağlantı sınaması ve klasör ayarları");
         }
 
         private void WireOperations()
@@ -35,6 +38,7 @@ namespace Vision
             _newFolderBtn.Click += async (s, e) => await NewFolderAsync();
             _uploadBtn.Click += async (s, e) => await UploadWithDialogAsync();
             _ftpBtn.Click += (s, e) => ShowFtpSettings();
+            _ftpCopiesBtn.Click += async (s, e) => await DeleteFtpCopiesAsync();
 
             _itemMenu.Renderer = new DarkMenuRenderer();
             _itemMenu.ShowImageMargin = false;
@@ -49,6 +53,13 @@ namespace Vision
             _list.DragOver += List_DragOver;
             _list.DragLeave += (s, e) => SetDropHighlight(-1);
             _list.DragDrop += List_DragDrop;
+
+            // Boş klasörde liste yerine "Bu klasör boş" katmanı görünür: bırakma oraya da yapılabilmeli
+            // (önceden katman bırakmayı kabul etmiyordu → boş klasöre sürükle-bırak çalışmıyordu)
+            _overlay.AllowDrop = true;
+            _overlay.DragEnter += List_DragOver;
+            _overlay.DragOver += List_DragOver;
+            _overlay.DragDrop += List_DragDrop;
         }
 
         private bool CanOperate
@@ -67,6 +78,17 @@ namespace Vision
             bool inFolder = connected && !busy && _browser != null && _browser.Loaded && !_browser.Current.IsRoot;
             if (_newFolderBtn.Enabled != inFolder) _newFolderBtn.Enabled = inFolder;
             if (_uploadBtn.Enabled != inFolder) _uploadBtn.Enabled = inFolder;
+
+            // "FTP kopyalarını sil": bu kartın FTP'de kopyası varsa etkin (yükleme başlar başlamaz)
+            CardSession session = _card != null ? _sessionOf(_card) : null;
+            int copies = session != null ? session.FtpCopies.Count : 0;
+            bool canDelete = copies > 0 && connected && !busy;
+            if (_ftpCopiesBtn.Enabled != canDelete) _ftpCopiesBtn.Enabled = canDelete;
+            string tip = copies == 0
+                ? "FTP kopyalarını sil — bu kartın FTP'de kopyası yok"
+                : "FTP kopyalarını sil (" + copies + "): " + string.Join(", ", session.FtpCopies.Items.Select(i => i.Name).Take(8)) + (copies > 8 ? " …" : "") +
+                  "\nYüklemede FTP sunucusuna gönderilen kopyalar. Yalnız siz bastığınızda silinir.";
+            if (_opTips.GetToolTip(_ftpCopiesBtn) != tip) _ftpCopiesBtn.SetTip(_opTips, tip);
         }
 
 
@@ -237,18 +259,18 @@ namespace Vision
             if (!CanOperate || e == null || e.Kind != FsKind.File) return;
             FileBrowser b = _browser;
             CardConfig card = _card;
-            bool viaFtp = _settings.Transfer.IsConfigured;
-
+            // FTP bilgisi bu karttan alınır (bspBootChange); alınamazsa metin olarak açma önerilir
+            CardFtpCredentials creds = await EnsureCardFtpAsync(false);
+            if (card != _card || b != _browser) return;
+            bool viaFtp = creds != null;
             if (!viaFtp)
             {
                 int c = ChoiceDialog.Ask(FindForm(), "Birlikte aç (salt okunur)",
-                    "Dosyayı bozulmadan almak için FTP ayarları gerekli.",
-                    "FTP ayarlıysa dosya kartta FTP konumuna kopyalanıp bilgisayara indirilir (her tür dosya).\n" +
-                    "\"Metin olarak aç\" içeriği telnet üzerinden okur: .txt, .xml, .cfg gibi metin dosyalarında çalışır, " +
+                    "Kartın FTP bilgisi alınamadı; dosya FTP ile bozulmadan alınamıyor.",
+                    (b.Error ?? "") + "\n\n\"Metin olarak aç\" içeriği telnet üzerinden okur: .txt, .xml, .cfg gibi metin dosyalarında çalışır, " +
                     "ikili dosyalar (.bin, .out, .o …) bu yolla BOZULUR.",
-                    new[] { "İptal", "FTP ayarları…", "Metin olarak aç" }, 2, -1);
-                if (c == 1) { ShowFtpSettings(); viaFtp = _settings.Transfer.IsConfigured; if (!viaFtp) return; }
-                else if (c != 2) return;
+                    new[] { "İptal", "Metin olarak aç" }, 1, -1);
+                if (c != 1) return;
             }
 
             long limit = viaFtp ? 50L * 1024 * 1024 : 1024 * 1024;
@@ -267,7 +289,8 @@ namespace Vision
                 return;
             }
 
-            OpResult r = await b.FetchCopyAsync(e, local, viaFtp ? new FtpUploader(_settings.Transfer) : null, _settings.Transfer, !viaFtp);
+            TransferSettings eff = viaFtp ? CardTransfer(creds) : new TransferSettings();
+            OpResult r = await b.FetchCopyAsync(e, local, viaFtp ? new FtpUploader(eff) : null, eff, !viaFtp);
             if (!r.Ok) { ReadOnlyCopies.DeleteTree(Path.GetDirectoryName(local)); return; }   // hata şeritte gösterilir
 
             try { ReadOnlyCopies.MarkReadOnly(local); }
@@ -313,15 +336,60 @@ namespace Vision
             if (target != null) await _browser.TransferAsync(e, target.Trim(), copy);
         }
 
-        // ---------- Yükleme ----------
+        // ---------- Kart başına FTP ----------
+
+        /// <summary>
+        /// Seçili kartın FTP bilgisini hazırlar: bu bağlantıda henüz alınmadıysa (ya da force) karttan bspBootChange ile
+        /// alınır ve yalnız o kartın oturumunda saklanır. Başarısızsa hata şeritte gösterilir ve null döner.
+        /// </summary>
+        private async Task<CardFtpCredentials> EnsureCardFtpAsync(bool force)
+        {
+            if (_card == null || _browser == null) return null;
+            CardSession session = _sessionOf(_card);
+            if (!force && session.Ftp != null) return session.Ftp;
+            if (session.State != CardState.Connected) { _browser.ShowWarning("Kart bağlı değil: FTP bilgisi karttan alınamaz."); return null; }
+            CardFtpResult r = await _browser.ObtainFtpAsync();
+            if (!r.Ok) return null;                       // neden şeritte (FileBrowser.Error)
+            session.Ftp = r.Credentials;
+            return r.Credentials;
+        }
+
+        /// <summary>Bu kartın bilgileriyle çalışan FTP ayarları (ortak klasör / kip ayarları + kartın sunucusu, kullanıcısı, parolası).</summary>
+        private TransferSettings CardTransfer(CardFtpCredentials c)
+        {
+            return _settings.Transfer.ForCard(c);
+        }
 
         private void ShowFtpSettings()
         {
-            using (var d = new FtpSettingsDialog(_settings.Transfer))
+            CardSession session = _card != null ? _sessionOf(_card) : null;
+            using (var d = new FtpSettingsDialog(_settings.Transfer, _card, session,
+                       force => EnsureCardFtpAsync(force),
+                       (eff, progress) => _browser.TestFtpAsync(new FtpUploader(eff), eff, progress),
+                       () => CanOperate))
             {
                 if (d.ShowDialog(FindForm()) == DialogResult.OK && _saveSettings != null) _saveSettings();
             }
+            RefreshUi();
         }
+
+        private async Task DeleteFtpCopiesAsync()
+        {
+            if (!CanOperate) return;
+            CardSession session = _sessionOf(_card);
+            var items = session.FtpCopies.Items;
+            if (items.Count == 0) return;
+            int c = ChoiceDialog.Ask(FindForm(), "FTP kopyalarını sil",
+                _card.Label + " için FTP sunucusundaki " + items.Count + " kopya silinsin mi?",
+                string.Join(", ", items.Select(i => i.Name + (i.IsDirectory ? "/" : "")).Take(12)) + (items.Count > 12 ? " …" : "") +
+                "\nYalnız FTP'deki kopyalar silinir; karttaki dosyalar değişmez.", new[] { "İptal", "Sil" }, 0, 1);
+            if (c != 1) return;
+            CardFtpCredentials creds = await EnsureCardFtpAsync(false);
+            if (creds == null) return;
+            await _browser.DeleteFtpCopiesAsync(new FtpUploader(CardTransfer(creds)), session.FtpCopies);
+        }
+
+        // ---------- Yükleme ----------
 
         private async Task UploadWithDialogAsync()
         {
@@ -336,12 +404,8 @@ namespace Vision
         private async Task UploadPathsAsync(IList<string> paths, string destDir)
         {
             if (!CanOperate || paths == null || paths.Count == 0) return;
-            if (!_settings.Transfer.IsConfigured)
-            {
-                ShowFtpSettings();
-                if (!_settings.Transfer.IsConfigured) return;
-            }
             FileBrowser b = _browser;
+            CardConfig card = _card;
             string target = destDir ?? b.Current.Path;
 
             // Aynı adlı öğe varsa sor (yalnız içinde bulunulan klasör için bilinir)
@@ -357,7 +421,11 @@ namespace Vision
                     if (c != 1) return;
                 }
             }
-            await b.UploadAsync(paths, new FtpUploader(_settings.Transfer), _settings.Transfer, null, target);
+            // FTP bilgisi bu karttan (başka kartın bilgisi kullanılmaz)
+            CardFtpCredentials creds = await EnsureCardFtpAsync(false);
+            if (creds == null || card != _card || b != _browser) return;
+            TransferSettings eff = CardTransfer(creds);
+            await b.UploadAsync(paths, new FtpUploader(eff), eff, null, target, _sessionOf(card).FtpCopies);
         }
 
         // ---------- Sürükle-bırak ----------
@@ -413,7 +481,10 @@ namespace Vision
             var files = e.Data.GetData(DataFormats.FileDrop) as string[];
             if (files != null)
             {
-                await UploadPathsAsync(files, folderTarget);
+                // Bırakma işlemi Windows Gezgini'ni bekletir: soru / ilerleme pencereleri bırakma bittikten sonra açılmalı.
+                // Yükleme bu yüzden bir sonraki mesaj döngüsüne ertelenir (Gezgin hemen serbest kalır).
+                string[] copy = files.ToArray();
+                BeginInvoke(new Action(async () => await UploadPathsAsync(copy, folderTarget)));
                 return;
             }
             var dragged = e.Data.GetData(InternalDragFormat) as FsEntry;
@@ -437,7 +508,12 @@ namespace Vision
             {
                 if (!CanOperate) return;
                 var files = e.Data.GetData(DataFormats.FileDrop) as string[];
-                if (files != null) { await UploadPathsAsync(files, target.Path); return; }
+                if (files != null)
+                {
+                    string[] copy = files.ToArray();
+                    BeginInvoke(new Action(async () => await UploadPathsAsync(copy, target.Path)));
+                    return;
+                }
                 var dragged = e.Data.GetData(InternalDragFormat) as FsEntry;
                 if (dragged != null) await _browser.TransferAsync(dragged, target.Path, (e.KeyState & 8) != 0);
             };

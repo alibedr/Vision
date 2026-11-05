@@ -12,7 +12,7 @@ namespace Vision
     /// terminal çıktısı ve komut satırı. Bağlantının sahibi değildir; CardSession'ı gösterir.
     /// Kapatmak bağlantıyı kesmez.
     /// </summary>
-    public sealed class CardView : UserControl
+    public sealed partial class CardView : UserControl
     {
         // Satır sınırına ek güvenlik: satır sonu içermeyen çok uzun akışlarda bellek sınırı
         private const int MaxOutputChars = 4000000;
@@ -43,7 +43,7 @@ namespace Vision
         };
 
         private readonly Panel _outputHost = new Panel { Dock = DockStyle.Fill, BackColor = Theme.Input, Padding = new Padding(8, 6, 4, 4) };
-        private readonly RichTextBox _output = new RichTextBox
+        private readonly RichTextBox _output = new TerminalBox
         {
             Dock = DockStyle.Fill,
             ReadOnly = true,
@@ -65,6 +65,8 @@ namespace Vision
         private readonly Label _prompt = Theme.MakeLabel("›", Theme.UiBold, Theme.Accent);
         private readonly TextBox _input = new TextBox { BorderStyle = BorderStyle.None, Font = Theme.Mono };
         private readonly IconButton _sendBtn = new IconButton(IconKind.Send, IconTone.Primary);
+        private readonly Panel _quickGap = new Panel { Dock = DockStyle.Right, Width = 6, BackColor = Color.Transparent };
+        private readonly Panel _rebootGap = new Panel { Dock = DockStyle.Right, Width = 6, BackColor = Color.Transparent };
 
         private bool _selected;
         private bool _maximized;
@@ -82,8 +84,13 @@ namespace Vision
             BuildHeader();
             BuildInput();
             BuildOutput();
+            BuildActions();
+            ((TerminalBox)_output).ZoomWheel = OnTerminalZoomWheel;
 
+            // Alttan yukarı: komut satırı, dönüş değerleri çubuğu, (açıksa) dönüş listesi, terminal
             Controls.Add(_outputHost);
+            Controls.Add(_respPanel);
+            Controls.Add(_respBar);
             Controls.Add(_inputBar);
             Controls.Add(_stateStrip);
             Controls.Add(_header);
@@ -149,12 +156,12 @@ namespace Vision
             _rx.Font = new Font("Consolas", 7.5f, FontStyle.Bold);
             _tx.Font = _rx.Font;
 
-            foreach (var b in new IconButton[] { _connectBtn, _clearBtn, _maxBtn, _closeBtn })
+            foreach (var b in new IconButton[] { _connectBtn, _snapBtn, _clearBtn, _maxBtn, _closeBtn })
             {
                 b.Height = 26;
                 b.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             }
-            foreach (var b in new IconButton[] { _connectBtn, _clearBtn, _maxBtn, _closeBtn }) b.Width = 28;
+            foreach (var b in new IconButton[] { _connectBtn, _snapBtn, _clearBtn, _maxBtn, _closeBtn }) b.Width = 28;
 
             _tips.SetToolTip(_uptime, "Bağlantı süresi (bağlantı kurulduğu andan itibaren)");
             _clearBtn.SetTip(_tips, "Temizle — ekranı ve geçmişi temizler");
@@ -164,7 +171,7 @@ namespace Vision
             _tips.SetToolTip(_rx, "Veri alınıyor");
             _tips.SetToolTip(_tx, "Veri gönderiliyor");
 
-            _header.Controls.AddRange(new Control[] { _title, _subtitle, _uptime, _rx, _tx, _connectBtn, _clearBtn, _maxBtn, _closeBtn });
+            _header.Controls.AddRange(new Control[] { _title, _subtitle, _uptime, _rx, _tx, _connectBtn, _snapBtn, _clearBtn, _maxBtn, _closeBtn });
             _header.Resize += (s, e) => LayoutHeader();
             LayoutHeader();
 
@@ -185,6 +192,7 @@ namespace Vision
             int w = _header.Width;
             // İkonlar az yer kaplar; çok dar kartlarda önce RX/TX, sonra süre gizlenir
             _clearBtn.Visible = w >= 300;
+            _snapBtn.Visible = w >= 290;
             _rx.Visible = _tx.Visible = w >= 380;
             _uptime.Visible = w >= 330;
 
@@ -192,6 +200,7 @@ namespace Vision
             x -= _closeBtn.Width; _closeBtn.Location = new Point(x, 6);
             x -= _maxBtn.Width + 2; _maxBtn.Location = new Point(x, 6);
             if (_clearBtn.Visible) { x -= _clearBtn.Width + 2; _clearBtn.Location = new Point(x, 6); }
+            if (_snapBtn.Visible) { x -= _snapBtn.Width + 2; _snapBtn.Location = new Point(x, 6); }
             x -= _connectBtn.Width + 2; _connectBtn.Location = new Point(x, 6);
             if (_rx.Visible)
             {
@@ -213,7 +222,7 @@ namespace Vision
             _outputHost.Controls.Add(_output);
             Theme.ApplyDarkScrollBars(_output);
 
-            _outputHost.Resize += (s, e) => { if (_newLinesPill.Visible) PlacePill(); PlaceBanner(); };
+            _outputHost.Resize += (s, e) => { if (_newLinesPill.Visible) PlacePill(); PlaceBanner(); PlaceToast(); };
             _dropBanner.Click += (s, e) => _dropBanner.Visible = false;   // tıklayınca gizlenir (kırmızı şerit kalır)
             _newLinesPill.Click += (s, e) => { ScrollToEnd(); _indicator.OnClick(); SyncPill(); _output.Focus(); };
             // Yalnız KULLANICININ kaydırması göstergeyi kapatır. Metin eklerken programın yaptığı geçici kaymalar
@@ -244,9 +253,17 @@ namespace Vision
             _sendBtn.SetTip(_tips, "Gönder (Enter)");
             var gap = new Panel { Dock = DockStyle.Right, Width = 6, BackColor = Color.Transparent };
 
+            // Sağdan sola: [Gönder] [reboot ⇄] [⚡ hızlı komut] [komut satırı]
+            _quickBtn.Dock = DockStyle.Right;
+            _rebootBtn.Dock = DockStyle.Right;
             _inputBar.Controls.Add(field);
+            _inputBar.Controls.Add(_quickGap);
+            _inputBar.Controls.Add(_quickBtn);
+            _inputBar.Controls.Add(_rebootGap);
+            _inputBar.Controls.Add(_rebootBtn);
             _inputBar.Controls.Add(gap);
             _inputBar.Controls.Add(_sendBtn);
+            _inputBar.Resize += (s, e) => LayoutInputActions();
 
             // Enter tuşu YALNIZCA burada işlenir (tek işleyici). SuppressKeyPress, TextBox'ın
             // kendi Enter işlemesini ve uyarı sesini engeller; formda AcceptButton yoktur.
@@ -303,6 +320,7 @@ namespace Vision
 
             if (Session.State != _shownState) RefreshState();
             RefreshUptime();
+            RefreshResponses();
             CheckReachedBottom();
             if (_appliedMaxLines != Session.MaxLines) ApplyLineLimitNow();   // ayar değişti: hemen uygula
         }
@@ -338,6 +356,7 @@ namespace Vision
             _connectBtn.Tone = live ? IconTone.Danger : IconTone.Success;
             _connectBtn.SetTip(_tips, live ? ConnectionAction.DisconnectLabel + " (yalnız bu kart)" : ConnectionAction.ConnectLabel + " (yalnız bu kart)");
             _sendBtn.Enabled = st == CardState.Connected;
+            RefreshActionButtons();
             _prompt.ForeColor = st == CardState.Connected ? Theme.Accent : Theme.TextFaint;
 
             // Bağlı değilken kart ekranda olsa da bunu açıkça göster
@@ -810,6 +829,9 @@ namespace Vision
             {
                 Session.DetachView();
                 _tips.Dispose();
+                _toastTimer.Dispose();
+                _rebootCooldown.Dispose();
+                _quickMenu.Dispose();
                 if (_alertFont != null) _alertFont.Dispose();
             }
             base.Dispose(disposing);

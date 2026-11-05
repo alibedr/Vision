@@ -129,10 +129,14 @@ namespace Vision
     /// </summary>
     public static class CommandBroadcaster
     {
-        public static async Task<BroadcastResult> SendToAllAsync(IList<CardSession> targets, string command)
+        /// <summary>
+        /// Komutu her hedef karta TAM BİR KEZ gönderir (aynı oturum listede iki kez olsa da). Kartlar birbirini
+        /// beklemez; bir kartın hatası diğerlerine gönderimi engellemez (her kartın sonucu ayrı raporlanır).
+        /// </summary>
+        public static async Task<BroadcastResult> SendToAllAsync(IList<CardSession> targets, string command, string source = "genel komut")
         {
             var result = new BroadcastResult();
-            var tasks = targets.Distinct().Select(s => SendOneAsync(s, command)).ToList();
+            var tasks = targets.Where(t => t != null).Distinct().Select(s => SendOneAsync(s, command, source)).ToList();
             KeyValuePair<CardSession, string>[] outcomes = await Task.WhenAll(tasks).ConfigureAwait(false);
             foreach (var o in outcomes)
             {
@@ -143,13 +147,13 @@ namespace Vision
         }
 
         // Value == null → başarılı; değilse hata nedeni
-        private static async Task<KeyValuePair<CardSession, string>> SendOneAsync(CardSession s, string command)
+        private static async Task<KeyValuePair<CardSession, string>> SendOneAsync(CardSession s, string command, string source)
         {
             if (s.State != CardState.Connected)
                 return new KeyValuePair<CardSession, string>(s, "bağlı değil");
             try
             {
-                await s.SendCommandAsync(command).ConfigureAwait(false);
+                await s.SendCommandAsync(command, source).ConfigureAwait(false);
                 return new KeyValuePair<CardSession, string>(s, null);
             }
             catch (Exception ex)
@@ -157,6 +161,39 @@ namespace Vision
                 ErrorText.LogTechnical(s.Card.DisplayName + " genel komut", ex);
                 return new KeyValuePair<CardSession, string>(s, ErrorText.Describe(ex));
             }
+        }
+    }
+
+    /// <summary>
+    /// Yanlışlıkla art arda çalıştırmayı önler (ör. reboot düğmesine iki kez basmak): aynı anahtar için
+    /// süre dolmadan ikinci deneme reddedilir. Arayüzden bağımsızdır (test edilebilir).
+    /// </summary>
+    public sealed class RepeatGuard
+    {
+        private readonly Dictionary<object, DateTime> _last = new Dictionary<object, DateTime>();
+        private readonly TimeSpan _window;
+
+        public RepeatGuard(TimeSpan window)
+        {
+            _window = window;
+        }
+
+        /// <summary>true: çalıştırılabilir (zaman kaydedilir); false: az önce çalıştırıldı.</summary>
+        public bool TryEnter(object key, DateTime nowUtc)
+        {
+            DateTime last;
+            if (_last.TryGetValue(key, out last) && nowUtc - last < _window) return false;
+            _last[key] = nowUtc;
+            return true;
+        }
+
+        /// <summary>Kalan bekleme süresi (yoksa sıfır).</summary>
+        public TimeSpan Remaining(object key, DateTime nowUtc)
+        {
+            DateTime last;
+            if (!_last.TryGetValue(key, out last)) return TimeSpan.Zero;
+            TimeSpan left = _window - (nowUtc - last);
+            return left > TimeSpan.Zero ? left : TimeSpan.Zero;
         }
     }
 }

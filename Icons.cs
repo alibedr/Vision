@@ -11,6 +11,7 @@ namespace Vision
         Back, Refresh, NewFolder, Upload, Settings, SidebarHide, SidebarShow, Folder,
         Plus, Search, Edit, Trash, Copy, Check, ChevronRight, ChevronDown, Module, ExpandAll, CollapseAll,
         ChevronUp, Warning, Info, Terminal, Book, Home, Clock, Dot,
+        Save, Bolt, Power, Swap, Minus, Return,
     }
 
     /// <summary>
@@ -200,6 +201,37 @@ namespace Vision
                         g.DrawLines(pen, new[] { P(8f, 4.2f), P(8f, 13.4f) });
                         g.DrawLines(pen, new[] { P(8f, 4.2f), P(5.6f, 3f), P(1.6f, 3f), P(1.6f, 12.2f), P(5.6f, 12.2f), P(8f, 13.4f) });
                         g.DrawLines(pen, new[] { P(8f, 4.2f), P(10.4f, 3f), P(14.4f, 3f), P(14.4f, 12.2f), P(10.4f, 12.2f), P(8f, 13.4f) });
+                        break;
+
+                    case IconKind.Save:      // disket
+                        g.DrawLines(pen, new[] { P(2.2f, 2.2f), P(11.4f, 2.2f), P(13.8f, 4.6f), P(13.8f, 13.8f), P(2.2f, 13.8f), P(2.2f, 2.2f) });
+                        g.DrawLines(pen, new[] { P(5f, 2.4f), P(5f, 5.8f), P(10.4f, 5.8f), P(10.4f, 2.4f) });
+                        DrawRoundRect(g, pen, 4.6f, 8.8f, 6.8f, 5f, 0.6f);
+                        break;
+
+                    case IconKind.Bolt:      // şimşek (hızlı komut)
+                        g.DrawPolygon(pen, new[] { P(9.4f, 1.6f), P(3.4f, 9f), P(7.6f, 9f), P(6.6f, 14.4f), P(12.6f, 7f), P(8.4f, 7f) });
+                        break;
+
+                    case IconKind.Power:     // güç (yeniden başlat)
+                        g.DrawArc(pen, 2.6f, 3f, 10.8f, 10.8f, -50, 280);
+                        g.DrawLine(pen, 8f, 1.8f, 8f, 7.8f);
+                        break;
+
+                    case IconKind.Swap:      // iki yönlü değiştir
+                        g.DrawLine(pen, 3f, 5.2f, 12.6f, 5.2f);
+                        g.DrawLines(pen, new[] { P(10f, 2.6f), P(12.6f, 5.2f), P(10f, 7.8f) });
+                        g.DrawLine(pen, 13f, 10.8f, 3.4f, 10.8f);
+                        g.DrawLines(pen, new[] { P(6f, 8.2f), P(3.4f, 10.8f), P(6f, 13.4f) });
+                        break;
+
+                    case IconKind.Minus:
+                        g.DrawLine(pen, 3f, 8f, 13f, 8f);
+                        break;
+
+                    case IconKind.Return:    // dönüş oku (↩)
+                        g.DrawLines(pen, new[] { P(13.4f, 3f), P(13.4f, 8.6f), P(3.4f, 8.6f) });
+                        g.DrawLines(pen, new[] { P(6.4f, 5.6f), P(3.4f, 8.6f), P(6.4f, 11.6f) });
                         break;
 
                     case IconKind.Clock:

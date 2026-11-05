@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace Vision
@@ -45,7 +47,11 @@ namespace Vision
         };
         private readonly CheckBox _echo = new ToggleSwitch { Text = "Yerel eko" };
         private readonly CheckBox _timestamp = new ToggleSwitch { Text = "Zaman damgası" };
-        private readonly CheckBox _log = new ToggleSwitch { Text = "Dosyaya kaydet" };
+        private readonly CheckBox _separate = new ToggleSwitch { Text = "Dönüş değerlerini ayır" };
+        // Ortak terminal yakınlaştırması: [−] [%100] [+]
+        private readonly IconButton _zoomOut = new IconButton(IconKind.Minus, IconTone.Ghost) { IconSize = 14 };
+        private readonly IconButton _zoomIn = new IconButton(IconKind.Plus, IconTone.Ghost) { IconSize = 14 };
+        private readonly IconButton _zoomReset = new IconButton(IconKind.None, IconTone.Ghost);
         private readonly NumericUpDown _maxLines = new NumericUpDown
         {
             Minimum = AppSettings.MinTerminalLines,
@@ -82,6 +88,8 @@ namespace Vision
             ConfigStore.MigrateIfMissing(_configPath);   // eski %APPDATA% ayarları ilk açılışta Konfig'e kopyalanır
             _config = ConfigStore.Load(_configPath);
             if (fallback) _configNote = "Ayarlar %APPDATA% içinde (exe klasöründeki Konfig'e yazılamadı)";
+            // FTP bilgisi artık her karttan otomatik alınır: eski sürümlerde elle girilmiş parola dosyada tutulmaz
+            if (_config.Settings.Transfer != null) _config.Settings.Transfer.ClearLegacyCredentials();
 
             Text = AppInfo.Name + "  —  " + AppInfo.Author;
             if (Theme.AppIcon != null) Icon = Theme.AppIcon;
@@ -95,7 +103,7 @@ namespace Vision
 
             _explorer = new CardExplorer(_config.Groups, StateOf, IsOpen) { Dock = DockStyle.Fill };
             // Genel komut çubuğunun hedefi: yalnız çalışma alanında açık olan kartlar
-            _globalBar = new GlobalCommandBar(() => _grid.Views.Select(v => v.Session).ToList()) { Dock = DockStyle.Bottom };
+            _globalBar = new GlobalCommandBar(() => _grid.Views.Select(v => v.Session).ToList(), _config.Settings, SaveConfig) { Dock = DockStyle.Bottom };
             // Dosya gezgini kartların MEVCUT oturumlarını kullanır (GetSession); ayrı bağlantı açmaz
             _fileExplorer = new FileExplorerView(() => _config.Groups.SelectMany(g => g.Cards).ToList(), GetSession, _config.Settings, SaveConfig)
             {
@@ -111,6 +119,8 @@ namespace Vision
             BuildLayout();
             LoadSettingsToUi();
             WireEvents();
+            _grid.ApplyZoom(_config.Settings.TerminalZoom);
+            UpdateZoomUi();
 
             // Periyodik bağlantı izleme: tek zamanlayıcı, tüm kartlar (yeni bağlantı açmaz)
             _monitor = new ConnectionMonitor(() => _sessionSnapshot, _config.Settings.Monitor.MonitorTickMs);
@@ -154,7 +164,7 @@ namespace Vision
             _lineEnd.DrawItem += LineEnd_DrawItem;
             ((DarkComboBox)_lineEnd).ClosedText = o => ((LineEndingOption)o).Short;
             _lineEnd.Margin = new Padding(0, 4, 12, 0);
-            foreach (var cb in new[] { _echo, _timestamp, _log })
+            foreach (var cb in new[] { _echo, _timestamp, _separate })
             {
                 Theme.StyleCheck(cb);
                 cb.Margin = new Padding(0, 5, 14, 0);
@@ -167,7 +177,14 @@ namespace Vision
             _closeAllBtn.Margin = new Padding(0, 1, 0, 0);
             // Gruplar arasında ince ayraç: [satır sonu] | [eko · zaman damgası · kayıt] | [satır sınırı] | [tümünü kapat]
             Func<Control> sep = () => new Panel { Width = 1, Height = 22, BackColor = Theme.Border, Margin = new Padding(4, 6, 16, 0) };
-            options.Controls.AddRange(new Control[] { lineLabel, _lineEnd, sep(), _echo, _timestamp, _log, sep(), maxLinesLabel, _maxLines, sep(), _closeAllBtn });
+            var zoomLabel = Theme.MakeLabel("Yazı", Theme.Ui, Theme.TextMuted);
+            zoomLabel.Margin = new Padding(0, 8, 2, 0);
+            _zoomOut.Size = _zoomIn.Size = new Size(26, 28);
+            _zoomReset.Size = new Size(50, 28);
+            _zoomReset.Font = Theme.Ui;
+            _zoomOut.Margin = _zoomIn.Margin = _zoomReset.Margin = new Padding(0, 2, 0, 0);
+            _zoomIn.Margin = new Padding(0, 2, 12, 0);
+            options.Controls.AddRange(new Control[] { lineLabel, _lineEnd, sep(), _echo, _timestamp, _separate, sep(), maxLinesLabel, _maxLines, sep(), zoomLabel, _zoomOut, _zoomReset, _zoomIn, sep(), _closeAllBtn });
 
             var tips = new DarkToolTip();
             tips.SetToolTip(_echo, "Gönderilen komutları kart ekranında göster");
@@ -178,7 +195,11 @@ namespace Vision
                 "LF: Yalnız Yeni satır (\\n) — Linux/Unix tarzı cihazlar.\n" +
                 "Yok: Hiçbir şey eklenmez — metin olduğu gibi gider.");
             tips.SetToolTip(_timestamp, "Gelen her satırın başına saat ekle");
-            tips.SetToolTip(_log, "Her kartın akışını logs klasörüne kaydet");
+            tips.SetToolTip(_separate, "Açık: komutların dönüş değerleri (\"value = …\", \"task spawned …\") canlı loglarla karışmaz;\n" +
+                                       "her kartın altındaki \"Dönüş\" panelinde komutla birlikte gösterilir.\nKapalı: eskisi gibi terminalde görünür.");
+            _zoomOut.SetTip(tips, "Tüm kart terminallerinde yazıyı küçült  (Ctrl + −  ya da  Ctrl + tekerlek)");
+            _zoomIn.SetTip(tips, "Tüm kart terminallerinde yazıyı büyüt  (Ctrl + +  ya da  Ctrl + tekerlek)");
+            _zoomReset.SetTip(tips, "Ortak yakınlaştırma — tıklayınca varsayılana (%100) döner  (Ctrl + 0)");
             string maxTip = "Her kartın terminalinde tutulacak en fazla satır (varsayılan " + AppSettings.DefaultMaxTerminalLines + ").\n" +
                             "Sınır aşılınca en eski satırlar silinir, yeni çıktı gelmeye devam eder.\n" +
                             "Tüm kartlara hemen uygulanır.  (" + AppSettings.MinTerminalLines + " – " + AppSettings.MaxTerminalLinesLimit.ToString("N0") + ")";
@@ -297,10 +318,16 @@ namespace Vision
             _explorer.ConfigChanged += SaveConfig;
 
             _grid.ViewsChanged += (s, e) => { UpdateWorkspaceTitle(); _globalBar.UpdateTargets(); _statesDirty = true; };
+            _grid.ZoomWheel += step => ChangeZoom(step);
+            _grid.CardConfigChanged += card => SaveConfig();
+            _zoomOut.Click += (s, e) => ChangeZoom(-1);
+            _zoomIn.Click += (s, e) => ChangeZoom(+1);
+            _zoomReset.Click += (s, e) => SetZoom(AppSettings.DefaultTerminalZoom);
+            _globalBar.SaveSnapshotsRequested += async () => await SaveAllSnapshotsAsync();
             _closeAllBtn.Click += (s, e) => _grid.CloseAll();
 
             _lineEnd.SelectedIndexChanged += (s, e) => SaveSettingsFromUi();
-            foreach (var cb in new[] { _echo, _timestamp, _log })
+            foreach (var cb in new[] { _echo, _timestamp, _separate })
                 cb.CheckedChanged += (s, e) => SaveSettingsFromUi();
             _maxLines.ValueChanged += (s, e) => SaveSettingsFromUi();
 
@@ -366,6 +393,15 @@ namespace Vision
             {
                 e.SuppressKeyPress = true;
                 _grid.Close(_grid.SelectedView);
+            }
+            else if (e.Control && !e.Alt && _activeTab == MainTab.Workspace &&
+                     (e.KeyCode == Keys.Oemplus || e.KeyCode == Keys.Add || e.KeyCode == Keys.OemMinus || e.KeyCode == Keys.Subtract ||
+                      e.KeyCode == Keys.D0 || e.KeyCode == Keys.NumPad0))
+            {
+                // Ortak terminal yakınlaştırması: Ctrl + "+" / "−" / "0"
+                e.SuppressKeyPress = true;
+                if (e.KeyCode == Keys.D0 || e.KeyCode == Keys.NumPad0) SetZoom(AppSettings.DefaultTerminalZoom);
+                else ChangeZoom(e.KeyCode == Keys.Oemplus || e.KeyCode == Keys.Add ? +1 : -1);
             }
         }
 
@@ -506,6 +542,62 @@ namespace Vision
             UpdateStatus();
         }
 
+        // ---------- Ortak terminal yakınlaştırması ----------
+
+        /// <summary>Bir adım büyütür (+1) / küçültür (-1). Tüm kartlar aynı orana geçer.</summary>
+        private void ChangeZoom(int step)
+        {
+            SetZoom(AppSettings.StepZoom(_config.Settings.TerminalZoom, step));
+        }
+
+        private void SetZoom(float zoom)
+        {
+            zoom = AppSettings.ClampZoom(zoom);
+            bool changed = Math.Abs(zoom - _config.Settings.TerminalZoom) > 0.001f;
+            _config.Settings.TerminalZoom = zoom;
+            _grid.ApplyZoom(zoom);                 // merkezi değer: açık kartların hepsi + sonradan açılanlar
+            UpdateZoomUi();
+            if (changed) SaveConfig();
+        }
+
+        private void UpdateZoomUi()
+        {
+            float z = _config.Settings.TerminalZoom;
+            _zoomReset.Label = "%" + (int)Math.Round(z * 100);
+            _zoomOut.Enabled = z > AppSettings.MinTerminalZoom + 0.001f;
+            _zoomIn.Enabled = z < AppSettings.MaxTerminalZoom - 0.001f;
+        }
+
+        // ---------- Genel anlık kayıt ----------
+
+        /// <summary>
+        /// Genel komut çubuğunun hedefi olan (ekrandaki) kartların terminal içeriğini AYNI ANDA alır ve her kartı
+        /// kendi dosyasına kaydeder. Ekranda olmayan kartlar kaydedilmez; bir kartın hatası diğerlerini durdurmaz.
+        /// </summary>
+        private async Task SaveAllSnapshotsAsync()
+        {
+            List<CardView> views = _grid.Views.ToList();
+            if (views.Count == 0) { _globalBar.ShowResult("Ekranda kart yok — kaydedilecek terminal yok.", Theme.Warning, null); return; }
+            DateTime at = DateTime.Now;
+            var captured = views.Select(v => new { Card = v.Session.Card, Text = v.CaptureTerminalText() }).ToList();   // tıklama anı
+            SnapshotResult[] results = await Task.WhenAll(captured.Select(c => TerminalSnapshot.SaveAsync(c.Card, c.Text, at)));
+            int ok = results.Count(r => r.Ok);
+            var failed = results.Where(r => !r.Ok).Select(r => r.Card.Label + " (" + r.Error + ")").ToList();
+            string folder = TerminalSnapshot.DefaultFolder;
+            string detail = string.Join("\n", results.Select(r => (r.Ok ? "✓ " + r.Card.Label + " → " + Path.GetFileName(r.Path) : "✕ " + r.Card.Label + ": " + r.Error)));
+            if (failed.Count == 0)
+                _globalBar.ShowResult("✓  " + ok + " kartın terminali ayrı dosyalara kaydedildi (logs)", Theme.Success, detail + "\n\nKlasör: " + folder);
+            else if (ok == 0)
+                _globalBar.ShowResult("✕  Hiçbir kart kaydedilemedi: " + string.Join(", ", failed), Theme.Danger, detail);
+            else
+                _globalBar.ShowResult("⚠  " + ok + "/" + results.Length + " kart kaydedildi · kaydedilemedi: " + string.Join(", ", failed), Theme.Warning, detail);
+            foreach (CardView v in views)
+            {
+                SnapshotResult r = results.FirstOrDefault(x => x.Card == v.Session.Card);
+                if (r != null) v.ShowToast(r.Ok ? "✓  Kaydedildi: " + Path.GetFileName(r.Path) + "  (klasörü açmak için tıklayın)" : "✕  Kaydedilemedi: " + r.Error, r.Ok, r.Path);
+            }
+        }
+
         private bool Confirm(string message, string title)
         {
             return ChoiceDialog.Ask(this, title, message, null, new[] { "Vazgeç", "Evet" }, 0, 1) == 1;
@@ -528,7 +620,7 @@ namespace Vision
             }
             _echo.Checked = s.LocalEcho;
             _timestamp.Checked = s.Timestamp;
-            _log.Checked = s.LogToFile;
+            _separate.Checked = s.SeparateReturnValues;
             _maxLines.Value = Math.Max(_maxLines.Minimum, Math.Min(_maxLines.Maximum, s.MaxTerminalLines));
             _loadingSettings = false;
         }
@@ -546,7 +638,10 @@ namespace Vision
             }
             s.LocalEcho = _echo.Checked;
             s.Timestamp = _timestamp.Checked;
-            s.LogToFile = _log.Checked;
+            bool separateChanged = s.SeparateReturnValues != _separate.Checked;
+            s.SeparateReturnValues = _separate.Checked;
+            if (separateChanged)
+                foreach (CardSession cs in _sessions.Values) cs.SetResponseSeparation(s.SeparateReturnValues);
             int maxLines = (int)_maxLines.Value;
             if (s.MaxTerminalLines != maxLines)
             {

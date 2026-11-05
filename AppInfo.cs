@@ -8,8 +8,12 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyProduct("Vision")]
 [assembly: AssemblyCopyright("© 2026 Ali Bedir")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.2.0.0")]
-[assembly: AssemblyFileVersion("1.2.0.0")]
+// Kullanıcıya görünen sürüm resmî yayına kadar 1.0 kalır. Geliştirme derleme numarası yalnız iç kullanım içindir
+// (dosya özelliklerinde ve arayüzde gösterilmez); her yeni geliştirme derlemesinde bir artırılır.
+[assembly: AssemblyVersion("1.0.0.0")]
+[assembly: AssemblyFileVersion("1.0.0.0")]
+[assembly: AssemblyInformationalVersion("1.0")]
+[assembly: AssemblyMetadata("GelistirmeDerlemesi", "4")]
 
 namespace Vision
 {
@@ -23,7 +27,14 @@ namespace Vision
         /// </summary>
         public const string DataFolder = "TelnetCards";
         public const string Tagline = "Kart terminali, çoklu kart izleme ve kart dosya gezgini";
-        public const string Version = "1.2";
+        /// <summary>Kullanıcıya görünen sürüm. Resmî yayın istenene kadar değiştirilmez.</summary>
+        public const string Version = "1.0";
+
+        /// <summary>
+        /// İç geliştirme derleme numarası (artan). Arayüzde gösterilmez. Geçmiş: 1 = ilk sürüm (v1.0 etiketi),
+        /// 2 = Vision adı (v1.1), 3 = cihaz süzme + simge (v1.2), 4 = kart yönetimi iyileştirmeleri.
+        /// </summary>
+        internal const int DevBuild = 4;
         public const string Author = "Ali Bedir";
         public const string Year = "2026";
 

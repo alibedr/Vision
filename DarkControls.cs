@@ -137,8 +137,15 @@ namespace Vision
         {
             IconKind kind; string body;
             if (!Split(out kind, out body)) return base.GetPreferredSize(proposedSize);
+            int extra = Padding.Horizontal + IconPx + IconGap + 2 + (Closable ? 28 : 0);
             Size ts = TextRenderer.MeasureText(body, Font, Size.Empty, TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding);
-            return new Size(Padding.Horizontal + IconPx + IconGap + ts.Width + 2 + (Closable ? 28 : 0), Math.Max(ts.Height, IconPx) + Padding.Vertical + 2);
+            if (AutoSize && MaximumSize.Width > 0 && ts.Width + extra > MaximumSize.Width)
+            {
+                // Genişlik sınırı var: satıra böl (simge ilk satırın hizasında kalır)
+                int w = Math.Max(40, MaximumSize.Width - extra);
+                ts = TextRenderer.MeasureText(body, Font, new Size(w, 0), TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding | TextFormatFlags.WordBreak);
+            }
+            return new Size(extra + ts.Width, Math.Max(ts.Height, IconPx) + Padding.Vertical + 2);
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -147,7 +154,8 @@ namespace Vision
             if (!Split(out kind, out body) && !Closable) { base.OnPaint(e); return; }
             Graphics g = e.Graphics;
             Rectangle r = new Rectangle(Padding.Left, Padding.Top, Width - Padding.Horizontal - (Closable ? 28 : 0), Height - Padding.Vertical);
-            bool middle = TextAlign == ContentAlignment.MiddleLeft || TextAlign == ContentAlignment.MiddleCenter || TextAlign == ContentAlignment.MiddleRight || AutoSize;
+            bool multiLine = AutoSize && Height > Font.Height + Padding.Vertical + 6;
+            bool middle = !multiLine && (TextAlign == ContentAlignment.MiddleLeft || TextAlign == ContentAlignment.MiddleCenter || TextAlign == ContentAlignment.MiddleRight || AutoSize);
             int size = IconPx;
             int x = r.X;
             if (kind != IconKind.None)
@@ -313,6 +321,108 @@ namespace Vision
                 }
             }
             catch (Exception) { }
+        }
+    }
+
+    /// <summary>
+    /// İki bölmeli düğme: sol bölme seçili işlemi ÇALIŞTIRIR (ör. "reboot 2"), sağdaki küçük bölme yalnız seçimi
+    /// DEĞİŞTİRİR (çalıştırmaz). Seçili seçenek her zaman düğmenin üzerinde yazar.
+    /// </summary>
+    public sealed class SplitActionButton : Control
+    {
+        private const int ToggleWidth = 24;
+        private bool _hoverMain, _hoverToggle, _pressed;
+        private string _text = "";
+        private IconKind _icon = IconKind.None;
+        private Color _iconColor = Theme.Danger;
+
+        public SplitActionButton()
+        {
+            SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer |
+                     ControlStyles.ResizeRedraw | ControlStyles.Selectable, true);
+            Cursor = Cursors.Hand;
+            Font = Theme.Ui;
+            Size = new Size(100, 28);
+            TabStop = true;
+        }
+
+        /// <summary>Sol bölme: seçili işlem çalışır.</summary>
+        public event EventHandler MainClick;
+        /// <summary>Sağ bölme: seçim değişir (hiçbir şey çalıştırılmaz).</summary>
+        public event EventHandler ToggleClick;
+
+        public string MainText { get { return _text; } set { _text = value ?? ""; AccessibleName = _text; Invalidate(); } }
+        public IconKind MainIcon { get { return _icon; } set { _icon = value; Invalidate(); } }
+        public Color IconColor { get { return _iconColor; } set { _iconColor = value; Invalidate(); } }
+
+        public override Size GetPreferredSize(Size proposedSize)
+        {
+            Size ts = TextRenderer.MeasureText(_text, Font, Size.Empty, TextFormatFlags.NoPadding);
+            return new Size(10 + (_icon == IconKind.None ? 0 : 22) + ts.Width + 10 + ToggleWidth, 28);
+        }
+
+        private bool InToggle(int x) { return x >= Width - ToggleWidth; }
+
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
+            base.OnMouseMove(e);
+            bool t = InToggle(e.X);
+            if (_hoverToggle != t || _hoverMain == t) { _hoverToggle = t; _hoverMain = !t; Invalidate(); }
+        }
+        protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); _hoverMain = _hoverToggle = _pressed = false; Invalidate(); }
+        protected override void OnMouseDown(MouseEventArgs e) { base.OnMouseDown(e); if (e.Button == MouseButtons.Left) { _pressed = true; Focus(); Invalidate(); } }
+        protected override void OnMouseUp(MouseEventArgs e)
+        {
+            base.OnMouseUp(e);
+            bool was = _pressed;
+            _pressed = false;
+            Invalidate();
+            if (!was || e.Button != MouseButtons.Left || !Enabled || !ClientRectangle.Contains(e.Location)) return;
+            var h = InToggle(e.X) ? ToggleClick : MainClick;
+            if (h != null) h(this, EventArgs.Empty);
+        }
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            base.OnKeyDown(e);
+            if (!Enabled) return;
+            if (e.KeyCode == Keys.Space || e.KeyCode == Keys.Enter) { e.Handled = true; var h = MainClick; if (h != null) h(this, EventArgs.Empty); }
+            else if (e.KeyCode == Keys.Right || e.KeyCode == Keys.Left || (e.Alt && e.KeyCode == Keys.Down)) { e.Handled = true; var h = ToggleClick; if (h != null) h(this, EventArgs.Empty); }
+        }
+        protected override void OnEnabledChanged(EventArgs e) { base.OnEnabledChanged(e); Invalidate(); }
+        protected override void OnGotFocus(EventArgs e) { base.OnGotFocus(e); Invalidate(); }
+        protected override void OnLostFocus(EventArgs e) { base.OnLostFocus(e); Invalidate(); }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            using (var pb = new SolidBrush(Parent != null ? Parent.BackColor : Theme.Window)) g.FillRectangle(pb, ClientRectangle);
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            var box = new RectangleF(0.5f, 0.5f, Width - 1, Height - 1);
+            using (var path = IconRenderer.RoundRect(box, 5))
+            {
+                using (var b = new SolidBrush(Enabled ? Theme.SurfaceHigh : Theme.Surface)) g.FillPath(b, path);
+                Region old = g.Clip;
+                if (Enabled && (_hoverMain || _hoverToggle))
+                {
+                    var zone = _hoverToggle ? new RectangleF(Width - ToggleWidth, 0, ToggleWidth, Height) : new RectangleF(0, 0, Width - ToggleWidth, Height);
+                    g.SetClip(path); g.SetClip(zone, CombineMode.Intersect);
+                    using (var hb = new SolidBrush(_pressed ? Theme.Border : Theme.Hover)) g.FillRectangle(hb, zone);
+                    g.Clip = old;
+                }
+                using (var p = new Pen(Focused && ShowFocusCues ? Theme.Accent : Theme.Border)) g.DrawPath(p, path);
+            }
+            using (var p = new Pen(Theme.Border)) g.DrawLine(p, Width - ToggleWidth, 5, Width - ToggleWidth, Height - 5);
+
+            Color fore = Enabled ? Theme.Text : Theme.TextFaint;
+            int x = 9;
+            if (_icon != IconKind.None)
+            {
+                IconRenderer.Draw(g, _icon, new RectangleF(x, (Height - 14) / 2f, 14, 14), Enabled ? _iconColor : Theme.TextFaint);
+                x += 21;
+            }
+            TextRenderer.DrawText(g, _text, Font, new Rectangle(x, 0, Width - ToggleWidth - x - 4, Height), fore,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
+            IconRenderer.Draw(g, IconKind.Swap, new RectangleF(Width - ToggleWidth + 5, (Height - 13) / 2f, 13, 13), Enabled ? (_hoverToggle ? Theme.Text : Theme.TextMuted) : Theme.TextFaint);
         }
     }
 }

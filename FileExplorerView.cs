@@ -93,14 +93,15 @@ namespace Vision
             _crumbs.Padding = new Padding(6, 4, 6, 0);
             crumbHost.Controls.Add(_crumbs);
             BuildOperationButtons();
-            nav.Controls.AddRange(new Control[] { _backBtn, _refreshBtn, crumbHost, _newFolderBtn, _uploadBtn, _ftpBtn });
+            nav.Controls.AddRange(new Control[] { _backBtn, _refreshBtn, crumbHost, _newFolderBtn, _uploadBtn, _ftpCopiesBtn, _ftpBtn });
             nav.Resize += (s, e) =>
             {
                 _backBtn.Location = new Point(12, 8);
                 _refreshBtn.Location = new Point(_backBtn.Right + 2, 8);
                 // Sağda: [+ Yeni klasör] [⇪ Yükle…] [FTP ayarları]
                 _ftpBtn.Location = new Point(nav.Width - 12 - _ftpBtn.Width, 8);
-                _uploadBtn.Location = new Point(_ftpBtn.Left - 4 - _uploadBtn.Width, 8);
+                _ftpCopiesBtn.Location = new Point(_ftpBtn.Left - 4 - _ftpCopiesBtn.Width, 8);
+                _uploadBtn.Location = new Point(_ftpCopiesBtn.Left - 4 - _uploadBtn.Width, 8);
                 _newFolderBtn.Location = new Point(_uploadBtn.Left - 4 - _newFolderBtn.Width, 8);
                 crumbHost.SetBounds(_refreshBtn.Right + 10, 8, Math.Max(100, _newFolderBtn.Left - 10 - (_refreshBtn.Right + 10)), 32);
             };
@@ -240,6 +241,12 @@ namespace Vision
                 CardSession session = _sessionOf(card);
                 var b = new FileBrowser(session.ExecuteAsync);   // kartın mevcut oturumu; ayrı bağlantı yok
                 b.Changed += () => { if (b == _browser) RefreshUi(); };
+                // FTP kopyaları listesi değişince (yükleme başladı / silindi) düğme durumu güncellenir
+                session.FtpCopies.Changed += () =>
+                {
+                    if (!IsHandleCreated) return;
+                    try { BeginInvoke(new Action(() => { if (b == _browser) RefreshUi(); })); } catch (InvalidOperationException) { }
+                };
                 _browsers.Add(card, b);
                 _browser = b;
             }

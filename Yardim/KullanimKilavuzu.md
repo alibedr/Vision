@@ -31,10 +31,15 @@ Yer kazanmak için sık kullanılan düğmeler yazı yerine simgeyle gösterilir
 | Sol ok · dönen ok | **Geri** (Backspace) · **Yenile** (F5) | Dosya Gezgini |
 | Artılı klasör · yukarı ok · dişli | **Yeni klasör** · **Yükle** · **FTP ayarları** | Dosya Gezgini |
 | Kenar çubuklu pencere | **Kart Gezgini'ni gizle / göster** (Ctrl+B) | Sekme şeridinin en solu |
+| Disket | **Dosyaya kaydet** (terminalin anlık görüntüsü) | Kart penceresi başlığı · Genel komut çubuğu |
+| Şimşek | **Hızlı komut** (atanmış komutu gönderir) | Kart komut satırı · Genel komut çubuğu |
+| Güç + ⇄ | **reboot / reboot 2** (sol: çalıştır, sağ ⇄: seçimi değiştir) | Kart komut satırı · Genel komut çubuğu |
+| − %100 + | **Yazı** (tüm terminallerin ortak yakınlaştırması) | Telnet ayar çubuğu |
+| Çöp kutusu | **FTP kopyalarını sil** | Dosya Gezgini |
 
 Pasif (o an kullanılamayan) düğmelerin simgesi soluk gri çizilir.
 
-Terminal ayarlarındaki **Yerel eko**, **Zaman damgası** ve **Dosyaya kaydet** açma / kapama anahtarlarıdır: mavi ve sağa kaymışsa açık, gri ise kapalıdır (tıklayarak ya da odaktayken Boşluk tuşuyla değişir).
+Terminal ayarlarındaki **Yerel eko**, **Zaman damgası** ve **Dönüş değerlerini ayır** açma / kapama anahtarlarıdır: mavi ve sağa kaymışsa açık, gri ise kapalıdır (tıklayarak ya da odaktayken Boşluk tuşuyla değişir).
 
 ### Renkler ve okunabilirlik
 
@@ -157,7 +162,43 @@ Aynı anda en fazla **12 kart** gösterilebilir (uygulama sınırı; değiştiri
 | Fiş simgesi | **Bağlantı Kur** (yeşil fiş) / **Bağlantıyı Kes** (kırmızı, üstü çizili fiş): yalnız bu kartın bağlantısını kurar / keser. |
 | Silgi simgesi | **Temizle**: kartın ekranını ve geçmişini temizler. |
 | Kare / ✕ | Büyüt (büyütülmüşken iki kare: eski boyut) / ekrandan kaldır. |
+| Disket simgesi | **Dosyaya kaydet**: terminalde o an görünen içeriği bu kart için ayrı bir dosyaya kaydeder (aşağıya bakın). |
 | Kâğıt uçak (komut satırının sağı) | **Gönder** (Enter ile aynı). |
+| Şimşek düğmesi (komut satırı) | **Hızlı komut**: bu karta atanmış komutu tek tıkla YALNIZ bu karta gönderir (aşağıya bakın). |
+| reboot ⇄ (komut satırı) | Sol bölme seçili komutu (`reboot` ya da `reboot 2`) YALNIZ bu karta gönderir; sağdaki ⇄ yalnız seçimi değiştirir. |
+| **Dönüş** çubuğu (komut satırının üstü) | Komutların dönüş değerleri (`value = …`); tıklayınca liste açılır (aşağıya bakın). |
+
+### Hızlı komut
+
+Her kartın komut satırının sağında bir **hızlı komut** düğmesi (şimşek) vardır.
+
+- İlk tıklamada (komut atanmamışsa) komut sorulur; sonra düğmede komutun kendisi yazar (ör. `i`).
+- Tıklayınca komut **yalnız o karta** gönderilir; diğer kartlar etkilenmez. Her kartın hızlı komutu ayrıdır.
+- **Sağ tık**: hızlı komutu düzenle / kaldır. Komut kartla birlikte `Konfig\config.xml`'e kaydedilir.
+- Kart bağlı değilken düğme pasiftir. Çift tıklama komutu iki kez göndermez.
+- Kart penceresi daraldığında düğme yalnız simge olarak görünür (ipucunda komut yazar); çok dar kartlarda gizlenir.
+
+### reboot / reboot 2
+
+Hızlı komutun yanındaki düğme iki bölmelidir:
+
+- **Sol bölme** (güç simgesi + seçili komut): seçili komutu — `reboot` ya da `reboot 2` — **yalnız bu karta** gönderir.
+- **Sağ bölme (⇄)**: seçimi `reboot` ↔ `reboot 2` arasında değiştirir. **Seçimi değiştirmek hiçbir komut göndermez**; çalıştırmak için her zaman sol bölmeye tıklamak gerekir.
+- Seçili komut düğmenin üzerinde her zaman yazar ve kartla birlikte kaydedilir.
+- Yanlışlıkla art arda tıklamaya karşı: gönderdikten sonra düğme **4 saniye** pasif kalır; bu sürede ikinci kez gönderilmez.
+
+### Komut dönüş değerleri
+
+`sp görev` gibi bir komut çalıştırınca kabuk bir dönüş değeri basar (`task spawned: id = 0x1f2a, name = t1`, `value = 522 = 0x20a`). Canlı loglar akarken bu satırlar terminalin ortasına düşüp okunmayı zorlaştırıyordu. **Dönüş değerlerini ayır** açıkken (varsayılan):
+
+- Bu satırlar terminalden ayrılır; terminalde loglar ve komutun normal çıktısı kesintisiz akar.
+- Kart penceresinin altındaki **Dönüş** çubuğu son komutu ve dönüş değerini gösterir: `Dönüş (12): sp görev → value = 522 = 0x20a · 14:02:11`.
+- Çubuğa tıklayınca bu kartın komut listesi açılır: her komut, gönderildiği saat ve kendi dönüş satırlarıyla birlikte. Hızlı komut, genel komut ya da reboot ile gönderilenler kaynaklarıyla işaretlenir.
+- Silgi simgesi yalnız bu listeyi temizler (terminale dokunmaz). Her kartın listesi ayrıdır.
+
+**Nasıl ayırıyor?** Yalnız siz bir komut gönderdikten sonra ve kabuk yeni istemi (`->`) basana kadar gelen, kabuğun dönüş biçimine **tam uyan** satırlar ayrılır (`value = …`, `task spawned: …`, `new symbol "…" added to … symbol table`). Diğer her satır — loglar, tablolar, `undefined symbol` gibi hata mesajları — terminalde kalır; hiçbir satır kaybolmaz. Komutlar kabukta sırayla çalıştığından her dönüş doğru komutla eşleşir.
+
+**Dönüş değerlerini ayır** kapatılırsa dönüş değerleri eskisi gibi terminalde görünür.
 
 ### Komut satırı
 
@@ -189,13 +230,24 @@ Eski çıktıyı okumak için yukarı kaydırdığınızda ekran yeni veriyle a�
 Telnet sekmesinin altındaki **TÜM AÇIK KARTLARA** çubuğu, yazılan komutu ekranda açık olan tüm kartlara aynı anda gönderir (**Ctrl+G** ile odaklanır).
 
 - Yalnız Telnet sekmesinde açık kartlar komutu alır; listede olup ekranda olmayan kartlar almaz.
+- Her kart komutu **tam bir kez** alır.
 - Bağlı olmayan açık kartlar atlanır ve sonuçta raporlanır: `⚠ 3/4 karta gönderildi · gönderilemedi: 192.168.1.12 (bağlı değil)`.
 - Bir kartın hatası diğer kartlara gönderimi durdurmaz.
 - Kendi komut geçmişi vardır (↑ / ↓). Bu çubuk Kart Dosya Gezgini sekmesinde görünmez.
 
+Gönder düğmesinin yanında, kart penceresindekilerin genel karşılıkları vardır:
+
+| Düğme | İşlev |
+|---|---|
+| **Hızlı komut** (şimşek) | Genel hızlı komutu ekrandaki tüm bağlı kartlara birer kez gönderir. İlk tıklamada komut sorulur; sağ tık: düzenle / kaldır. Kaydedilir. |
+| **reboot ⇄** | Sol: seçili `reboot` / `reboot 2` komutunu ekrandaki tüm bağlı kartlara birer kez gönderir. Sağ ⇄: yalnız seçimi değiştirir (göndermez). Gönderdikten sonra 4 sn pasif. |
+| **Dosyaya kaydet** (disket) | Ekrandaki **her** kartın terminal içeriğini o anda alır ve **her kartı kendi dosyasına** kaydeder (aşağıya bakın). |
+
+Sonuç her zaman çubuğun sağında yazar; kaydetmede ayrıntı (hangi kart hangi dosyaya) ipucundadır.
+
 ## Terminal ayarları
 
-Üç kutucuk ve satır sonu seçimi tüm kartlar için ortaktır, anında geçerli olur ve kaydedilir. Hiçbiri karta gönderilen komutu ya da bağlantıyı etkilemez; yalnız ekranda ne gördüğünüzü ve neyin kaydedildiğini değiştirir.
+Anahtarlar, satır sonu, satır sınırı ve yazı boyutu tüm kartlar için ortaktır, anında geçerli olur ve kaydedilir. Hiçbiri karta gönderilen komutu ya da bağlantıyı etkilemez; yalnız ekranda ne gördüğünüzü ve neyin kaydedildiğini değiştirir.
 
 ### Satır sonu (Enter)
 
@@ -215,7 +267,7 @@ Her kartın terminalinde tutulan en fazla satır sayısı (100 – 100.000). Sı
 - Sınır her karta ayrı uygulanır; Telnet sekmesinde görünmeyen kartların arka plandaki geçmişi de sınırlıdır (bellek şişmez).
 - Değiştirdiğinizde açık ve kapalı tüm kartlara hemen uygulanır.
 - Eski çıktıyı okumak için yukarı kaydırdıysanız, en eski satırlar silinse de okuduğunuz yer korunur; **↓ Yeni Satırlar** göstergesi eskisi gibi çalışır.
-- **Dosyaya kaydet** açıksa log dosyasına tüm akış yazılır; satır sınırı yalnız ekranı etkiler.
+- **Dosyaya kaydet** terminalde o an tutulan satırları (en çok bu sınır kadar) kaydeder.
 
 ### Yerel eko (varsayılan: açık)
 
@@ -223,11 +275,30 @@ Yazdığınız komutu, kart cevap vermeden önce kartın ekranına yazar; komut 
 
 ### Zaman damgası (varsayılan: kapalı)
 
-Ekrana düşen her yeni satırın başına `[14:32:05.123]` biçiminde saat ekler. Saat, satırın bilgisayara ulaştığı andır (kartın saati değil). Yalnız açıldıktan sonra gelen satırlara eklenir; dosyaya kayıt açıksa log'a da yazılır.
+Ekrana düşen her yeni satırın başına `[14:32:05.123]` biçiminde saat ekler. Saat, satırın bilgisayara ulaştığı andır (kartın saati değil). Yalnız açıldıktan sonra gelen satırlara eklenir; anlık kayıtta da görünür.
 
-### Dosyaya kaydet (varsayılan: kapalı)
+### Dönüş değerlerini ayır (varsayılan: açık)
 
-Her kartın ekran akışını exe'nin yanındaki `logs` klasöründe ayrı bir dosyaya yazar: `GrupAdı_IP_tarih_saat.log` (UTF-8, her satır anında diske yazılır). Ekranda görünenin aynısını içerir (eko satırları, `***` bilgi satırları, `!!!` uyarıları, açıksa zaman damgaları). Dosya Gezgini'nin arka planda çalıştırdığı `devs` / `ls` komutları terminale düşmediği için bu dosyaya da yazılmaz.
+Komut dönüş değerlerini canlı loglardan ayırır ve kartın **Dönüş** panelinde gösterir (yukarıda "Komut dönüş değerleri"). Kapalıyken dönüş değerleri eskisi gibi terminalde görünür.
+
+### Yazı (ortak yakınlaştırma, varsayılan: %100)
+
+Ayar çubuğundaki **− %100 +** tüm kart terminallerinin yazı boyutunu **birlikte** değiştirir (%60 – %250). Yüzdeye tıklamak varsayılana (%100) döndürür.
+
+- Yeni açılan kartlar da aynı boyutla açılır; tercih kaydedilir.
+- Bir kartın terminalinde **Ctrl + fare tekerleği** artık yalnız o kartı değil, **tüm kartları** birlikte büyütür / küçültür.
+- Klavye (Telnet sekmesinde): **Ctrl + +** büyüt, **Ctrl + −** küçült, **Ctrl + 0** %100.
+- Kaydırma konumu, seçim ve renkli uyarı satırları korunur; en alttaysanız akışı izlemeye devam edersiniz.
+
+### Dosyaya kaydet (anlık görüntü)
+
+Önceki sürümlerdeki sürekli kayıt anahtarı yerine artık **tıklanan bir kayıt düğmesi** vardır. Sürekli kayıt (açık kaldıkça her satırı yazma) yoktur; eski ayar dosyasında açık kalmışsa açılışta kapatılır.
+
+- **Kart başlığındaki disket**: o kartın terminalinde **tıklandığı anda** görünen içeriğin tamamını (satır sınırında tutulan tüm satırlar) bir dosyaya yazar.
+- **Genel komut çubuğundaki disket**: ekrandaki **her kartın** içeriğini aynı anda alır ve **her kartı kendi dosyasına** kaydeder (çıktılar tek dosyada birleştirilmez). Ekranda olmayan kartlar kaydedilmez. Bir kartın kaydı başarısız olsa da diğerleri kaydedilir; sonuç kart kart raporlanır. Boş terminali olan kart "içerik yok" olarak raporlanır.
+- Dosya: exe'nin yanındaki `logs` klasörü, ad: `GrupAdı_IP[_KartAdı]_anlik_yyyyMMdd_HHmmss_fff.log` (UTF-8). Her tıklama **yeni dosya** oluşturur; var olan dosyanın üzerine yazılmaz.
+- Kaydetme arka planda yapılır: canlı çıktı, komut gönderme ve kaydırma kesilmez. Kartın üstünde yeşil (başarılı) ya da kırmızı (hata) bildirim çıkar; bildirime tıklamak dosyanın klasörünü açar.
+- Dönüş değerleri ayrı paneldedir; kayıt **terminalde görüneni** içerir.
 
 ## Kart Dosya Gezgini
 
@@ -297,26 +368,58 @@ Kart dosyasını bilgisayarınızdaki bir uygulamayla (Notepad++, XML düzenleyi
 
 Yükleme, kartlara dosya atarken elle izlediğiniz yolun aynısını otomatik yapar:
 
-1. Dosya (ya da klasör) **kartın erişebildiği FTP sunucusuna** gönderilir.
+1. Dosya (ya da klasör) **kartın erişebildiği FTP sunucusuna** gönderilir — sunucu, kullanıcı ve parola **o kartın kendisinden** alınır (aşağıya bakın).
 2. Kartta `copy "FTP-konumu/dosya", "hedef/dosya"` (klasörlerde `xcopy`) çalıştırılır.
-3. Dönüş değeri kontrol edilir; isteğe bağlı olarak FTP'deki kopya silinir.
+3. Dönüş değeri kontrol edilir.
 
-Yüklemek için: Windows Gezgini'nden dosyaları listeye **sürükleyip bırakın** (bir klasörün üzerine bırakırsanız o klasöre yüklenir) ya da **Yükle** (yukarı ok simgesi) düğmesini kullanın. Hedefte aynı adlı öğe varsa üzerine yazmadan önce sorulur.
+Yüklemek için: Windows Gezgini'nden dosyaları listeye **sürükleyip bırakın** (bir klasörün üzerine bırakırsanız o klasöre; boş bir klasöre de bırakılabilir) ya da **Yükle** (yukarı ok simgesi) düğmesini kullanın. Hedefte aynı adlı öğe varsa üzerine yazmadan önce sorulur.
 
-### FTP ayarları
+- Hata olursa hangi aşamada olduğu, nedeni, **FTP sunucusunun cevabı** ve adresi birlikte yazılır. Örnek: *imaj.bin: FTP'ye gönderilemedi (FTP klasörüne yazılamadı: kullanıcının bu klasörde yazma izni yok ya da klasör yok — sunucu: 550 Permission denied · ftp://192.168.1.100:21/upload/imaj.bin)*.
+- Adında Türkçe ya da özel karakter (ç, ş, ğ, ü, ö, ı, İ, çift tırnak) olan dosyalar FTP'ye hiç gönderilmeden açıklamayla reddedilir: kartın kabuğu bu adları doğru yazamaz. Dosyayı İngilizce karakterlerle yeniden adlandırın. Boşluk, `#` ve `%` sorun değildir.
+- Pasif kipte FTP veri bağlantısı kurulamazsa gönderim bir kez etkin kiple denenir ve bu bilgi sonuçta yazar.
 
-İlk yüklemeden (ve "Birlikte aç"ta ikili dosyalar için) önce **FTP ayarları** (dişli simgesi) düğmesinden bir kez girin:
+### FTP kopyalarını sil
 
-| Alan | Açıklama | Örnek |
-|---|---|---|
-| FTP sunucusu / Port | Kartın bağlı olduğu FTP sunucusu | `192.168.1.100` / `21` |
-| Kullanıcı adı / Parola | FTP girişi. Parola Windows kullanıcı hesabınıza bağlı olarak şifrelenip saklanır. | `kart` |
-| FTP klasörü | Dosyaların gönderileceği FTP klasörü | `/upload` |
-| Kartın aynı klasörü gördüğü yol | Kartta `copy` / `xcopy` komutunun kaynağı | `host:/upload` |
-| Pasif kip | Çoğu ağda açık kalmalıdır | açık |
-| FTP'deki kopyayı sil | Kartta kopyalama başarılı olunca FTP'den temizler | isteğe bağlı |
+Yüklenen her dosya önce FTP sunucusuna kopyalanır. Bu kopyalar kendiliğinden silinmez (FTP ayarlarında "kopyalama sonrası hemen sil" açılmadıkça).
 
-**Bağlantıyı sına** düğmesi ayarları kaydetmeden önce FTP sunucusuna bağlanıp klasörü okumayı dener.
+- Bir karta yükleme **başlar başlamaz** Dosya Gezgini'ndeki **FTP kopyalarını sil** düğmesi (çöp kutusu) etkinleşir; yükleme başarılı da olsa başarısız da olsa (yarım dosya kalmış olabilir) etkin kalır.
+- Tıklayınca onay istenir ve **yalnız bu kartın** FTP'de bıraktığı kopyalar silinir; karttaki dosyalara dokunulmaz. Silinince düğme pasifleşir. Zaten silinmiş kopyalar sorun çıkarmaz.
+- Düğmenin ipucu silinecek kopyaları listeler. Her kartın listesi ayrıdır.
+
+### FTP ayarları (kart başına otomatik)
+
+FTP sunucusu, kullanıcı ve parola **elle girilmez**. Her kart için, o kartın kendisinden `bspBootChange` komutuyla alınır:
+
+| Boot parametresi | Kullanım |
+|---|---|
+| `h` — host inet | FTP sunucusu adresi |
+| `u` — user | FTP kullanıcısı |
+| `pw` — ftp password | FTP parolası |
+| host name | Kartın FTP sunucusunu gördüğü aygıt (ör. `host:`) |
+
+- Bilgi, kart bağlıyken ilk FTP işleminde (yükleme, "Birlikte aç", bağlantı sınaması) otomatik alınır ve **yalnız o kart için, yalnız bellekte** tutulur. Başka kartın bilgisi asla kullanılmaz. Bağlantı kopunca / kesilince silinir; yeniden bağlanınca tekrar alınır.
+- Parola ekranda, ayar dosyasında ve log'larda gösterilmez; Dosya Gezgini'nin **Ham cevap** panelinde `••••••` olarak görünür. Eski sürümlerde elle girilmiş parola ayar dosyasından silinir.
+- Tablo (`host inet (h) : …`), kısa (`h: …`) ve boot satırı (`… h=… u=… pw=…`) biçimleri tanınır; boşluk / sekme farkları sorun değildir. Kart boot parametrelerini alan alan soruyorsa her alanda yalnız Enter gönderilir (değerler **değiştirilmez**).
+- Bilgi alınamazsa nedeni yazılır: komut kartın imajında yoksa turuncu uyarı; `h` / `u` / `pw` eksikse hangisinin eksik olduğu (parola boşsa kart dosyalara FTP yerine RSH ile erişiyor olabilir); adres geçersizse adres.
+
+**FTP** (dişli simgesi) penceresi:
+
+| Bölüm | Açıklama |
+|---|---|
+| Bu kartın FTP bilgisi | Karttan alınan sunucu, kullanıcı, aygıt (parola gösterilmez). **Karttan yeniden al** ile tazelenir. |
+| FTP klasörü | Dosyaların gönderileceği klasör, FTP oturumunun açıldığı klasöre göre (ör. `upload`; boş = kök). Tüm kartlar için ortak. |
+| Kartın aynı klasörü gördüğü yol | Boş bırakın (önerilen): **otomatik** = kartın aygıtı + FTP klasörü (ör. `host:upload`). Pencerede eşleme açıkça yazar. |
+| Port, Pasif kip | Tüm kartlar için ortak. |
+| Kopyalama sonrası hemen sil | Açıksa kartta kopyalama başarılı olunca FTP kopyası hemen silinir (varsayılan: kapalı). |
+
+**Bağlantıyı sına** yalnız bağlanmayı değil, yüklemenin gerçekten çalışacağını **aşama aşama** sınar:
+
+1. FTP oturumu ve klasör listeleme
+2. FTP'ye yazma (küçük bir deneme dosyası)
+3. **Kartın** aynı dosyayı görmesi (kart, FTP klasörünü listeler)
+4. Deneme dosyasının silinmesi
+
+Bağlantı başarılı olsa da yazma izni yoksa ya da kartın gördüğü yol FTP klasörüyle aynı yer değilse hangi aşamada ve neden başarısız olduğu yazılır.
 
 > Dosya Gezgini ayrı bağlantı açmaz; kartın mevcut bağlantısını kullanır. Kart bağlı değilse bu belirtilir ve **Bağlantı Kur** düğmesi gösterilir. Gezginin komutları ve cevapları terminale yazılmaz; terminal komutlarıyla sırayla çalışır, cevaplar birbirine karışmaz.
 
@@ -443,15 +546,17 @@ Arayüzde ayar yoktur; değerler `Konfig\config.xml` dosyasındaki `<Monitor>` b
 | Ctrl+Shift+M | Komut Kütüphanesi'nde yeni modül |
 | Ctrl + sürükle | Dosya Gezgini'nde taşımak yerine kopyala |
 | Ctrl+Enter / Ctrl+Shift+Enter | Dosya Gezgini'nde varsayılan uygulamayla / "Birlikte aç" ile aç (salt okunur kopya) |
+| Ctrl + + / Ctrl + − / Ctrl + 0 | Tüm kart terminallerinde yazıyı büyüt / küçült / %100 (Telnet sekmesi) |
+| Ctrl + fare tekerleği | Terminal üzerinde: tüm kartların yazısını birlikte büyüt / küçült |
 | Esc | Açık pencereyi (Kart Ekle, Yardım) kapat |
 
 ## Dosyalar ve klasörler
 
 | Konum | İçerik |
 |---|---|
-| `Konfig\config.xml` | Gruplar, kartlar, terminal, izleme ve FTP ayarları (otomatik kaydedilir; FTP parolası şifreli). |
+| `Konfig\config.xml` | Gruplar, kartlar (adları, hızlı komutları, reboot seçimleri), terminal, yakınlaştırma, izleme ve ortak FTP ayarları (otomatik kaydedilir; FTP parolası dosyada tutulmaz). |
 | `Komutlar\Komutlar.xml` | Komut Kütüphanesi: modüller ve komutlar (önceki sürüm: `Komutlar.xml.yedek`). |
-| `logs\GrupAdı_IP_tarih_saat.log` | "Dosyaya kaydet" açıkken kartların ekran akışı. |
+| `logs\GrupAdı_IP_anlik_tarih_saat.log` | "Dosyaya kaydet" ile alınan anlık terminal görüntüleri (her tıklama ayrı dosya). |
 | `logs\hatalar.log` | Bağlantı hatalarının teknik ayrıntıları (hata kodu, özgün İngilizce mesaj). Her zaman açıktır. |
 | `Yardim\` | Bu kılavuz ve gereksinimler belgesi. |
 | `%TEMP%\TelnetCards\SaltOkunur\` | "Birlikte aç" ile açılan salt okunur kopyalar (kapanışta silinir). |
@@ -470,8 +575,10 @@ Tüm bu klasörler exe'nin yanındadır (Visual Studio'dan çalıştırırken `b
 | Dosya Gezgini'nde cihaz listesi boş ya da yanlış | **Ham cevap ▸** panelinde kartın `devs` çıktısını inceleyin. |
 | Listeleme sıfır olmayan değer döndürüyor | Yol yanlış, erişim yok ya da öğe bir klasör değil (ör. `/tyCo/0` gibi seri port cihazları). |
 | Turuncu "komut kartın imajında yok" uyarısı | Kartın imajı bu komutu içermiyor; işlem o kartta yapılamaz. Kartta değişiklik olmaz. |
-| Yükleme: "FTP'ye gönderilemedi" | FTP ayarlarını **Bağlantıyı sına** ile kontrol edin (adres, kullanıcı, parola, klasör izni). |
-| Yükleme: "kartta kopyalanamadı" | "Kartın aynı klasörü gördüğü yol" ayarını kontrol edin; kartta elle `copy` ile deneyin. |
+| Yükleme: "FTP'ye gönderilemedi … 550" | FTP kullanıcısının o klasöre **yazma** izni yok ya da klasör yok. FTP sunucusunda (ör. FileZilla Server) kullanıcının klasör izinlerine **Write** ekleyin. **Bağlantıyı sına** bunu 2. aşamada gösterir. |
+| Yükleme: "FTP'ye gönderildi ama kartta kopyalanamadı" | Kart dosyayı aynı yerde göremiyor. **Bağlantıyı sına**'nın 3. aşamasına bakın; "Kartın aynı klasörü gördüğü yol" alanını boş (otomatik) bırakın. |
+| "Kartın FTP bilgisi alınamadı" | Ayrıntı uyarı şeridinde. `bspBootChange` kartta yoksa ya da h / u / pw boşsa kartın boot parametrelerini kontrol edin. |
+| Sürükle-bırak hiç kabul edilmiyor | Vision yönetici olarak, Windows Gezgini normal çalışıyorsa Windows iki program arasında sürüklemeye izin vermez. İkisini de aynı yetkiyle çalıştırın ya da **Yükle** düğmesini kullanın. |
 
 ## Belgeleri güncelleme
 

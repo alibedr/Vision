@@ -19,6 +19,12 @@ namespace Vision
         /// <summary>Kartın bağlı olduğu grup (kaydedilmez, yüklemede bağlanır).</summary>
         [XmlIgnore] public CardGroup Group { get; set; }
 
+        /// <summary>Kartın hızlı komut düğmesine atanmış komut (yalnız bu karta gönderilir; boş: ayarlanmamış).</summary>
+        [XmlAttribute("HizliKomut")] public string QuickCommand { get; set; }
+
+        /// <summary>Kartın yeniden başlatma düğmesinde seçili komut ("reboot" / "reboot 2").</summary>
+        [XmlAttribute("Yeniden")] public RebootOption RebootOption { get; set; }
+
         /// <summary>Teknik kimlik (log / tanılama): "IP:port".</summary>
         [XmlIgnore] public string DisplayName { get { return Ip + ":" + (Group != null ? Group.Port : 23); } }
 
@@ -120,6 +126,15 @@ namespace Vision
         }
     }
 
+    /// <summary>Yeniden başlatma komutu seçimi: "reboot" ya da "reboot 2".</summary>
+    public enum RebootOption { Reboot = 0, Reboot2 = 1 }
+
+    public static class RebootCommands
+    {
+        public static string CommandFor(RebootOption o) { return o == RebootOption.Reboot2 ? "reboot 2" : "reboot"; }
+        public static RebootOption Toggle(RebootOption o) { return o == RebootOption.Reboot2 ? RebootOption.Reboot : RebootOption.Reboot2; }
+    }
+
     /// <summary>Tüm kartlar için ortak terminal ayarları.</summary>
     public sealed class AppSettings
     {
@@ -131,12 +146,55 @@ namespace Vision
             MaxTerminalLines = DefaultMaxTerminalLines;
             LineEnding = "CRLF";
             LocalEcho = true;
+            SeparateReturnValues = true;
+            TerminalZoom = DefaultTerminalZoom;
+            GlobalRebootOption = RebootOption.Reboot;
         }
 
         public string LineEnding { get; set; }   // CRLF, CR, LF, NONE
         public bool LocalEcho { get; set; }
         public bool Timestamp { get; set; }
+        /// <summary>
+        /// Eski "Dosyaya kaydet" (sürekli kayıt) anahtarı. Yerine kart başına / genel anlık kayıt düğmeleri geldi;
+        /// alan yalnız eski ayar dosyalarıyla uyum için okunur ve her açılışta kapatılır.
+        /// </summary>
         public bool LogToFile { get; set; }
+
+        /// <summary>Komut dönüş değerleri ("value = …") canlı terminal akışından ayrılıp kartın dönüş panelinde gösterilir.</summary>
+        public bool SeparateReturnValues { get; set; }
+
+        public const float DefaultTerminalZoom = 1.0f;
+        public const float MinTerminalZoom = 0.6f;
+        public const float MaxTerminalZoom = 2.5f;
+
+        /// <summary>Tüm kart terminallerinin ortak yakınlaştırma oranı (1.0 = %100).</summary>
+        public float TerminalZoom { get; set; }
+
+        /// <summary>Genel komut çubuğunun hızlı komutu (boş: ayarlanmamış).</summary>
+        public string GlobalQuickCommand { get; set; }
+
+        /// <summary>Genel komut çubuğunda seçili yeniden başlatma komutu.</summary>
+        public RebootOption GlobalRebootOption { get; set; }
+
+        /// <summary>Yakınlaştırma adımları (%60 … %250).</summary>
+        public static readonly float[] ZoomSteps = { 0.6f, 0.7f, 0.8f, 0.9f, 1.0f, 1.1f, 1.25f, 1.4f, 1.6f, 1.8f, 2.0f, 2.25f, 2.5f };
+
+        /// <summary>Bir sonraki (+1) / önceki (-1) yakınlaştırma adımı; sınırda kalır.</summary>
+        public static float StepZoom(float current, int step)
+        {
+            float cur = ClampZoom(current);
+            int i = Array.FindIndex(ZoomSteps, z => z >= cur - 0.001f);
+            if (i < 0) i = ZoomSteps.Length - 1;
+            if (step > 0 && ZoomSteps[i] <= cur + 0.001f) i++;
+            else if (step < 0) i--;
+            return ZoomSteps[Math.Max(0, Math.Min(ZoomSteps.Length - 1, i))];
+        }
+
+        public static float ClampZoom(float z)
+        {
+            if (float.IsNaN(z) || z <= 0) return DefaultTerminalZoom;
+            return Math.Max(MinTerminalZoom, Math.Min(MaxTerminalZoom, (float)Math.Round(z, 2)));
+        }
 
         public const int DefaultConnectTimeoutMs = 10000;   // önceki sabit değer 5000 ms idi (iki katına çıkarıldı)
         public const int DefaultMaxTerminalLines = 1000;
@@ -161,6 +219,9 @@ namespace Vision
             if (ConnectTimeoutMs < 1000) ConnectTimeoutMs = DefaultConnectTimeoutMs;
             if (MaxTerminalLines < MinTerminalLines) MaxTerminalLines = MinTerminalLines;
             if (MaxTerminalLines > MaxTerminalLinesLimit) MaxTerminalLines = MaxTerminalLinesLimit;
+            TerminalZoom = ClampZoom(TerminalZoom);
+            if (!Enum.IsDefined(typeof(RebootOption), GlobalRebootOption)) GlobalRebootOption = RebootOption.Reboot;
+            LogToFile = false;   // sürekli kayıt kaldırıldı: anlık kayıt düğmeleri kullanılır
         }
 
         public ConnectionMonitorOptions Monitor { get; set; }
