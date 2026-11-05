@@ -19,8 +19,24 @@ jobs:
 
       - uses: microsoft/setup-msbuild@v2
 
+      # Güncel Windows imajlarında .NET Framework 4.6.1 hedefleme paketi yok: başvuru derlemeleri NuGet'ten alınır
+      - name: .NET 4.6.1 başvuru derlemeleri
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://www.nuget.org/api/v2/package/Microsoft.NETFramework.ReferenceAssemblies.net461/1.0.3 -OutFile ref.zip
+          Expand-Archive ref.zip -DestinationPath refasm -Force
+
       - name: Derle (Release)
-        run: msbuild Vision.sln /p:Configuration=Release /p:Platform="Any CPU" /m /v:minimal
+        shell: pwsh
+        run: |
+          $root = (Resolve-Path refasm\build).Path + "\"
+          msbuild Vision.csproj /p:Configuration=Release /p:Platform=AnyCPU "/p:TargetFrameworkRootPath=$root" /v:minimal /nologo 2>&1 | Tee-Object build.log
+          $code = $LASTEXITCODE
+          Select-String -Path build.log -Pattern ': (error|warning) ' | ForEach-Object {
+            $kind = if ($_.Line -match ': error ') { 'error' } else { 'warning' }
+            Write-Output "::${kind}::$($_.Line.Trim())"
+          }
+          exit $code
 
       - name: Paketle
         shell: pwsh
