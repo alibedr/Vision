@@ -5,7 +5,7 @@ using System.Drawing.Drawing2D;
 using System.Linq;
 using System.Windows.Forms;
 
-namespace TelnetCards
+namespace Vision
 {
     /// <summary>
     /// "Kart Dosya Gezgini" sekmesi: kart seçimi, breadcrumb, Geri / Yenile, ikonlu dosya listesi,

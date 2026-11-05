@@ -5,7 +5,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace TelnetCards
+namespace Vision
 {
     /// <summary>
     /// Yardım belgeleri için küçük Markdown → HTML dönüştürücü (dış kütüphane gerektirmez).
@@ -263,7 +263,7 @@ namespace TelnetCards
     }
 }
 
-namespace TelnetCards
+namespace Vision
 {
     /// <summary>
     /// Yardım sayfasında "Bu sayfada" vurgusu için etkin bölüm hesabı (arayüzden bağımsız, test edilebilir).

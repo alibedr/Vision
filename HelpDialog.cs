@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 
-namespace TelnetCards
+namespace Vision
 {
     public enum HelpPage { Guide, Requirements, About }
 

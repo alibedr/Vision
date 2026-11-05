@@ -27,7 +27,7 @@ Bu belge uygulamanın çalışması için gerekenleri (sistem gereksinimleri) ve
 | Dil | C# 7.3 (VS 2019 / .NET Framework projelerinin varsayılanı). |
 | Hedef | .NET Framework 4.6.1, Windows Forms, klasik (SDK olmayan) `.csproj`. |
 | Bağımlılık | Yok. NuGet paketi kullanılmaz; kapalı ağda derlenebilir. |
-| Açma | `TelnetCards.sln` → F5. |
+| Açma | `Vision.sln` → F5. |
 
 ## İşlevsel gereksinimler
 
@@ -112,7 +112,7 @@ Bu belge uygulamanın çalışması için gerekenleri (sistem gereksinimleri) ve
 |---|---|---|---|
 | G8.1 | Geliştirici imzası (Ali Bedir) | Karşılandı | Pencere başlığı, durum çubuğu, Yardım → Hakkında ve exe "Özellikler → Ayrıntılar". |
 | G8.2 | Yardım bölümü: kullanım kılavuzu ve gereksinimler | Karşılandı | F1; belgeler `Yardim\` klasöründe (kodla birlikte), exe'ye de gömülü. |
-| G8.3 | Uygulama adı | Açık | Şimdilik "Telnet Kart Terminali". Ad `AppInfo.cs` içinden tek yerden değiştirilir. |
+| G8.3 | Uygulama adı | Açık | Şimdilik "Vision". Ad `AppInfo.cs` içinden tek yerden değiştirilir. |
 
 ### G10 — Ayarların konumu, menü ve Komut Kütüphanesi
 
@@ -186,6 +186,13 @@ Ana metin (≈ 14:1), terminal metni (≈ 13:1) ve başarı / uyarı renkleri za
 | G14.5 | Sekmeler ve kimlik | Karşılandı | Sekmelerde simge (Telnet, Kart Dosya Gezgini, Komut Kütüphanesi) ve yuvarlatılmış etkin çizgi; uygulama simgesi (exe, görev çubuğu, pencere başlığı); Telnet araç çubuğunda gruplar arası ayraçlar; Kart Gezgini aramasında simge ve odak kenarlığı. |
 | G14.6 | Doğrulama | Kısmen | Derleme ve tüm mantık testleri geçti. Çizim Windows'ta görsel olarak doğrulanmalı (geliştirme ortamında Windows ekranı çalıştırılamadı). |
 
+### G15 — Uygulamanın adı ve simgesi
+
+| No | Gereksinim | Durum | Nasıl karşılandı |
+|---|---|---|---|
+| G15.1 | Uygulamanın adı "Vision" | Karşılandı | Pencere başlığı, imza, Hakkında, exe adı (`Vision.exe`), dosya özellikleri, proje / çözüm (`Vision.sln`) ve belgeler. Önceki sürümün ayarları (`config.xml`), `%APPDATA%\TelnetCards` klasörü ve kayıtlı FTP parolası çalışmaya devam eder (bu iç adlar bilerek değiştirilmedi; testte doğrulandı). |
+| G15.2 | Uygulama simgesi | Karşılandı | Göz + vizör köşeleri ("izleme"): mavi degrade zemin, beyaz göz çizgisi, mavi iris. 16–256 px arası 9 boyut; küçük boyutlarda sadeleştirilmiş çizim (vizör köşeleri yok, kalın çizgi). Exe'ye gömülü; görev çubuğu ve pencere başlıklarında görünür. Kaynak: `Vision.ico`. |
+
 ### G9 — Dosya Gezgini işlemleri (planlanan)
 
 | No | Gereksinim | Durum | Not |
@@ -201,4 +208,4 @@ Ana metin (≈ 14:1), terminal metni (≈ 13:1) ve başarı / uyarı renkleri za
 
 | Sürüm | Değişiklikler |
 |---|---|
-| 1.0 | Temel telnet terminali; grup tabanlı kart yönetimi; çoklu kart ızgarası; bağlantı / görünüm ayrımı; bağlantı süresi; kaydırma koruması ve yeni satır göstergesi; çift satır düzeltmesi; komut geçmişi; genel komut çubuğu; gri görünüm ve kopma uyarısı; Türkçe hata mesajları; Kart Dosya Gezgini; periyodik bağlantı izleme ve otomatik yeniden bağlanma; 3 sütunlu `devs` desteği; Türkçe satır sonu seçenekleri; Yardım bölümü; Dosya Gezgini işlemleri (görüntüle, yeni klasör, yeniden adlandır, taşı / kopyala, sil), `ll` ile listeleme, eksik komut uyarısı ve FTP üzerinden karta yükleme; ayarlar `Konfig` klasöründe; Yardım menüsü; Komut Kütüphanesi; geri bildirim iyileştirmeleri (G11); salt okunur "Birlikte aç", simgeli düğmeler, sade kenar çubuğu düğmesi ve kontrast düzeltmeleri (G12); Komut Kütüphanesi modülleri ve yenilenen görünüm (G13); tüm arayüzde tek tip koyu tema kontrolleri, alt bantlı pencereler, çizilmiş simgeler ve uygulama simgesi (G14). |
+| 1.0 | Temel telnet terminali; grup tabanlı kart yönetimi; çoklu kart ızgarası; bağlantı / görünüm ayrımı; bağlantı süresi; kaydırma koruması ve yeni satır göstergesi; çift satır düzeltmesi; komut geçmişi; genel komut çubuğu; gri görünüm ve kopma uyarısı; Türkçe hata mesajları; Kart Dosya Gezgini; periyodik bağlantı izleme ve otomatik yeniden bağlanma; 3 sütunlu `devs` desteği; Türkçe satır sonu seçenekleri; Yardım bölümü; Dosya Gezgini işlemleri (görüntüle, yeni klasör, yeniden adlandır, taşı / kopyala, sil), `ll` ile listeleme, eksik komut uyarısı ve FTP üzerinden karta yükleme; ayarlar `Konfig` klasöründe; Yardım menüsü; Komut Kütüphanesi; geri bildirim iyileştirmeleri (G11); salt okunur "Birlikte aç", simgeli düğmeler, sade kenar çubuğu düğmesi ve kontrast düzeltmeleri (G12); Komut Kütüphanesi modülleri ve yenilenen görünüm (G13); tüm arayüzde tek tip koyu tema kontrolleri, alt bantlı pencereler, çizilmiş simgeler ve uygulama simgesi (G14); uygulamanın adı Vision oldu ve yeni simgesi tasarlandı (G15). |

@@ -1,7 +1,7 @@
 using System;
 using System.Windows.Forms;
 
-namespace TelnetCards
+namespace Vision
 {
     internal static class Program
     {

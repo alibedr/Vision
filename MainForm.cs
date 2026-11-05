@@ -4,7 +4,7 @@ using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 
-namespace TelnetCards
+namespace Vision
 {
     /// <summary>
     /// Uygulama kabuğu: solda Kart Gezgini, sağda üst araç çubuğu + kart ızgarası, altta durum çubuğu.

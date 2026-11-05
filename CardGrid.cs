@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
 
-namespace TelnetCards
+namespace Vision
 {
     /// <summary>
     /// Açık kart görünümlerini pencere boyutuna göre dinamik bir ızgarada döşer.

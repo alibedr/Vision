@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Net.Sockets;
 
-namespace TelnetCards
+namespace Vision
 {
     /// <summary>
     /// Bağlantı hatalarını kullanıcıya gösterilecek Türkçe mesajlara çevirir.

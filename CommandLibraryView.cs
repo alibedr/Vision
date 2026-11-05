@@ -7,7 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 
-namespace TelnetCards
+namespace Vision
 {
     /// <summary>
     /// "Komut Kütüphanesi" sekmesi. Solda arama + modül ağacı (modül başlıkları altında komutlar; daraltılabilir,
@@ -16,7 +16,7 @@ namespace TelnetCards
     /// </summary>
     public sealed partial class CommandLibraryView : UserControl
     {
-        private const string DragFormat = "TelnetCards.CommandDoc";
+        private const string DragFormat = "Vision.CommandDoc";
         private const int ModuleRowHeight = 38;
         private const int CommandRowHeight = 46;
         private const int CommandIndent = 30;

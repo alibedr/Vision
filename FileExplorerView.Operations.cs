@@ -6,7 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace TelnetCards
+namespace Vision
 {
     /// <summary>
     /// Kart Dosya Gezgini: dosya / klasör işlemleri (yeni klasör, yeniden adlandır, sil, görüntüle, taşı / kopyala),
@@ -14,7 +14,7 @@ namespace TelnetCards
     /// </summary>
     public sealed partial class FileExplorerView
     {
-        private const string InternalDragFormat = "TelnetCards.FsEntry";
+        private const string InternalDragFormat = "Vision.FsEntry";
 
         private readonly IconButton _newFolderBtn = new IconButton(IconKind.NewFolder, IconTone.Ghost);
         private readonly IconButton _uploadBtn = new IconButton(IconKind.Upload, IconTone.Primary);

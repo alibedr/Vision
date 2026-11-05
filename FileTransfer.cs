@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
 
-namespace TelnetCards
+namespace Vision
 {
     /// <summary>
     /// Bilgisayardan karta yükleme ayarları. Akış: dosya önce kartın erişebildiği FTP sunucusuna gönderilir,
@@ -55,7 +55,7 @@ namespace TelnetCards
     /// <summary>Parolayı Windows DPAPI ile (yalnız bu kullanıcı çözebilir) şifreler.</summary>
     public static class PasswordProtector
     {
-        private static readonly byte[] Entropy = Encoding.UTF8.GetBytes("TelnetCards.FTP");
+        private static readonly byte[] Entropy = Encoding.UTF8.GetBytes("TelnetCards.FTP");   // eski ad: kayıtlı FTP parolaları çözülebilsin diye değiştirilmedi
 
         public static string Protect(string plain)
         {

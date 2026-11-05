@@ -4,7 +4,7 @@ using System.IO;
 using System.Net;
 using System.Xml.Serialization;
 
-namespace TelnetCards
+namespace Vision
 {
     /// <summary>Tek bir kartın yapılandırması.</summary>
     public sealed class CardConfig
@@ -183,7 +183,7 @@ namespace TelnetCards
         }
     }
 
-    [XmlRoot("TelnetCards")]
+    [XmlRoot("TelnetCards")]   // eski ad: mevcut config.xml dosyaları okunmaya devam etsin diye değiştirilmedi
     public sealed class AppConfig
     {
         public AppConfig()

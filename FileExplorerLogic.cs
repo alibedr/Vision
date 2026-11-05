@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace TelnetCards
+namespace Vision
 {
     /// <summary>
     /// Kart kabuğuna gönderilen bir komutun cevabı. Kabuk (VxWorks benzeri) her fonksiyon çağrısından sonra

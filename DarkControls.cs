@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
-namespace TelnetCards
+namespace Vision
 {
     /// <summary>
     /// Koyu temalı ipucu balonu. Windows'un varsayılan açık renkli ipucu yerine uygulamanın renkleriyle çizilir;

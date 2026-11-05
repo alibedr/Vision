@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace TelnetCards
+namespace Vision
 {
     /// <summary>
     /// Disconnected: kullanıcı bağlamadı / kesti.  Connecting: kullanıcı bağlanıyor.  Connected: bağlı ve sağlıklı.

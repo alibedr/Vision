@@ -1,6 +1,6 @@
 # Kullanım Kılavuzu
 
-Telnet Kart Terminali; donanım kartlarına telnet ile bağlanmak, kartlara komut göndermek, birden çok kartın çıktısını aynı anda izlemek ve kartların dosya sistemini gezmek için geliştirilmiş bir masaüstü uygulamasıdır.
+Vision; donanım kartlarına telnet ile bağlanmak, kartlara komut göndermek, birden çok kartın çıktısını aynı anda izlemek ve kartların dosya sistemini gezmek için geliştirilmiş bir masaüstü uygulamasıdır.
 
 > Bu belge uygulamanın yanındaki `Yardim\KullanimKilavuzu.md` dosyasından okunur. Herhangi bir metin düzenleyiciyle güncelleyebilirsiniz; değişiklik, Yardım penceresi bir sonraki açılışta görünür.
 

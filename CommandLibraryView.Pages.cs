@@ -4,7 +4,7 @@ using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 
-namespace TelnetCards
+namespace Vision
 {
     /// <summary>Komut Kütüphanesi: sağ taraftaki komut sayfası (görüntüle / düzenle) ve modül sayfası, işlemler.</summary>
     public sealed partial class CommandLibraryView

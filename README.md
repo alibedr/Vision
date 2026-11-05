@@ -1,8 +1,12 @@
-# Telnet Kart Terminali
+<img src="docs/vision-icon.png" width="96" align="right" alt="Vision simgesi">
+
+# Vision
 
 Donanım kartlarına telnet ile bağlanmak, birden çok kartın çıktısını aynı anda izlemek, kartlara toplu komut göndermek ve kartların dosya sistemini gezmek için Windows masaüstü uygulaması.
 
 Geliştiren: **Ali Bedir**
+
+> Önceki adı: Telnet Kart Terminali. Önceki sürümün ayarları yeni adla da okunur.
 
 ## Özellikler
 
@@ -24,7 +28,7 @@ Geliştiren: **Ali Bedir**
 
 ## Derleme
 
-1. `TelnetCards.sln` dosyasını Visual Studio 2019 ile açın.
+1. `Vision.sln` dosyasını Visual Studio 2019 ile açın.
 2. **Build → Build Solution** (Ctrl+Shift+B).
 3. Çıktı `bin\Debug\` (ya da `bin\Release\`) klasöründedir. `Yardim\` ve `Komutlar\` klasörleri exe'nin yanına kopyalanır.
 
@@ -35,7 +39,7 @@ Geliştiren: **Ali Bedir**
 | `*.cs` | Kaynak kod (WinForms) |
 | `Yardim\` | Kullanım Kılavuzu ve Gereksinimler (uygulama içi yardımda gösterilir) |
 | `Komutlar\Komutlar.xml` | Komut Kütüphanesi başlangıç dosyası (derlemede yalnız hedefte yoksa kopyalanır) |
-| `Uygulama.ico` | Uygulama simgesi |
+| `Vision.ico` | Uygulama simgesi (`docs/vision-icon.png`: büyük önizleme) |
 
 Çalışırken exe'nin yanında `Konfig\config.xml` (gruplar, kartlar, ayarlar) ve `logs\` oluşur; bunlar depoya alınmaz.
 

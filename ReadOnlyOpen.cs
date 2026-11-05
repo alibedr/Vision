@@ -5,7 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace TelnetCards
+namespace Vision
 {
     /// <summary>
     /// "Birlikte aç" için kart dosyalarının SALT OKUNUR yerel kopyaları.

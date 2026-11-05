@@ -6,7 +6,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
-namespace TelnetCards
+namespace Vision
 {
     /// <summary>
     /// Sol kenar çubuğu: "Kart Ekle" düğmesi, arama kutusu ve grup → kart ağacı.

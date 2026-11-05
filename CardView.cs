@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace TelnetCards
+namespace Vision
 {
     /// <summary>
     /// Çalışma alanındaki bir kart penceresi: başlık (durum, bağlantı süresi, RX/TX aktivitesi, düğmeler),

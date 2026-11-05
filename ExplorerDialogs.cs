@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace TelnetCards
+namespace Vision
 {
     /// <summary>
     /// Koyu temalı küçük pencereler için ortak taban. Pencerenin altındaki düğmeler (alttan 64 px içindekiler) açılışta

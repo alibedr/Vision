@@ -3,7 +3,7 @@ using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
-namespace TelnetCards
+namespace Vision
 {
     /// <summary>Uygulamanın koyu teması: renkler, yazı tipleri ve ortak stil yardımcıları.</summary>
     public static class Theme

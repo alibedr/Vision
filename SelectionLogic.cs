@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace TelnetCards
+namespace Vision
 {
     /// <summary>"Bağlantı Kur / Bağlantıyı Kes" düğmesinin ne yapacağı.</summary>
     public sealed class ConnectionAction

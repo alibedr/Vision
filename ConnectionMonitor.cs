@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 
-namespace TelnetCards
+namespace Vision
 {
     /// <summary>
     /// Tüm kartların bağlantısını periyodik izler. Kart başına iş parçacığı ya da döngü açmaz:

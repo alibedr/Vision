@@ -5,7 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Xml.Serialization;
 
-namespace TelnetCards
+namespace Vision
 {
     /// <summary>Kütüphanedeki bir komutun açıklaması.</summary>
     public sealed class CommandDoc

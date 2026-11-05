@@ -5,7 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace TelnetCards
+namespace Vision
 {
     /// <summary>
     /// Ana pencerenin altındaki genel komut çubuğu: yazılan komutu çalışma alanında AÇIK olan

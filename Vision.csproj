@@ -6,13 +6,13 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{6B1E2C4A-7D3F-4E8B-9A15-2C7F0D4B8E31}</ProjectGuid>
     <OutputType>WinExe</OutputType>
-    <RootNamespace>TelnetCards</RootNamespace>
-    <AssemblyName>TelnetCards</AssemblyName>
+    <RootNamespace>Vision</RootNamespace>
+    <AssemblyName>Vision</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
-    <ApplicationIcon>Uygulama.ico</ApplicationIcon>
+    <ApplicationIcon>Vision.ico</ApplicationIcon>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -109,7 +109,7 @@
   <ItemGroup>
     <!-- Komut kütüphanesi: exe'nin yanındaki Komutlar klasörüne YALNIZ dosya yoksa kopyalanır.
          Uygulamadan eklenen komutlar yeniden derlemede silinmez / üzerine yazılmaz. -->
-    <None Include="Uygulama.ico" />
+    <None Include="Vision.ico" />
     <None Include="Komutlar\Komutlar.xml" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

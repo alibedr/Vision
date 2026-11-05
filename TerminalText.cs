@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace TelnetCards
+namespace Vision
 {
     /// <summary>
     /// Karttan gelen satır sonlarını tek bir '\n'e çevirir. Durumludur: paketlere bölünmüş
@@ -193,7 +193,7 @@ namespace TelnetCards
     }
 }
 
-namespace TelnetCards
+namespace Vision
 {
     /// <summary>
     /// "↓ Yeni Satırlar (N)" göstergesinin durumu (arayüzden bağımsız, test edilebilir).
@@ -244,7 +244,7 @@ namespace TelnetCards
     }
 }
 
-namespace TelnetCards
+namespace Vision
 {
     /// <summary>Terminal satır sınırı hesabı (arayüzden bağımsız, test edilebilir).</summary>
     public static class LineBudget
