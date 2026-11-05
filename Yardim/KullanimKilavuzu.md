@@ -402,7 +402,7 @@ fei(0,0)host:/vxWorks e=192.168.1.10:ffffff00 h=192.168.1.100 u=ftpuser pw=parol
 | `h=` | FTP sunucusu (IP) |
 | `u=` | FTP kullanıcı adı |
 | `pw=` | FTP parolası |
-| `…host:` (satır başı) | Kartın FTP sunucusunu gördüğü aygıt (ör. `host:`) |
+| `gei(0,0)host:` (satır başı) | Kartın aygıt adı: parantez kapandıktan sonra `:` işaretine kadar olan kelime (`:` hariç). Kartın FTP yolu `/host.` + bu ad olur: `gei(0,0)host:` → `/host.host`, `gei(1,0)ali:` → `/host.ali`. |
 
 - Bilgi, kart bağlıyken ilk FTP işleminde (yükleme, "Birlikte aç", bağlantı sınaması) otomatik alınır ve **yalnız o kart için, yalnız bellekte** tutulur. Başka kartın bilgisi asla kullanılmaz. Bağlantı kopunca / kesilince silinir; yeniden bağlanınca tekrar alınır.
 - Parola ekranda, ayar dosyasında ve log'larda gösterilmez; Dosya Gezgini'nin **Ham cevap** panelinde `••••••` olarak görünür. Eski sürümlerde elle girilmiş parola ayar dosyasından silinir.
@@ -413,11 +413,11 @@ fei(0,0)host:/vxWorks e=192.168.1.10:ffffff00 h=192.168.1.100 u=ftpuser pw=parol
 
 | Bölüm | Açıklama |
 |---|---|
-| Bu kartın FTP bilgisi | Karttan alınan sunucu, kullanıcı, aygıt (parola gösterilmez). **Karttan yeniden al** ile tazelenir. |
+| Bu kartın FTP bilgisi | Karttan alınan sunucu, kullanıcı, kartın FTP yolu (`/host.…`) ve aygıtı (parola gösterilmez). **Karttan yeniden al** ile tazelenir. |
 | FTP klasörü | Dosyaların gönderileceği klasör, FTP oturumunun açıldığı klasöre göre (ör. `upload`; boş = kök). Tüm kartlar için ortak. |
-| Kartın aynı klasörü gördüğü yol | Boş bırakın (önerilen): **otomatik** = kartın aygıtı + FTP klasörü (ör. `host:upload`). Pencerede eşleme açıkça yazar. |
+| Kartın aynı klasörü gördüğü yol | Boş bırakın (önerilen): **otomatik** = `/host.` + kartın aygıt adı + FTP klasörü (ör. `/host.host`, FTP klasörü `upload` ise `/host.host/upload`). İsterseniz başka bir yol yazabilirsiniz (yalnız `host:` yazılırsa eski biçim `host:upload` kullanılır). Pencerede eşleme açıkça yazar. |
 | Port, Pasif kip | Tüm kartlar için ortak. |
-| Kopyalama sonrası hemen sil | Açıksa kartta kopyalama başarılı olunca FTP kopyası hemen silinir (varsayılan: kapalı). |
+| Kopyalama sonrası hemen sil | Açıksa kartta kopyalama başarılı olunca FTP kopyası hemen silinir (varsayılan: **açık**; önceki sürümden gelen ayarlarda da ilk açılışta bir kez açılır, sonra seçiminiz korunur). |
 
 **Bağlantıyı sına** yalnız bağlanmayı değil, yüklemenin gerçekten çalışacağını **aşama aşama** sınar:
 

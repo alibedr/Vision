@@ -227,6 +227,7 @@ namespace Vision
             TerminalZoom = ClampZoom(TerminalZoom);
             if (!Enum.IsDefined(typeof(RebootOption), GlobalRebootOption)) GlobalRebootOption = RebootOption.Reboot;
             LogToFile = false;   // sürekli kayıt kaldırıldı: anlık kayıt düğmeleri kullanılır
+            if (Transfer != null) Transfer.ApplyNewDefaults();
         }
 
         public ConnectionMonitorOptions Monitor { get; set; }

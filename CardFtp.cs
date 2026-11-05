@@ -18,17 +18,26 @@ namespace Vision
         public string User { get; set; }
         /// <summary>FTP parolası (pw = ftp password). Yalnız bellekte.</summary>
         public string Password { get; set; }
-        /// <summary>Kartın FTP sunucusunu gördüğü aygıt adı (boot parametresi "host name"; yoksa "host").</summary>
+        /// <summary>
+        /// Kartın FTP sunucusunu gördüğü aygıt adı: boot satırında aygıt parantezi kapandıktan sonra ':' işaretine kadar
+        /// olan kelime ("gei(0,0)host:" → "host", "gei(1,0)ali:" → "ali"). Bulunamazsa "host".
+        /// </summary>
         public string HostName { get; set; }
         public DateTime ObtainedAtUtc { get; set; }
 
         /// <summary>Kartın aygıtı: "host:" gibi.</summary>
-        public string CardDevice { get { return (string.IsNullOrWhiteSpace(HostName) ? "host" : HostName.Trim()) + ":"; } }
+        public string CardDevice { get { return DeviceName + ":"; } }
+
+        /// <summary>Aygıt adı, sonundaki ':' olmadan ("host", "ali").</summary>
+        public string DeviceName { get { return string.IsNullOrWhiteSpace(HostName) ? "host" : HostName.Trim().TrimEnd(':'); } }
+
+        /// <summary>Kartın FTP köküne eriştiği yol: "/host." + aygıt adı ("gei(0,0)host:" → "/host.host").</summary>
+        public string CardFtpRoot { get { return TransferSettings.CardRootFor(DeviceName); } }
 
         /// <summary>Parolasız özet (ekranda gösterilebilir).</summary>
         public override string ToString()
         {
-            return User + "@" + Host + " (kartın aygıtı " + CardDevice + ")";
+            return User + "@" + Host + " (kartın yolu " + CardFtpRoot + ")";
         }
     }
 
@@ -60,7 +69,8 @@ namespace Vision
                                                             RegexOptions.IgnoreCase | RegexOptions.Compiled);
         // Boot satırı:  "fei(0,0)host:/vxWorks e=192.168.1.10:ffffff00 h=192.168.1.100 u=target pw=gizli f=0x8"
         private static readonly Regex BootLineToken = new Regex(@"(?:^|\s)(?<key>h|u|pw|tn|hn)=(?<value>\S*)", RegexOptions.Compiled);
-        private static readonly Regex BootLineHost = new Regex(@"^\s*[A-Za-z]+\d*\([^)]*\)(?<host>[A-Za-z0-9_.\-]+):", RegexOptions.Compiled);
+        // Boot satırının başı: "gei(0,3)host:/vxWorks …" → parantez kapandıktan sonra ':' işaretine kadar olan kelime ("host")
+        private static readonly Regex BootLineHost = new Regex(@"^\s*[^\s(]*\([^)]*\)(?<host>[^:\s()]+):", RegexOptions.Compiled);
         private static readonly Regex HostNameLine = new Regex(@"^\s*host\s*name\s*:\s*(?<value>\S*)\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         // version çıktısındaki işaret satırı: "Boot line:" / "BootLine:" (boot satırı bir alt satırda ya da aynı satırda gelir)
         private static readonly Regex BootLineMarker = new Regex(@"^\s*boot\s*line\s*:\s*(?<rest>.*)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);

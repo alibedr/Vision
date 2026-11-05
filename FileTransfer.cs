@@ -26,6 +26,7 @@ namespace Vision
             FtpRemoteDir = "/";
             CardPathPrefix = "";
             UsePassive = true;
+            DeleteAfterCopy = true;   // varsayılan açık (eski ayar dosyalarına Normalize → ApplyNewDefaults ile bir kez uygulanır)
         }
 
         /// <summary>FTP sunucusunun adresi. Artık karttan alınır; eski ayar dosyalarıyla uyum için alan korunur (kullanılmaz).</summary>
@@ -42,8 +43,32 @@ namespace Vision
         /// </summary>
         public string CardPathPrefix { get; set; }
         public bool UsePassive { get; set; }
-        /// <summary>Kartta kopyalama başarılı olunca FTP'deki kopyayı sil.</summary>
+        /// <summary>Kartta kopyalama başarılı olunca FTP'deki kopyayı sil (varsayılan: açık).</summary>
         public bool DeleteAfterCopy { get; set; }
+
+        /// <summary>
+        /// "Kopyayı hemen sil" varsayılanının (açık) bu ayar dosyasına uygulanıp uygulanmadığı. Önceki sürümlerin
+        /// dosyalarında bu alan yoktur ve DeleteAfterCopy=false yazılıdır; ilk açılışta bir kez açık yapılır,
+        /// sonra kullanıcının seçimi korunur.
+        /// </summary>
+        public bool DeleteAfterCopyDefaultApplied { get; set; }
+
+        /// <summary>Eski ayar dosyalarına yeni varsayılanları bir kez uygular.</summary>
+        public void ApplyNewDefaults()
+        {
+            if (!DeleteAfterCopyDefaultApplied)
+            {
+                DeleteAfterCopy = true;
+                DeleteAfterCopyDefaultApplied = true;
+            }
+        }
+
+        /// <summary>Kartın FTP köküne eriştiği yol: "/host." + aygıt adı (ör. "/host.host", "/host.ali").</summary>
+        public static string CardRootFor(string deviceName)
+        {
+            string d = (deviceName ?? "").Trim().TrimEnd(':');
+            return "/host." + (d.Length == 0 ? "host" : d);
+        }
 
         [XmlIgnore]
         public bool IsConfigured
@@ -74,15 +99,21 @@ namespace Vision
         }
 
         /// <summary>
-        /// Kartın, FTP klasörünü gördüğü yol. FTP yolları oturum açılan klasöre göre (göreli) kullanıldığı için
-        /// kart tarafı da göreli yazılır: aygıt "host:" + klasör "upload" → "host:upload"; kök → "host:".
+        /// Kartın, FTP klasörünü gördüğü yol. Boşsa (otomatik) "/host." + kartın aygıt adı (version boot satırında
+        /// parantezden sonra ':' işaretine kadar olan kelime) + FTP klasörü:
+        /// "gei(0,0)host:" → "/host.host" (kök) ya da "/host.host/upload"; "gei(1,0)ali:" → "/host.ali".
+        /// Yalnız aygıt adı ("host:") yazılırsa eski biçim ("host:upload") kullanılır; başka bir yol yazılırsa olduğu gibi.
         /// </summary>
         public string CardFolderFor(CardFtpCredentials c)
         {
-            string p = (CardPathPrefix ?? "").Trim();
-            if (p.Length == 0) p = c != null ? c.CardDevice : "host:";
-            if (!p.EndsWith(":")) return p;                   // kullanıcı tam yol yazmış
             string rel = NormalizedRemoteDir.TrimStart('/');
+            string p = (CardPathPrefix ?? "").Trim();
+            if (p.Length == 0)
+            {
+                string root = c != null ? c.CardFtpRoot : CardRootFor("host");
+                return rel.Length == 0 ? root : root + "/" + rel;
+            }
+            if (!p.EndsWith(":")) return p;                   // kullanıcı tam yol yazmış
             return rel.Length == 0 ? p : p + rel;
         }
 

@@ -338,7 +338,7 @@ namespace Vision
             box.Paint += (s, e) => { using (var p = new Pen(Theme.Border)) e.Graphics.DrawRectangle(p, 0, 0, box.Width - 1, box.Height - 1); };
             var cap = Caption("BU KARTIN FTP BİLGİSİ  ·  " + (card != null ? card.Label : "—"), 14, 12);
             box.Controls.Add(cap);
-            string[] names = { "FTP sunucusu (h)", "Kullanıcı (u)", "Parola (pw)", "Kartın FTP aygıtı" };
+            string[] names = { "FTP sunucusu (h)", "Kullanıcı (u)", "Parola (pw)", "Kartın FTP yolu" };
             Label[] values = { _hostValue, _userValue, _passValue, _deviceValue };
             for (int i = 0; i < names.Length; i++)
             {
@@ -390,7 +390,7 @@ namespace Vision
             _passive.Checked = settings.UsePassive;
             _delete.Checked = settings.DeleteAfterCopy;
             ShowCredentials(session != null ? session.Ftp : null, null);
-            Theme.SetCueBanner(_prefix, "Otomatik (kartın FTP aygıtı + FTP klasörü)");
+            Theme.SetCueBanner(_prefix, "Otomatik: /host.<kartın aygıtı> + FTP klasörü (ör. /host.host)");
 
             _dir.TextChanged += (s, e) => UpdateMapping();
             _prefix.TextChanged += (s, e) => UpdateMapping();
@@ -411,7 +411,7 @@ namespace Vision
             _hostValue.Text = c != null ? c.Host : "—";
             _userValue.Text = c != null ? c.User : "—";
             _passValue.Text = c != null ? CardFtpConfigurator.Mask + "  (gösterilmez)" : "—";
-            _deviceValue.Text = c != null ? c.CardDevice : "—";
+            _deviceValue.Text = c != null ? c.CardFtpRoot + "   (aygıt " + c.CardDevice + ")" : "—";
             if (error != null) { _cardStatus.ForeColor = Theme.Danger; _cardStatus.Text = "⚠  " + error; }
             else if (c != null) { _cardStatus.ForeColor = Theme.Success; _cardStatus.Text = "✓  Karttan alındı (" + c.ObtainedAtUtc.ToLocalTime().ToString("HH:mm:ss") + ")"; }
             else if (_card == null) { _cardStatus.ForeColor = Theme.TextMuted; _cardStatus.Text = "Dosya Gezgini'nde bir kart seçin."; }
