@@ -749,7 +749,9 @@ namespace Vision
 
         /// <summary>
         /// Bilgisayardan karta yükleme: dosyalar önce kartın erişebildiği FTP sunucusuna gönderilir,
-        /// sonra kartta copy (dosya) / xcopy (klasör) ile FTP konumundan içinde bulunulan klasöre kopyalanır.
+        /// sonra kartta FTP konumundan içinde bulunulan klasöre kopyalanır. Dosya: tek "copy". Klasör: xcopy
+        /// KULLANILMAZ (FTP üzerinden özyinelemeli xcopy kartın kabuğunu / telnet oturumunu düşürüyordu); klasör
+        /// yapısı bilgisayarda bilindiği için kartta her alt klasör "mkdir" ile açılır, her dosya ayrı "copy" ile kopyalanır.
         /// </summary>
         /// <param name="destDir">Hedef klasör; null ise içinde bulunulan klasör.</param>
         /// <param name="tracker">Kartın FTP'de bıraktığı kopyalar: her öğe FTP'ye gönderilmeye başlarken eklenir
@@ -775,6 +777,12 @@ namespace Vision
 
                     // Yerel öğe gerçekten var mı ve adı kartın kabuğunda yazılabilir mi? (FTP'ye hiç gönderilmeden denetlenir)
                     string nameProblem = UploadNameProblem(local, name, isDir);
+                    FolderPlan plan = null;
+                    if (nameProblem == null && isDir)
+                    {
+                        plan = FolderPlan.Build(local);
+                        nameProblem = plan.Problem;
+                    }
                     if (nameProblem != null) { failures.Add(name + ": " + nameProblem); continue; }
                     if (tracker != null) tracker.Add(name, isDir);
 
@@ -799,7 +807,24 @@ namespace Vision
                     // 2) Kartta FTP konumundan hedef klasöre kopyala
                     string src = FsPath.Join(settings.CardPathPrefix, name);
                     string dst = FsPath.Join(destDir, name);
-                    string cmd = (isDir ? "xcopy " : "copy ") + FsPath.Quote(src) + ", " + FsPath.Quote(dst);
+                    if (isDir)
+                    {
+                        string dirFailure = await CopyFolderFromFtpAsync(plan, src, dst, step, progress);
+                        if (dirFailure != null)
+                        {
+                            failures.Add(name + ": " + dirFailure);
+                            if (Error != null) break;      // eksik komut / bağlantı koptu: sonraki öğeler denenmez
+                            continue;
+                        }
+                        ok++;
+                        if (settings.DeleteAfterCopy)
+                        {
+                            try { await uploader.DeleteAsync(name, true); if (tracker != null) tracker.Remove(name); }
+                            catch (Exception ex) { ErrorText.LogTechnical("FTP silme " + name, ex); }
+                        }
+                        continue;
+                    }
+                    string cmd = "copy " + FsPath.Quote(src) + ", " + FsPath.Quote(dst);
                     PendingCommand = "Kartta kopyalanıyor " + step + "  ·  " + cmd;
                     Raise();
                     if (progress != null) progress.Report(PendingCommand);
@@ -953,6 +978,105 @@ namespace Vision
                 if (!string.IsNullOrEmpty(fo.Url)) text += " · " + fo.Url;
             }
             return text;
+        }
+
+        /// <summary>
+        /// Bilgisayardaki bir klasörün kartta yeniden kurulacak yapısı: alt klasörler (üstten alta) ve dosyalar,
+        /// klasöre göre "/" ile ayrılmış göreli yollarla. Adı kartın kabuğunda yazılamayan öğe varsa Problem dolu olur.
+        /// </summary>
+        public sealed class FolderPlan
+        {
+            public readonly List<string> Dirs = new List<string>();
+            public readonly List<string> Files = new List<string>();
+            public string Problem;
+
+            public static FolderPlan Build(string localDir)
+            {
+                var plan = new FolderPlan();
+                var bad = new List<string>();
+                Walk(localDir, "", plan, bad);
+                if (bad.Count > 0)
+                    plan.Problem = "klasörün içinde adı kartın kabuğunda yazılamayan öğeler var (Türkçe / özel karakter ya da çift tırnak): " +
+                                   string.Join(", ", bad.Take(5)) + (bad.Count > 5 ? " … (+" + (bad.Count - 5) + ")" : "") +
+                                   ". Bu öğeleri İngilizce karakterlerle yeniden adlandırın";
+                return plan;
+            }
+
+            private static void Walk(string dir, string rel, FolderPlan plan, List<string> bad)
+            {
+                foreach (string d in System.IO.Directory.GetDirectories(dir))
+                {
+                    string n = System.IO.Path.GetFileName(d);
+                    string r = rel.Length == 0 ? n : rel + "/" + n;
+                    if (!ShellSafeName(n)) { bad.Add(r); continue; }
+                    plan.Dirs.Add(r);
+                    Walk(d, r, plan, bad);
+                }
+                foreach (string f in System.IO.Directory.GetFiles(dir))
+                {
+                    string n = System.IO.Path.GetFileName(f);
+                    string r = rel.Length == 0 ? n : rel + "/" + n;
+                    if (!ShellSafeName(n)) { bad.Add(r); continue; }
+                    plan.Files.Add(r);
+                }
+            }
+
+            private static bool ShellSafeName(string n)
+            {
+                return !string.IsNullOrEmpty(n) && n.IndexOf('"') < 0 && !n.Any(c => c > 126 || c < 32);
+            }
+        }
+
+        /// <summary>
+        /// FTP'ye gönderilmiş klasörü kartta, xcopy kullanmadan kurar: hedef klasör ve alt klasörler "mkdir",
+        /// her dosya ayrı "copy". Klasör zaten varsa mkdir hatası yok sayılır (dosyalar yine kopyalanır).
+        /// Bir dosya kopyalanamazsa diğerleri denenmeye devam eder; bağlantı koparsa ya da komut kartta yoksa durur.
+        /// Dönüş: sorun yoksa null, varsa açıklama.
+        /// </summary>
+        private async Task<string> CopyFolderFromFtpAsync(FolderPlan plan, string srcRoot, string dstRoot, string step, IProgress<string> progress)
+        {
+            var dirs = new List<string> { "" };
+            dirs.AddRange(plan.Dirs);
+            foreach (string rel in dirs)
+            {
+                string dst = rel.Length == 0 ? dstRoot : FsPath.Join(dstRoot, rel);
+                string cmd = "mkdir " + FsPath.Quote(dst);
+                PendingCommand = "Kartta klasör açılıyor " + step + "  ·  " + cmd;
+                Raise();
+                if (progress != null) progress.Report(PendingCommand);
+                ShellResponse r = await Exec(cmd, ShortTimeoutSec);
+                OpResult common = CheckCommon(r, cmd);
+                if (common != null && (r.Failure != null || common.MissingCommand != null))
+                {
+                    SetError(common);
+                    return "kartta " + dst + " klasörü açılamadı (" + common.Message + ")";
+                }
+                // Dönüş değeri 0 değilse klasör büyük olasılıkla zaten var: devam edilir, dosya kopyası sonucu belirler
+            }
+
+            var failed = new List<string>();
+            for (int k = 0; k < plan.Files.Count; k++)
+            {
+                string rel = plan.Files[k];
+                string src = FsPath.Join(srcRoot, rel);
+                string dst = FsPath.Join(dstRoot, rel);
+                string cmd = "copy " + FsPath.Quote(src) + ", " + FsPath.Quote(dst);
+                PendingCommand = "Kartta kopyalanıyor " + step + "  ·  dosya " + (k + 1) + "/" + plan.Files.Count + "  ·  " + cmd;
+                Raise();
+                if (progress != null) progress.Report(PendingCommand);
+                ShellResponse resp = await Exec(cmd, LongTimeoutSec);
+                OpResult bad = CheckReturn(resp, rel, null);
+                if (bad == null) continue;
+                if (resp.Failure != null || bad.MissingCommand != null)
+                {
+                    SetError(bad);
+                    return "kartta kopyalama durdu (" + bad.Message + "); " + k + "/" + plan.Files.Count + " dosya kopyalanmıştı";
+                }
+                failed.Add(rel + (resp.ReturnCode.HasValue ? " (" + resp.ReturnCode.Value + ")" : ""));
+            }
+            if (failed.Count == 0) return null;
+            return "FTP'ye gönderildi ama kartta " + failed.Count + "/" + plan.Files.Count + " dosya kopyalanamadı: " +
+                   string.Join(", ", failed.Take(5)) + (failed.Count > 5 ? " …" : "") + " (kaynak " + srcRoot + ")";
         }
 
         /// <summary>Yüklenecek öğenin adı / varlığıyla ilgili sorun (yoksa null). Kartın kabuğu ASCII dışı adları güvenle işleyemez.</summary>

@@ -371,7 +371,7 @@ Kart dosyasını bilgisayarınızdaki bir uygulamayla (Notepad++, XML düzenleyi
 Yükleme, kartlara dosya atarken elle izlediğiniz yolun aynısını otomatik yapar:
 
 1. Dosya (ya da klasör) **kartın erişebildiği FTP sunucusuna** gönderilir — sunucu, kullanıcı ve parola **o kartın kendisinden** alınır (aşağıya bakın).
-2. Kartta `copy "FTP-konumu/dosya", "hedef/dosya"` (klasörlerde `xcopy`) çalıştırılır.
+2. Kartta `copy "FTP-konumu/dosya", "hedef/dosya"` çalıştırılır. Klasörlerde `xcopy` **kullanılmaz** (FTP üzerinden `xcopy` kartın telnet bağlantısını düşürebiliyordu): kartta önce klasör ve alt klasörler `mkdir` ile açılır, sonra her dosya ayrı `copy` ile kopyalanır. İlerleme "dosya 3/12" gibi gösterilir; bir dosya kopyalanamazsa diğerleri devam eder ve sonunda hangilerinin kopyalanamadığı yazılır. Klasörün içindeki öğelerden birinin adında Türkçe / özel karakter varsa yükleme başlamadan bildirilir.
 3. Dönüş değeri kontrol edilir.
 
 Yüklemek için: Windows Gezgini'nden dosyaları listeye **sürükleyip bırakın** (bir klasörün üzerine bırakırsanız o klasöre; boş bir klasöre de bırakılabilir) ya da **Yükle** (yukarı ok simgesi) düğmesini kullanın. Hedefte aynı adlı öğe varsa üzerine yazmadan önce sorulur.

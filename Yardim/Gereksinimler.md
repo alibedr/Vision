@@ -226,6 +226,7 @@ Ana metin (≈ 14:1), terminal metni (≈ 13:1) ve başarı / uyarı renkleri za
 | G18.6 | FTP bilgisi `bspBootChange` yerine `version` komutundan alınmalı | Karşılandı | Kartta `version` çalıştırılır; cevaptaki `Boot line:` / `BootLine:` satırından sonraki boot satırında `h=` → FTP IP, `u=` → kullanıcı, `pw=` → parola, satır başındaki `…host:` → kartın aygıtı. Yalnız boot satırı okunur; etkileşimli Enter döngüsü kaldırıldı (komut tek seferde biter, boot parametreleri değişmez). İşaret ya da değerler yoksa açıklamalı hata. Parola ham cevapta `••••••`. |
 | G18.7 | Kartın aynı klasörü gördüğü yol varsayılan olarak `/host.` + kartın aygıt adı olmalı | Karşılandı | Aygıt adı `version` boot satırının başından alınır: parantez kapandıktan sonra `:` işaretine kadar (`:` hariç). `gei(0,0)host:` → `/host.host`, `gei(1,0)ali:` → `/host.ali`; FTP klasörü varsa `/host.host/upload`. FTP penceresinde "Kartın FTP yolu" olarak gösterilir; alan elle doldurulursa o kullanılır. |
 | G18.8 | "Kopyalama başarılı olunca FTP'deki kopyayı hemen sil" varsayılan açık | Karşılandı | Yeni ayarlarda açık; eski ayar dosyalarında ilk açılışta bir kez açılır (`DeleteAfterCopyDefaultApplied`), sonra kullanıcının seçimi korunur. |
+| G18.9 | Klasör sürükle-bırak yüklemede FTP'den karta kopyalarken telnet bağlantısı kopmamalı | Karşılandı | Neden: klasörler kartta FTP konumundan tek bir özyinelemeli `xcopy` ile kopyalanıyordu; ağ (FTP) aygıtı üzerinde `xcopy` kartın kabuğunu / telnet oturumunu düşürüyordu (tek dosya `copy` ile sorunsuzdu). Çözüm: klasör yapısı bilgisayarda bilindiği için kartta hedef ve alt klasörler `mkdir`, her dosya ayrı `copy` ile kopyalanır; dosya başına ilerleme; tek dosyanın hatası diğerlerini durdurmaz; bağlantı koparsa durur ve kaç dosyanın kopyalandığını yazar. İç öğe adları yüklemeden önce denetlenir. |
 
 **Sınırlamalar:** Dönüş ayrımı VxWorks kabuğunun `->` istemine ve dönüş satırı biçimine dayanır; bir log aynı satırın ortasına karışırsa o satır ayrılamaz ve terminalde kalır. İstem görmeyen kabukta açık komut 120 sn sonra kapanır. Anlık kayıt, terminalde tutulan satırları (satır sınırı) içerir; daha eski çıktı kaydedilemez. Yönetici olarak çalışan Vision'a normal yetkili Windows Gezgini'nden sürükleme Windows tarafından engellenir.
 
@@ -233,7 +234,7 @@ Ana metin (≈ 14:1), terminal metni (≈ 13:1) ve başarı / uyarı renkleri za
 
 | No | Gereksinim | Durum | Not |
 |---|---|---|---|
-| G9.1 | Bilgisayardan karta sürükle-bırak ile dosya / klasör yükleme | Kısmen | FTP sunucusuna gönderim + kartta `copy` / `xcopy`; FTP ayarları penceresi. Gerçek FTP sunucusu ve kartla doğrulanmalı. |
+| G9.1 | Bilgisayardan karta sürükle-bırak ile dosya / klasör yükleme | Kısmen | FTP sunucusuna gönderim + kartta `copy` (klasörde `mkdir` + dosya başına `copy`); FTP ayarları penceresi. Gerçek FTP sunucusu ve kartla doğrulanmalı. |
 | G9.2 | Kart içinde sürükleyerek taşıma / kopyalama | Karşılandı | Klasöre ya da yol çubuğuna bırakma: `mv`; Ctrl ile `copy` / `xcopy`. |
 | G9.3 | Metin dosyalarını (txt, xml…) görüntüleme | Karşılandı | `copy "dosya"` çıktısı görüntüleyicide; bilgisayara kaydetme. ASCII dışı karakterler `?` görünebilir. |
 | G9.4 | Klasör oluşturma / silme, yeniden adlandırma | Karşılandı | `mkdir`, `rmdir`, `xdelete`, `rm`, `mv`; silmede onay. |
