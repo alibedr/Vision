@@ -1,0 +1,306 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+
+namespace Vision
+{
+    /// <summary>
+    /// Kartın açılış (boot) parametrelerinden okunan FTP bilgileri. Yalnız bellekte tutulur; dosyaya, log'a ya da
+    /// ekrana parola yazılmaz. Her kartın kendi bilgisi vardır (CardSession.Ftp).
+    /// </summary>
+    public sealed class CardFtpCredentials
+    {
+        /// <summary>FTP sunucusu (boot parametresi h = host inet).</summary>
+        public string Host { get; set; }
+        /// <summary>FTP kullanıcısı (u = user).</summary>
+        public string User { get; set; }
+        /// <summary>FTP parolası (pw = ftp password). Yalnız bellekte.</summary>
+        public string Password { get; set; }
+        /// <summary>Kartın FTP sunucusunu gördüğü aygıt adı (boot parametresi "host name"; yoksa "host").</summary>
+        public string HostName { get; set; }
+        public DateTime ObtainedAtUtc { get; set; }
+
+        /// <summary>Kartın aygıtı: "host:" gibi.</summary>
+        public string CardDevice { get { return (string.IsNullOrWhiteSpace(HostName) ? "host" : HostName.Trim()) + ":"; } }
+
+        /// <summary>Parolasız özet (ekranda gösterilebilir).</summary>
+        public override string ToString()
+        {
+            return User + "@" + Host + " (kartın aygıtı " + CardDevice + ")";
+        }
+    }
+
+    /// <summary>bspBootChange çıktısının ayrıştırma sonucu.</summary>
+    public sealed class BootParams
+    {
+        public string Host;
+        public string User;
+        public string Password;
+        public bool PasswordPresent;
+        public string HostName;
+        /// <summary>Çıktıda tanınan alan sayısı (hiç yoksa çıktı boot parametresi değildir).</summary>
+        public int FieldsFound;
+        /// <summary>Çıktı etkileşimli düzenleme istemiyle bitti (kart her alan için giriş bekliyor).</summary>
+        public bool WaitingForInput;
+
+        // Tablo biçimi:  "host inet (h)        : 192.168.1.100"   (alan adı serbest, anahtar parantez içinde)
+        private static readonly Regex TableLine = new Regex(@"^\s*(?<label>[^:()]*?)\s*\(\s*(?<key>[a-z]{1,3})\s*\)\s*:\s?(?<value>.*?)\s*$",
+                                                            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        // Kısa biçim:  "h: 192.168.1.100"  ya da  "pw = gizli"
+        private static readonly Regex ShortLine = new Regex(@"^\s*(?<key>h|u|pw|hn)\s*[:=]\s*(?<value>.*?)\s*$",
+                                                            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        // Boot satırı:  "fei(0,0)host:/vxWorks e=192.168.1.10:ffffff00 h=192.168.1.100 u=target pw=gizli f=0x8"
+        private static readonly Regex BootLineToken = new Regex(@"(?:^|\s)(?<key>h|u|pw|tn|hn)=(?<value>\S*)", RegexOptions.Compiled);
+        private static readonly Regex BootLineHost = new Regex(@"^\s*[A-Za-z]+\d*\([^)]*\)(?<host>[A-Za-z0-9_.\-]+):", RegexOptions.Compiled);
+        private static readonly Regex FieldLine = new Regex(@"^\s*[A-Za-z][^:]{0,40}:\s?.*$", RegexOptions.Compiled);
+        private static readonly Regex HostNameLine = new Regex(@"^\s*host\s*name\s*:\s*(?<value>\S*)\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        /// <summary>
+        /// bspBootChange (ya da bootChange / boot satırı) çıktısını ayrıştırır. Biçim farklılıklarına dayanıklıdır:
+        /// tablo ("host inet (h) : …"), kısa ("h: …") ve boot satırı ("… h=… u=… pw=…") biçimleri tanınır;
+        /// boşluk / sekme farkları, satır sonundaki istem ve eksik alanlar sorun çıkarmaz.
+        /// </summary>
+        public static BootParams Parse(IEnumerable<string> lines)
+        {
+            var p = new BootParams();
+            string last = null;
+            bool seenInteractiveHeader = false;
+            foreach (string raw in lines ?? Enumerable.Empty<string>())
+            {
+                string line = (raw ?? "").Replace("\t", " ").TrimEnd();
+                if (line.Trim().Length == 0) continue;
+                last = line;
+                if (line.Contains("clear field") || line.Contains("^D = quit")) { seenInteractiveHeader = true; continue; }
+
+                Match hn = HostNameLine.Match(line);
+                if (hn.Success) { Set(p, "hn", hn.Groups["value"].Value); continue; }
+
+                Match m = TableLine.Match(line);
+                if (m.Success) { Set(p, m.Groups["key"].Value.ToLowerInvariant(), m.Groups["value"].Value); continue; }
+
+                m = ShortLine.Match(line);
+                if (m.Success) { Set(p, m.Groups["key"].Value.ToLowerInvariant(), m.Groups["value"].Value); continue; }
+
+                if (line.Contains("="))
+                {
+                    bool any = false;
+                    foreach (Match t in BootLineToken.Matches(line)) { Set(p, t.Groups["key"].Value, t.Groups["value"].Value); any = true; }
+                    if (any)
+                    {
+                        Match bh = BootLineHost.Match(line);
+                        if (bh.Success && p.HostName == null) p.HostName = bh.Groups["host"].Value;
+                    }
+                }
+            }
+            // Etkileşimli düzenleme (bootChange gibi): başlık "'.' = clear field … ^D = quit" ya da son satır
+            // "alan : değer " biçiminde ve kabuk istemi (->) gelmemiş → kart her alan için giriş bekliyor
+            bool interactiveHeader = seenInteractiveHeader;
+            if (last != null && !last.TrimStart().StartsWith("->") && !last.TrimStart().StartsWith("value =") &&
+                (TableLine.IsMatch(last) || (interactiveHeader && FieldLine.IsMatch(last))))
+                p.WaitingForInput = true;
+            return p;
+        }
+
+        private static void Set(BootParams p, string key, string value)
+        {
+            value = (value ?? "").Trim();
+            // Etkileşimli istemde değer, kullanıcı girişi beklenirken satırın sonunda boşlukla durur; temizlenmiş hâli alınır
+            switch (key)
+            {
+                case "h": p.FieldsFound++; if (value.Length > 0) p.Host = StripMask(value); break;
+                case "u": p.FieldsFound++; if (value.Length > 0) p.User = value; break;
+                case "pw": p.FieldsFound++; p.PasswordPresent = true; if (value.Length > 0) p.Password = value; break;
+                case "hn": p.FieldsFound++; if (value.Length > 0) p.HostName = value; break;
+                default: p.FieldsFound++; break;
+            }
+        }
+
+        /// <summary>"192.168.1.100:ffffff00" → "192.168.1.100" (adres maskesi varsa).</summary>
+        private static string StripMask(string v)
+        {
+            int c = v.IndexOf(':');
+            return c > 0 ? v.Substring(0, c) : v;
+        }
+
+        /// <summary>Sonucu doğrular. Sorun yoksa null, varsa kullanıcıya gösterilecek Türkçe açıklama.</summary>
+        public string Validate()
+        {
+            if (FieldsFound == 0)
+                return "Kartın cevabında boot parametreleri bulunamadı (h / u / pw alanları yok).";
+            var missing = new List<string>();
+            if (string.IsNullOrEmpty(Host)) missing.Add("FTP sunucusu (h)");
+            if (string.IsNullOrEmpty(User)) missing.Add("kullanıcı (u)");
+            if (!PasswordPresent || string.IsNullOrEmpty(Password)) missing.Add("FTP parolası (pw)");
+            if (missing.Count > 0)
+            {
+                string msg = "Kartın boot parametrelerinde eksik bilgi: " + string.Join(", ", missing) + ".";
+                if (!string.IsNullOrEmpty(Host) && !string.IsNullOrEmpty(User) && string.IsNullOrEmpty(Password))
+                    msg += " Parola boşsa kart dosyalara FTP yerine RSH ile erişiyor olabilir.";
+                return msg;
+            }
+            if (!IsValidHost(Host))
+                return "Kartın boot parametresindeki FTP sunucusu adresi geçersiz: \"" + Host + "\".";
+            return null;
+        }
+
+        private static bool IsValidHost(string h)
+        {
+            System.Net.IPAddress ip;
+            if (Regex.IsMatch(h, @"^[\d.]+$"))   // yalnız rakam ve nokta: geçerli bir IPv4 olmalı (ör. 999.1.1.1 değil)
+            {
+                string[] parts = h.Split('.');
+                int n;
+                return parts.Length == 4 && parts.All(x => int.TryParse(x, out n) && n >= 0 && n <= 255);
+            }
+            if (System.Net.IPAddress.TryParse(h, out ip)) return true;
+            return Regex.IsMatch(h, @"^[A-Za-z0-9]([A-Za-z0-9\-.]{0,252}[A-Za-z0-9])?$");
+        }
+    }
+
+    /// <summary>Karttan FTP bilgisi alma sonucu.</summary>
+    public sealed class CardFtpResult
+    {
+        public bool Ok;
+        public CardFtpCredentials Credentials;
+        public string Error;
+        /// <summary>Komut kartın imajında yoksa adı.</summary>
+        public string MissingCommand;
+        /// <summary>Parolası gizlenmiş ham cevap (tanılama paneli için).</summary>
+        public ShellResponse MaskedResponse;
+    }
+
+    /// <summary>
+    /// Kartın FTP bilgisini kartın kendisinden (bspBootChange) alır. Kartın MEVCUT telnet oturumunu kullanır.
+    /// </summary>
+    public static class CardFtpConfigurator
+    {
+        public const string Command = "bspBootChange";
+        private const int TimeoutSec = 6;
+        private const int MaxInteractiveSteps = 40;
+        public const string Mask = "••••••";
+
+        public static async Task<CardFtpResult> ObtainAsync(Func<string, int, Task<ShellResponse>> exec)
+        {
+            var result = new CardFtpResult();
+            ShellResponse resp = await exec(Command, TimeoutSec).ConfigureAwait(false);
+            var all = new List<string>(resp.OutputLines);
+            string raw = resp.Raw ?? "";
+
+            if (resp.Failure != null) return Fail(result, resp, resp.Failure, null);
+            if (resp.UndefinedSymbol != null)
+                return Fail(result, resp, "Kartın imajında \"" + resp.UndefinedSymbol + "\" komutu yok; FTP bilgisi karttan alınamadı.", resp.UndefinedSymbol);
+
+            BootParams bp = BootParams.Parse(all);
+            // Etkileşimli düzenleme açıldıysa (bootChange gibi) her alanda yalnız Enter: değerler DEĞİŞMEDEN geçilir
+            int steps = 0;
+            while (bp.WaitingForInput && !ShellResponse.EndsAtPrompt(raw) && steps++ < MaxInteractiveSteps)
+            {
+                ShellResponse next = await exec("", 1).ConfigureAwait(false);   // istem satırı bitmez: kısa sessizlik yeter
+                if (next.Failure != null) break;
+                all.AddRange(next.OutputLines);
+                raw += next.Raw ?? "";
+                bp = BootParams.Parse(all);
+                if (next.ReturnCode.HasValue) break;
+            }
+
+            ShellResponse masked = MaskSecret(ShellResponse.Parse(Command, raw), bp.Password);
+            result.MaskedResponse = masked;
+
+            string invalid = bp.Validate();
+            if (invalid != null)
+            {
+                if (resp.TimedOut && bp.FieldsFound == 0) invalid = "Kart \"" + Command + "\" komutuna zamanında cevap vermedi.";
+                result.Error = invalid;
+                return result;
+            }
+            result.Ok = true;
+            result.Credentials = new CardFtpCredentials
+            {
+                Host = bp.Host,
+                User = bp.User,
+                Password = bp.Password,
+                HostName = bp.HostName,
+                ObtainedAtUtc = DateTime.UtcNow,
+            };
+            return result;
+        }
+
+        private static CardFtpResult Fail(CardFtpResult r, ShellResponse resp, string error, string missing)
+        {
+            r.Error = error;
+            r.MissingCommand = missing;
+            r.MaskedResponse = MaskSecret(resp, null);
+            return r;
+        }
+
+        /// <summary>Cevaptaki parolayı (ve pw= / (pw) : alanlarını) gizler.</summary>
+        public static ShellResponse MaskSecret(ShellResponse r, string secret)
+        {
+            Func<string, string> mask = s =>
+            {
+                if (string.IsNullOrEmpty(s)) return s;
+                if (!string.IsNullOrEmpty(secret)) s = s.Replace(secret, Mask);
+                s = Regex.Replace(s, @"(\(\s*pw\s*\)\s*:\s?)\S+", "$1" + Mask, RegexOptions.IgnoreCase);
+                s = Regex.Replace(s, @"(\bpw\s*[:=]\s*)\S+", "$1" + Mask, RegexOptions.IgnoreCase);
+                return s;
+            };
+            ShellResponse m = r.Failure != null ? ShellResponse.Failed(r.Command, r.Failure, mask(r.Raw ?? "")) : ShellResponse.Parse(r.Command, mask(r.Raw ?? ""));
+            m.TimedOut = r.TimedOut;
+            return m;
+        }
+    }
+
+    /// <summary>
+    /// Bir kartın FTP'de bıraktığı kopyalar (yükleme sırasında FTP'ye gönderilen dosya / klasörler).
+    /// "FTP kopyalarını sil" düğmesi bunlara göre etkinleşir; hiçbiri kendiliğinden silinmez
+    /// (yalnız kullanıcı düğmeye basınca ya da "kopyalama sonrası sil" ayarı açıkken).
+    /// </summary>
+    public sealed class FtpCopyTracker
+    {
+        private readonly object _lock = new object();
+        private readonly List<FtpCopy> _items = new List<FtpCopy>();
+
+        public sealed class FtpCopy
+        {
+            public string Name;
+            public bool IsDirectory;
+            public DateTime CreatedUtc;
+        }
+
+        public event Action Changed;
+
+        public IList<FtpCopy> Items { get { lock (_lock) return _items.ToList(); } }
+        public int Count { get { lock (_lock) return _items.Count; } }
+
+        public void Add(string name, bool isDir)
+        {
+            lock (_lock)
+            {
+                if (_items.Any(i => i.Name == name)) return;
+                _items.Add(new FtpCopy { Name = name, IsDirectory = isDir, CreatedUtc = DateTime.UtcNow });
+            }
+            Raise();
+        }
+
+        public void Remove(string name)
+        {
+            bool removed;
+            lock (_lock) removed = _items.RemoveAll(i => i.Name == name) > 0;
+            if (removed) Raise();
+        }
+
+        public void Clear()
+        {
+            lock (_lock) _items.Clear();
+            Raise();
+        }
+
+        private void Raise()
+        {
+            var h = Changed;
+            if (h != null) h();
+        }
+    }
+}

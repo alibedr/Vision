@@ -58,6 +58,9 @@
     <Compile Include="Icons.cs" />
     <Compile Include="DarkControls.cs" />
     <Compile Include="ReadOnlyOpen.cs" />
+    <Compile Include="CardFtp.cs" />
+    <Compile Include="CommandResponses.cs" />
+    <Compile Include="TerminalSnapshot.cs" />
     <Compile Include="FileExplorerLogic.cs" />
     <Compile Include="FileTransfer.cs" />
     <Compile Include="CommandLibrary.cs" />
@@ -80,6 +83,10 @@
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Include="CardView.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="CardView.Actions.cs">
+      <DependentUpon>CardView.cs</DependentUpon>
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Include="GlobalCommandBar.cs">

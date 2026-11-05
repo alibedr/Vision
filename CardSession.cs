@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -46,6 +47,7 @@ namespace Vision
         private readonly EchoFilter _echoFilter = new EchoFilter();
         private DateTime? _connectedSinceUtc;
         private readonly CommandHistory _commandHistory = new CommandHistory();
+        private readonly ResponseSplitter _responses = new ResponseSplitter();   // dönüş değerleri (kilit içinde kullanılır)
 
         // Komutlar (terminal + dosya gezgini) bu kapıdan sırayla geçer: bir yakalama sürerken terminal
         // komutu beklemeye alınır, böylece iki komutun cevabı birbirine karışmaz.
@@ -67,6 +69,20 @@ namespace Vision
         }
 
         public CardConfig Card { get; private set; }
+
+        /// <summary>
+        /// Bu kartın FTP bilgisi (karttan bspBootChange ile alınır; yalnız bellekte). Başka kartla paylaşılmaz.
+        /// Bağlantı kopunca / kesilince silinir: yeniden bağlanınca karttan tekrar alınır (kart değişmiş olabilir).
+        /// </summary>
+        public CardFtpCredentials Ftp
+        {
+            get { lock (_lock) return _ftp; }
+            set { lock (_lock) _ftp = value; }
+        }
+        private CardFtpCredentials _ftp;
+
+        /// <summary>Bu kartın yüklemeleri sırasında FTP sunucusunda bırakılan kopyalar ("FTP kopyalarını sil" düğmesi).</summary>
+        public FtpCopyTracker FtpCopies { get; } = new FtpCopyTracker();
         public string LastError { get; private set; }
 
         /// <summary>Kullanıcı ekranında kırmızı gösterilecek uyarı satırlarının ön eki.</summary>
@@ -84,6 +100,20 @@ namespace Vision
 
         /// <summary>Bu kartın kendi komut geçmişi (kartlar arasında paylaşılmaz).</summary>
         public CommandHistory CommandHistory { get { return _commandHistory; } }
+
+        /// <summary>Komut / dönüş değeri listesinin sürümü (değişince artar).</summary>
+        public int ResponsesVersion { get { lock (_lock) return _responses.Version; } }
+
+        /// <summary>Bu kartın komutları ve dönüş değerleri (eskiden yeniye, kopya).</summary>
+        public List<CommandResponse> GetResponses()
+        {
+            lock (_lock) return _responses.Snapshot();
+        }
+
+        public void ClearResponses()
+        {
+            lock (_lock) _responses.ClearLog();
+        }
 
         /// <summary>
         /// Bağlantının kurulduğu an (UTC). Bağlı değilken null. Görünümün açılış zamanından bağımsızdır;
@@ -118,6 +148,19 @@ namespace Vision
             get { lock (_lock) return _state; }
         }
 
+        private void ResetResponses(string note)
+        {
+            string late;
+            lock (_lock) late = _responses.Reset(note, DateTime.UtcNow);
+            if (late != null) Append(late);
+        }
+
+        /// <summary>Ayar kapatılınca: açık komutlar kapanır, bekletilen metin terminale verilir.</summary>
+        public void SetResponseSeparation(bool on)
+        {
+            if (!on) ResetResponses("ayırma kapatıldı");
+        }
+
         /// <summary>Durum değişince tetiklenir. Arka plan iş parçacığından gelebilir.</summary>
         public event Action<CardSession> StateChanged;
 
@@ -128,6 +171,7 @@ namespace Vision
                 if (_state == s && error == null) return;
                 _state = s;
                 if (error != null) LastError = error;
+                if (s != CardState.Connected) _ftp = null;   // FTP bilgisi bağlantıya aittir
             }
             var h = StateChanged;
             if (h != null) h(this);
@@ -150,6 +194,7 @@ namespace Vision
                 _normalizer.Reset();
                 _echoFilter.Clear();
             }
+            ResetResponses("yeni bağlantı");
             SetState(CardState.Connecting, null);
             AppendSystem("Bağlanılıyor: " + ip + ":" + port + " ...");
             try
@@ -185,6 +230,7 @@ namespace Vision
                 _droppedAtUtc = null;
             }
             _client.Disconnect();
+            ResetResponses("bağlantı kesildi");
             AppendSystem("Bağlantı kapatıldı.");
             SetState(CardState.Disconnected, null);
         }
@@ -208,6 +254,7 @@ namespace Vision
                 _recoverFailures = 0;
                 _nextRecoverUtc = now + TimeSpan.FromMilliseconds(Monitor.ReconnectMinMs);
             }
+            ResetResponses("bağlantı koptu");
             Exception cause = _client.LastError;
             string tr = ErrorText.DescribeDrop(cause);
             if (cause != null) ErrorText.LogTechnical(Card.DisplayName + " bağlantı koptu", cause);
@@ -323,14 +370,15 @@ namespace Vision
 
         // ---------- Gönderme ----------
 
-        public async Task SendCommandAsync(string cmd)
+        /// <param name="source">Komutun nereden geldiği (dönüş değerleri panelinde gösterilir).</param>
+        public async Task SendCommandAsync(string cmd, string source = "komut satırı")
         {
             if (State != CardState.Connected) throw new InvalidOperationException("Kart bağlı değil.");
             await _commandGate.WaitAsync().ConfigureAwait(false);
             try
             {
                 if (State != CardState.Connected) throw new InvalidOperationException("Kart bağlı değil.");
-                await SendTerminalCommandAsync(cmd).ConfigureAwait(false);
+                await SendTerminalCommandAsync(cmd, source).ConfigureAwait(false);
             }
             finally
             {
@@ -338,8 +386,11 @@ namespace Vision
             }
         }
 
-        private async Task SendTerminalCommandAsync(string cmd)
+        private async Task SendTerminalCommandAsync(string cmd, string source)
         {
+            // Dönüş değeri bu komutla eşleşsin: komut karta gitmeden ÖNCE kaydedilir (cevap çok hızlı gelebilir)
+            if (_settings.SeparateReturnValues && (cmd ?? "").Trim().Length > 0)
+                lock (_lock) _responses.CommandSent(cmd.Trim(), source, DateTime.UtcNow);
             if (_settings.LocalEcho)
             {
                 // Komut, gerçek bir terminaldeki gibi kartın istem satırına (ör. "SHELL> ") yazılır
@@ -467,7 +518,11 @@ namespace Vision
         /// <summary>Yakalamaya karışmış başka komut çıktısını (ör. terminalin gecikmiş cevabı) terminale geri ver.</summary>
         private void ReturnPreambleToTerminal(ShellResponse r)
         {
-            if (!string.IsNullOrEmpty(r.Preamble)) Append(r.Preamble);
+            if (string.IsNullOrEmpty(r.Preamble)) return;
+            string text = r.Preamble;
+            // Terminal komutunun gecikmiş cevabı: dönüş değeri varsa o da ayrılır (terminale karışmaz)
+            if (_settings.SeparateReturnValues) lock (_lock) text = _responses.Process(text, DateTime.UtcNow);
+            if (text.Length > 0) Append(text);
         }
 
         // ---------- Gelen veri ----------
@@ -488,6 +543,8 @@ namespace Vision
                     return;
                 }
                 text = _echoFilter.Filter(text, now);       // yerel eko açıksa cihazın tekrar ekosunu ayıkla
+                // Komut dönüş değerleri ("value = …") canlı loglardan ayrılır; yalnız açık bir komut varken
+                if (_settings.SeparateReturnValues) text = _responses.Process(text, now);
             }
             if (text.Length > 0) Append(text);
         }
@@ -631,6 +688,9 @@ namespace Vision
         /// <summary>Görünümün son çağrıdan bu yana basmadığı metin (yoksa null).</summary>
         public string TakePending()
         {
+            string late;
+            lock (_lock) late = _responses.FlushIfStale(DateTime.UtcNow);   // bekletilen yarım satır dönüş değeri çıkmadı
+            if (late != null) Append(late);
             lock (_lock)
             {
                 if (_viewPending.Length == 0) return null;

@@ -752,23 +752,31 @@ namespace Vision
         /// sonra kartta copy (dosya) / xcopy (klasör) ile FTP konumundan içinde bulunulan klasöre kopyalanır.
         /// </summary>
         /// <param name="destDir">Hedef klasör; null ise içinde bulunulan klasör.</param>
-        public async Task<OpResult> UploadAsync(IList<string> localPaths, IFileUploader uploader, TransferSettings settings, IProgress<string> progress, string destDir = null)
+        /// <param name="tracker">Kartın FTP'de bıraktığı kopyalar: her öğe FTP'ye gönderilmeye başlarken eklenir
+        /// ("FTP kopyalarını sil" düğmesi hemen etkinleşir), yalnız gerçekten silinince çıkarılır.</param>
+        public async Task<OpResult> UploadAsync(IList<string> localPaths, IFileUploader uploader, TransferSettings settings, IProgress<string> progress, string destDir = null, FtpCopyTracker tracker = null)
         {
             if (Current.IsRoot && destDir == null) return Reject("Yüklemek için önce kartta bir klasör açın.");
             if (Busy) return Reject("Başka bir işlem sürüyor.");
-            if (settings == null || !settings.IsConfigured) return Reject("Yükleme için önce \"FTP ayarları\"nı girin.");
+            if (settings == null || !settings.IsConfigured) return Reject("Kartın FTP bilgisi yok: FTP sunucusu / kullanıcı / parola karttan (bspBootChange) alınamadı.");
             destDir = destDir ?? Current.Path;
             int ok = 0;
             var failures = new List<string>();
             BeginWork("yükleme");
             try
             {
+                string modeNote = null;
                 for (int i = 0; i < localPaths.Count; i++)
                 {
                     string local = localPaths[i].TrimEnd('\\', '/');
                     string name = System.IO.Path.GetFileName(local);
                     bool isDir = System.IO.Directory.Exists(local);
                     string step = "(" + (i + 1) + "/" + localPaths.Count + ") " + name;
+
+                    // Yerel öğe gerçekten var mı ve adı kartın kabuğunda yazılabilir mi? (FTP'ye hiç gönderilmeden denetlenir)
+                    string nameProblem = UploadNameProblem(local, name, isDir);
+                    if (nameProblem != null) { failures.Add(name + ": " + nameProblem); continue; }
+                    if (tracker != null) tracker.Add(name, isDir);
 
                     // 1) FTP sunucusuna gönder
                     PendingCommand = "FTP'ye gönderiliyor " + step;
@@ -785,6 +793,8 @@ namespace Vision
                         failures.Add(name + ": FTP'ye gönderilemedi (" + FtpErrorText(ex) + ")");
                         continue;
                     }
+                    var ftp = uploader as FtpUploader;
+                    if (ftp != null && ftp.ModeNote != null) modeNote = ftp.ModeNote;
 
                     // 2) Kartta FTP konumundan hedef klasöre kopyala
                     string src = FsPath.Join(settings.CardPathPrefix, name);
@@ -794,14 +804,15 @@ namespace Vision
                     Raise();
                     if (progress != null) progress.Report(PendingCommand);
                     ShellResponse resp = await Exec(cmd, LongTimeoutSec);
-                    OpResult bad = CheckReturn(resp, name + ": kartta kopyalanamadı", null);
+                    OpResult bad = CheckReturn(resp, name + ": FTP'ye gönderildi ama kartta kopyalanamadı (kaynak " + src + ")",
+                        "Kart bu yolu göremiyor olabilir: FTP ayarlarında \"Bağlantıyı sına\" kartın FTP klasörünü görüp görmediğini denetler.");
                     if (bad != null) { failures.Add(bad.Message); if (bad.MissingCommand != null) { SetError(bad); break; } continue; }
                     ok++;
 
                     // 3) İsteğe bağlı: FTP'deki geçici kopyayı sil
                     if (settings.DeleteAfterCopy)
                     {
-                        try { await uploader.DeleteAsync(name, isDir); }
+                        try { await uploader.DeleteAsync(name, isDir); if (tracker != null) tracker.Remove(name); }
                         catch (Exception ex) { ErrorText.LogTechnical("FTP silme " + name, ex); }
                     }
                 }
@@ -809,7 +820,7 @@ namespace Vision
                 await RefreshListingQuietly();
                 if (failures.Count == 0)
                 {
-                    Notice = ok + " öğe karta yüklendi → " + destDir;
+                    Notice = ok + " öğe karta yüklendi → " + destDir + (modeNote != null ? "  ·  " + modeNote : "");
                     return OpResult.Success(Notice);
                 }
                 if (Error == null)
@@ -913,23 +924,177 @@ namespace Vision
             Raise();
         }
 
+        /// <summary>FTP hatasının Türkçe açıklaması: kısa neden + (varsa) sunucunun cevabı ve adres.</summary>
         private static string FtpErrorText(Exception ex)
         {
-            var we = ex as System.Net.WebException;
+            var fo = ex as FtpOperationException;
+            Exception inner = fo != null && fo.InnerException != null ? fo.InnerException : ex;
+            var we = inner as System.Net.WebException;
             var resp = we != null ? we.Response as System.Net.FtpWebResponse : null;
+            string text;
             if (resp != null && resp.StatusCode != System.Net.FtpStatusCode.Undefined)
             {
                 switch (resp.StatusCode)
                 {
-                    case System.Net.FtpStatusCode.NotLoggedIn: return "kullanıcı adı ya da parola hatalı";
-                    case System.Net.FtpStatusCode.ActionNotTakenFileUnavailable: return "FTP klasörüne yazılamadı (yol ya da izin)";
-                    default: return "FTP sunucusu hatası " + (int)resp.StatusCode;
+                    case System.Net.FtpStatusCode.NotLoggedIn: text = "kullanıcı adı ya da parola hatalı"; break;
+                    case System.Net.FtpStatusCode.ActionNotTakenFileUnavailable:
+                        text = "FTP klasörüne yazılamadı: kullanıcının bu klasörde yazma izni yok ya da klasör yok"; break;
+                    default: text = FtpDiagnostics.Describe(inner); break;
                 }
             }
-            if (we != null && we.Status == System.Net.WebExceptionStatus.ConnectFailure) return "FTP sunucusuna bağlanılamadı";
-            if (we != null && we.Status == System.Net.WebExceptionStatus.NameResolutionFailure) return "FTP sunucusu adresi bulunamadı";
-            if (ex is System.IO.IOException) return "yerel dosya okunamadı";
-            return ErrorText.Describe(ex);
+            else if (we != null && we.Status == System.Net.WebExceptionStatus.ConnectFailure) text = "FTP sunucusuna bağlanılamadı";
+            else if (we != null && we.Status == System.Net.WebExceptionStatus.NameResolutionFailure) text = "FTP sunucusu adresi bulunamadı";
+            else if (fo != null && fo.InnerException == null) text = fo.Message;
+            else if (inner is System.IO.IOException) text = "yerel dosya okunamadı";
+            else text = FtpDiagnostics.Describe(inner);
+            if (fo != null)
+            {
+                if (!string.IsNullOrEmpty(fo.ServerMessage) && text.IndexOf(fo.ServerMessage, StringComparison.Ordinal) < 0) text += " — sunucu: " + fo.ServerMessage;
+                if (!string.IsNullOrEmpty(fo.Url)) text += " · " + fo.Url;
+            }
+            return text;
+        }
+
+        /// <summary>Yüklenecek öğenin adı / varlığıyla ilgili sorun (yoksa null). Kartın kabuğu ASCII dışı adları güvenle işleyemez.</summary>
+        public static string UploadNameProblem(string localPath, string name, bool isDir)
+        {
+            if (string.IsNullOrEmpty(name)) return "geçersiz yol";
+            if (!isDir && !System.IO.File.Exists(localPath)) return "bilgisayarda bulunamadı (" + localPath + ")";
+            if (name.IndexOf('"') >= 0) return "adında çift tırnak (\") var; kartın kabuğu bu adı işleyemez";
+            if (name.Any(c => c > 126 || c < 32))
+                return "adında Türkçe ya da özel karakter var (" + new string(name.Where(c => c > 126 || c < 32).Distinct().ToArray()) +
+                       "); kartın kabuğu bu adı doğru yazamaz. Dosyayı İngilizce karakterlerle yeniden adlandırın";
+            return null;
+        }
+
+        // ---------- Kart başına FTP ----------
+
+        /// <summary>
+        /// Kartın FTP bilgisini (sunucu, kullanıcı, parola) kartın kendisinden alır (bspBootChange). Ham cevap
+        /// tanılama paneline parolası gizlenmiş olarak yazılır.
+        /// </summary>
+        public async Task<CardFtpResult> ObtainFtpAsync()
+        {
+            if (Busy) return new CardFtpResult { Error = "Başka bir işlem sürüyor." };
+            BeginWork(CardFtpConfigurator.Command + "  ·  kartın FTP bilgisi alınıyor");
+            try
+            {
+                CardFtpResult r = await CardFtpConfigurator.ObtainAsync((c, t) => Exec(c, t));
+                if (r.MaskedResponse != null) LastResponse = r.MaskedResponse;   // parola hiçbir zaman panelde görünmez
+                if (!r.Ok)
+                {
+                    Error = r.Error;
+                    ErrorIsWarning = r.MissingCommand != null;
+                }
+                return r;
+            }
+            catch (Exception ex)
+            {
+                ErrorText.LogTechnical("bspBootChange", ex);
+                var r = new CardFtpResult { Error = "Kartın FTP bilgisi alınamadı: " + ErrorText.Describe(ex) };
+                Error = r.Error;
+                return r;
+            }
+            finally
+            {
+                EndWork();
+            }
+        }
+
+        public sealed class FtpTestStep
+        {
+            public string Name;
+            public bool Ok;
+            public bool Skipped;
+            public string Detail;
+        }
+
+        /// <summary>
+        /// FTP'nin gerçekten kullanılabildiğini aşama aşama sınar (yalnız bağlantı değil): oturum + listeleme,
+        /// FTP'ye yazma, KARTIN aynı dosyayı görmesi ve silme. Bağlantı sınaması başarılı olsa da yükleme
+        /// başarısız olabildiği için yazma ve kart tarafı ayrıca denenir.
+        /// </summary>
+        public async Task<List<FtpTestStep>> TestFtpAsync(IFileUploader up, TransferSettings eff, IProgress<string> progress)
+        {
+            var steps = new List<FtpTestStep>();
+            string probe = "_vision_sinama_" + Guid.NewGuid().ToString("N").Substring(0, 8) + ".txt";
+            Func<string, Func<Task<string>>, Task<bool>> run = async (name, op) =>
+            {
+                if (progress != null) progress.Report(name + "…");
+                var st = new FtpTestStep { Name = name };
+                steps.Add(st);
+                try { st.Detail = await op(); st.Ok = true; }
+                catch (Exception ex) { st.Detail = FtpErrorText(ex); ErrorText.LogTechnical("FTP sınama: " + name, ex); }
+                return st.Ok;
+            };
+
+            if (!await run("FTP oturumu ve klasör listeleme", async () => { await up.TestAsync(); return "ftp://" + eff.FtpHost + eff.NormalizedRemoteDir; }))
+                return steps;
+            if (!await run("FTP'ye yazma (deneme dosyası)", async () => { await up.UploadBytesAsync(System.Text.Encoding.ASCII.GetBytes("Vision FTP sinamasi\r\n"), probe); return probe; }))
+                return steps;
+
+            // Kart aynı dosyayı görüyor mu? (yükleme sonrası kartta copy için şart)
+            string cardDir = eff.CardPathPrefix;
+            if (Busy)
+                steps.Add(new FtpTestStep { Name = "Kartın dosyayı görmesi", Skipped = true, Detail = "başka bir işlem sürüyor" });
+            else
+            {
+                BeginWork("FTP sınaması: kart " + cardDir + " klasörünü listeliyor");
+                try
+                {
+                    string cmd = _listCommand + " " + FsPath.Quote(cardDir);
+                    ShellResponse lr = await Exec(cmd, ShortTimeoutSec);
+                    if (lr.UndefinedSymbol != null && _listCommand == "ll") { _listCommand = "ls"; cmd = "ls " + FsPath.Quote(cardDir); lr = await Exec(cmd, ShortTimeoutSec); }
+                    var st = new FtpTestStep { Name = "Kartın dosyayı görmesi (" + cardDir + ")" };
+                    if (lr.Failure != null) st.Detail = lr.Failure;
+                    else if (!lr.IsSuccess) st.Detail = "kart bu klasörü listeleyemedi (" + cmd + (lr.ReturnCode.HasValue ? " → " + lr.ReturnCode.Value : "") + "). Kartın gördüğü yol yanlış olabilir.";
+                    else if (!lr.OutputLines.Any(l => l.Contains(probe))) st.Detail = "kart klasörü listeledi ama deneme dosyasını göremedi: FTP klasörü ile kartın gördüğü yol aynı yer değil.";
+                    else { st.Ok = true; st.Detail = FsPath.Join(cardDir, probe); }
+                    steps.Add(st);
+                }
+                finally { EndWork(); }
+            }
+
+            await run("Deneme dosyasını FTP'den silme", async () => { await up.DeleteAsync(probe, false); return probe; });
+            return steps;
+        }
+
+        /// <summary>Kartın FTP'de bıraktığı kopyaları siler (kullanıcı "FTP kopyalarını sil" deyince).</summary>
+        public async Task<OpResult> DeleteFtpCopiesAsync(IFileUploader up, FtpCopyTracker tracker)
+        {
+            if (Busy) return Reject("Başka bir işlem sürüyor.");
+            var items = tracker.Items;
+            if (items.Count == 0) return Reject("FTP'de silinecek kopya yok.");
+            BeginWork("FTP kopyaları siliniyor");
+            int ok = 0;
+            var failed = new List<string>();
+            try
+            {
+                foreach (var it in items)
+                {
+                    PendingCommand = "FTP'den siliniyor: " + it.Name;
+                    Raise();
+                    try { await up.DeleteAsync(it.Name, it.IsDirectory); tracker.Remove(it.Name); ok++; }
+                    catch (Exception ex)
+                    {
+                        var fo = ex as FtpOperationException;
+                        var we = (fo != null ? fo.InnerException : ex) as System.Net.WebException;
+                        var r = we != null ? we.Response as System.Net.FtpWebResponse : null;
+                        if (r != null && r.StatusCode == System.Net.FtpStatusCode.ActionNotTakenFileUnavailable)
+                        {
+                            tracker.Remove(it.Name); ok++;   // zaten yok (ör. elle silinmiş): listeden çıkar
+                            continue;
+                        }
+                        ErrorText.LogTechnical("FTP kopyası silme " + it.Name, ex);
+                        failed.Add(it.Name + " (" + FtpErrorText(ex) + ")");
+                    }
+                }
+                if (failed.Count == 0) { Notice = ok + " FTP kopyası silindi."; return OpResult.Success(Notice); }
+                var res = OpResult.Fail((ok > 0 ? ok + " kopya silindi; " : "") + failed.Count + " kopya silinemedi: " + string.Join(" · ", failed));
+                SetError(res);
+                return res;
+            }
+            finally { EndWork(); }
         }
 
         // ---------- Ortak çalıştırma ----------

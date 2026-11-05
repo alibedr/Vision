@@ -289,129 +289,208 @@ namespace Vision
         }
     }
 
-    /// <summary>Bilgisayardan karta yükleme için FTP ayarları.</summary>
+    /// <summary>
+    /// Kartın FTP bağlantısı. Sunucu, kullanıcı ve parola KARTTAN (bspBootChange) otomatik alınır ve yalnız
+    /// gösterilir (parola gösterilmez). Kullanıcı yalnız tüm kartlar için ortak olan klasör / kip ayarlarını değiştirir.
+    /// "Bağlantıyı sına" yalnız bağlanmayı değil, yazmayı ve kartın dosyayı görmesini de dener.
+    /// </summary>
     public sealed class FtpSettingsDialog : DarkDialog
     {
         private readonly TransferSettings _s;
-        private readonly TextBox _host = new TextBox(), _user = new TextBox(), _pass = new TextBox { UseSystemPasswordChar = true };
+        private readonly CardConfig _card;
+        private readonly CardSession _session;
+        private readonly Func<bool, Task<CardFtpCredentials>> _ensure;
+        private readonly Func<TransferSettings, IProgress<string>, Task<List<FileBrowser.FtpTestStep>>> _test;
+        private readonly Func<bool> _canOperate;
+
         private readonly TextBox _dir = new TextBox(), _prefix = new TextBox();
         private readonly NumericUpDown _port = new NumericUpDown { Minimum = 1, Maximum = 65535 };
         private readonly CheckBox _passive = new ToggleSwitch { Text = "Pasif kip (çoğu ağda gerekli)" };
-        private readonly CheckBox _delete = new ToggleSwitch { Text = "Kartta kopyalama başarılı olunca FTP'deki kopyayı sil" };
-        private readonly Label _testResult = new GlyphLabel { Font = Theme.UiSmall, ForeColor = Theme.TextMuted, AutoSize = true, BackColor = Color.Transparent };
+        private readonly CheckBox _delete = new ToggleSwitch { Text = "Kartta kopyalama başarılı olunca FTP'deki kopyayı hemen sil" };
+        private readonly Label _hostValue = Theme.MakeLabel("", Theme.UiBold, Theme.Text);
+        private readonly Label _userValue = Theme.MakeLabel("", Theme.UiBold, Theme.Text);
+        private readonly Label _passValue = Theme.MakeLabel("", Theme.UiBold, Theme.Text);
+        private readonly Label _deviceValue = Theme.MakeLabel("", Theme.UiBold, Theme.Text);
+        private readonly Label _cardStatus = new GlyphLabel { Font = Theme.UiSmall, ForeColor = Theme.TextMuted, AutoSize = true, BackColor = Color.Transparent };
+        private readonly Label _mapping = Theme.MakeLabel("", Theme.UiSmall, Theme.TextMuted);
+        private readonly Panel _steps = new Panel { BackColor = Color.Transparent };
+        private readonly Button _refreshCard = Theme.MakeButton("Karttan yeniden al", IconKind.Refresh, Theme.ButtonKind.Secondary);
+        private readonly Button _testBtn = Theme.MakeButton("Bağlantıyı sına", Theme.ButtonKind.Secondary);
 
-        public FtpSettingsDialog(TransferSettings settings)
-            : base("FTP Ayarları — Karta Yükleme", new Size(560, 470))
+        public FtpSettingsDialog(TransferSettings settings, CardConfig card, CardSession session,
+                                 Func<bool, Task<CardFtpCredentials>> ensure,
+                                 Func<TransferSettings, IProgress<string>, Task<List<FileBrowser.FtpTestStep>>> test,
+                                 Func<bool> canOperate)
+            : base("FTP — " + (card != null ? card.Label : "kart seçilmedi"), new Size(580, 600))
         {
-            _s = settings;
+            _s = settings; _card = card; _session = session; _ensure = ensure; _test = test; _canOperate = canOperate;
+
             var intro = Theme.MakeLabel(
-                "Dosyalar önce kartın erişebildiği FTP sunucusuna gönderilir, sonra kartta copy (dosya) / xcopy (klasör) " +
-                "ile o konumdan hedef klasöre kopyalanır.", Theme.Ui, Theme.TextMuted);
+                "FTP sunucusu, kullanıcı ve parola her kart için kartın kendisinden (bspBootChange) otomatik alınır; elle girilmez. " +
+                "Bilgiler yalnız bu oturumda bellekte tutulur, kaydedilmez.", Theme.Ui, Theme.TextMuted);
             intro.Location = new Point(20, 14);
-            intro.MaximumSize = new Size(520, 0);
+            intro.MaximumSize = new Size(540, 0);
             Controls.Add(intro);
 
-            foreach (TextBox t in new[] { _host, _user, _pass, _dir, _prefix }) { Theme.StyleTextBox(t); t.Font = new Font("Segoe UI", 10f); }
+            // --- Kartın FTP bilgisi (salt okunur)
+            int y = 64;
+            var box = new Panel { BackColor = Theme.SurfaceHigh, Location = new Point(20, y), Size = new Size(540, 150) };
+            box.Paint += (s, e) => { using (var p = new Pen(Theme.Border)) e.Graphics.DrawRectangle(p, 0, 0, box.Width - 1, box.Height - 1); };
+            var cap = Caption("BU KARTIN FTP BİLGİSİ  ·  " + (card != null ? card.Label : "—"), 14, 12);
+            box.Controls.Add(cap);
+            string[] names = { "FTP sunucusu (h)", "Kullanıcı (u)", "Parola (pw)", "Kartın FTP aygıtı" };
+            Label[] values = { _hostValue, _userValue, _passValue, _deviceValue };
+            for (int i = 0; i < names.Length; i++)
+            {
+                var n = Theme.MakeLabel(names[i], Theme.Ui, Theme.TextMuted);
+                n.Location = new Point(14, 36 + i * 22);
+                values[i].Location = new Point(160, 36 + i * 22);
+                values[i].BackColor = Color.Transparent; n.BackColor = Color.Transparent;
+                box.Controls.Add(n); box.Controls.Add(values[i]);
+            }
+            _refreshCard.SetBounds(box.Width - 14 - 170, 32, 170, 30);
+            _cardStatus.Location = new Point(14, 126);
+            _cardStatus.MaximumSize = new Size(510, 0);
+            box.Controls.Add(_refreshCard);
+            box.Controls.Add(_cardStatus);
+            Controls.Add(box);
+
+            // --- Ortak ayarlar
+            foreach (TextBox t in new[] { _dir, _prefix }) { Theme.StyleTextBox(t); t.Font = new Font("Segoe UI", 10f); }
             Theme.StyleNumeric(_port);
             Theme.StyleCheck(_passive);
             Theme.StyleCheck(_delete);
-
-            int y = 62;
-            Controls.Add(Caption("FTP SUNUCUSU", 20, y)); Controls.Add(Caption("PORT", 420, y));
-            _host.SetBounds(20, y + 18, 390, 28); _port.SetBounds(420, y + 18, 120, 28);
-            y += 56;
-            Controls.Add(Caption("KULLANICI ADI", 20, y)); Controls.Add(Caption("PAROLA", 285, y));
-            _user.SetBounds(20, y + 18, 255, 28); _pass.SetBounds(285, y + 18, 255, 28);
-            y += 56;
-            Controls.Add(Caption("FTP KLASÖRÜ (dosyaların gönderileceği yer)", 20, y));
-            _dir.SetBounds(20, y + 18, 520, 28);
-            y += 56;
-            Controls.Add(Caption("KARTIN AYNI KLASÖRÜ GÖRDÜĞÜ YOL (copy / xcopy kaynağı)", 20, y));
-            _prefix.SetBounds(20, y + 18, 520, 28);
-            var example = Theme.MakeLabel("Örnek: FTP klasörü  /upload   →   kartın gördüğü yol  host:/upload", Theme.UiSmall, Theme.TextFaint);
-            example.Location = new Point(20, y + 50);
-            y += 74;
+            y = 230;
+            Controls.Add(Caption("FTP KLASÖRÜ (oturum açılan klasöre göre; boş = kök)", 20, y)); Controls.Add(Caption("PORT", 450, y));
+            _dir.SetBounds(20, y + 18, 420, 28); _port.SetBounds(450, y + 18, 110, 28);
+            y += 58;
+            Controls.Add(Caption("KARTIN AYNI KLASÖRÜ GÖRDÜĞÜ YOL (boş = otomatik)", 20, y));
+            _prefix.SetBounds(20, y + 18, 540, 28);
+            _mapping.Location = new Point(20, y + 50);
+            _mapping.MaximumSize = new Size(540, 0);
+            y += 76;
             _passive.Location = new Point(20, y);
             _delete.Location = new Point(20, y + 26);
-            Controls.AddRange(new Control[] { _host, _port, _user, _pass, _dir, _prefix, example, _passive, _delete });
+            _steps.SetBounds(20, y + 58, 540, 96);
+            Controls.AddRange(new Control[] { _dir, _port, _prefix, _mapping, _passive, _delete, _steps });
 
-            var test = Theme.MakeButton("Bağlantıyı sına", Theme.ButtonKind.Secondary);
             var ok = Theme.MakeButton("Kaydet", Theme.ButtonKind.Primary);
             var cancel = Theme.MakeButton("İptal", Theme.ButtonKind.Secondary);
-            test.SetBounds(20, ClientSize.Height - 50, 140, 32);
-            _testResult.Location = new Point(168, ClientSize.Height - 42);
-            _testResult.MaximumSize = new Size(180, 0);
-            ok.SetBounds(ClientSize.Width - 120, ClientSize.Height - 50, 100, 32);
-            cancel.SetBounds(ClientSize.Width - 228, ClientSize.Height - 50, 100, 32);
+            _testBtn.SetBounds(20, ClientSize.Height - 50, 150, 34);
+            ok.SetBounds(ClientSize.Width - 120, ClientSize.Height - 50, 100, 34);
+            cancel.SetBounds(ClientSize.Width - 228, ClientSize.Height - 50, 100, 34);
             cancel.DialogResult = DialogResult.Cancel;
             AcceptButton = ok;
             CancelButton = cancel;
-            Controls.AddRange(new Control[] { test, _testResult, ok, cancel });
+            Controls.AddRange(new Control[] { _testBtn, ok, cancel });
 
-            _host.Text = settings.FtpHost ?? "";
             _port.Value = Math.Max(1, Math.Min(65535, settings.FtpPort));
-            _user.Text = settings.FtpUser ?? "";
-            _pass.Text = settings.Password;
             _dir.Text = settings.FtpRemoteDir ?? "/";
-            _prefix.Text = settings.CardPathPrefix ?? "host:";
+            _prefix.Text = settings.CardPathPrefix ?? "";
             _passive.Checked = settings.UsePassive;
             _delete.Checked = settings.DeleteAfterCopy;
+            ShowCredentials(session != null ? session.Ftp : null, null);
+            Theme.SetCueBanner(_prefix, "Otomatik (kartın FTP aygıtı + FTP klasörü)");
 
+            _dir.TextChanged += (s, e) => UpdateMapping();
+            _prefix.TextChanged += (s, e) => UpdateMapping();
             ok.Click += (s, e) =>
             {
-                if (_host.Text.Trim().Length == 0 || _prefix.Text.Trim().Length == 0)
-                {
-                    _testResult.ForeColor = Theme.Danger;
-                    _testResult.Text = "FTP sunucusu ve kartın gördüğü yol boş olamaz.";
-                    return;
-                }
                 Apply(_s);
+                _s.ClearLegacyCredentials();          // eski sürümlerden kalan elle girilmiş parola dosyada kalmasın
                 DialogResult = DialogResult.OK;
                 Close();
             };
-            test.Click += async (s, e) => await TestAsync(test);
+            _refreshCard.Click += async (s, e) => await ObtainAsync(true);
+            _testBtn.Click += async (s, e) => await TestAsync();
+            Shown += async (s, e) => { if (_session != null && _session.Ftp == null && _canOperate()) await ObtainAsync(false); };
+        }
+
+        private void ShowCredentials(CardFtpCredentials c, string error)
+        {
+            _hostValue.Text = c != null ? c.Host : "—";
+            _userValue.Text = c != null ? c.User : "—";
+            _passValue.Text = c != null ? CardFtpConfigurator.Mask + "  (gösterilmez)" : "—";
+            _deviceValue.Text = c != null ? c.CardDevice : "—";
+            if (error != null) { _cardStatus.ForeColor = Theme.Danger; _cardStatus.Text = "⚠  " + error; }
+            else if (c != null) { _cardStatus.ForeColor = Theme.Success; _cardStatus.Text = "✓  Karttan alındı (" + c.ObtainedAtUtc.ToLocalTime().ToString("HH:mm:ss") + ")"; }
+            else if (_card == null) { _cardStatus.ForeColor = Theme.TextMuted; _cardStatus.Text = "Dosya Gezgini'nde bir kart seçin."; }
+            else { _cardStatus.ForeColor = Theme.TextMuted; _cardStatus.Text = "Henüz alınmadı — kart bağlıyken ilk FTP işleminde otomatik alınır."; }
+            _refreshCard.Text = c != null ? "Karttan yeniden al" : "Karttan al";
+            _refreshCard.Enabled = _card != null && _canOperate();
+            UpdateMapping();
+        }
+
+        private void UpdateMapping()
+        {
+            var tmp = new TransferSettings();
+            Apply(tmp);
+            CardFtpCredentials c = _session != null ? _session.Ftp : null;
+            string cardDir = tmp.CardFolderFor(c);
+            _mapping.Text = "FTP'de  " + tmp.NormalizedRemoteDir + "  klasörüne gönderilen dosyayı kart  " + cardDir + "  yolundan kopyalayacak.";
+        }
+
+        private async Task ObtainAsync(bool force)
+        {
+            _refreshCard.Enabled = _testBtn.Enabled = false;
+            _cardStatus.ForeColor = Theme.TextMuted;
+            _cardStatus.Text = "Karttan alınıyor (" + CardFtpConfigurator.Command + ")…";
+            CardFtpCredentials c = null;
+            try { c = await _ensure(force); }
+            catch (Exception ex) { ErrorText.LogTechnical("FTP bilgisi", ex); }
+            ShowCredentials(c, c == null ? "Kartın FTP bilgisi alınamadı. Ayrıntı Dosya Gezgini'ndeki uyarı şeridinde ve \"Ham cevap\" panelinde." : null);
+            _testBtn.Enabled = true;
         }
 
         private void Apply(TransferSettings t)
         {
-            t.FtpHost = _host.Text.Trim();
             t.FtpPort = (int)_port.Value;
-            t.FtpUser = _user.Text.Trim();
-            t.Password = _pass.Text;
             t.FtpRemoteDir = _dir.Text.Trim().Length == 0 ? "/" : _dir.Text.Trim();
             t.CardPathPrefix = _prefix.Text.Trim();
             t.UsePassive = _passive.Checked;
             t.DeleteAfterCopy = _delete.Checked;
         }
 
-        private async Task TestAsync(Button test)
+        private async Task TestAsync()
         {
-            var tmp = new TransferSettings();
-            Apply(tmp);
-            if (string.IsNullOrWhiteSpace(tmp.FtpHost)) { _testResult.ForeColor = Theme.Danger; _testResult.Text = "FTP sunucusu boş."; return; }
-            test.Enabled = false;
-            _testResult.ForeColor = Theme.TextMuted;
-            _testResult.Text = "Sınanıyor…";
+            _steps.Controls.Clear();
+            if (_card == null || _session == null || !_canOperate()) { AddStep("⚠  Kart bağlı değil ya da Dosya Gezgini meşgul.", Theme.Warning); return; }
+            _testBtn.Enabled = _refreshCard.Enabled = false;
             try
             {
-                await new FtpUploader(tmp).TestAsync();
-                _testResult.ForeColor = Theme.Success;
-                _testResult.Text = "✓ Bağlanıldı, klasör okunabildi.";
+                CardFtpCredentials c = _session.Ftp ?? await _ensure(false);
+                ShowCredentials(c, c == null ? "Kartın FTP bilgisi alınamadı." : null);
+                if (c == null) { AddStep("✕  Kartın FTP bilgisi alınamadı (bspBootChange).", Theme.Danger); return; }
+                var tmp = new TransferSettings();
+                Apply(tmp);
+                TransferSettings eff = tmp.ForCard(c);
+                var progress = new Progress<string>(m => { _testBtn.Text = "Sınanıyor…"; });
+                List<FileBrowser.FtpTestStep> steps = await _test(eff, progress);
+                foreach (var st in steps)
+                    AddStep((st.Skipped ? "ℹ  " : st.Ok ? "✓  " : "✕  ") + st.Name + (st.Detail != null ? " — " + st.Detail : ""),
+                            st.Skipped ? Theme.TextMuted : st.Ok ? Theme.Success : Theme.Danger);
+                if (steps.Count > 0 && steps.All(x => x.Ok)) AddStep("Yükleme için her şey hazır.", Theme.Success);
             }
             catch (Exception ex)
             {
-                ErrorText.LogTechnical("FTP sına", ex);
-                _testResult.ForeColor = Theme.Danger;
-                var we = ex as System.Net.WebException;
-                var r = we != null ? we.Response as System.Net.FtpWebResponse : null;
-                _testResult.Text = r != null && r.StatusCode == System.Net.FtpStatusCode.NotLoggedIn ? "Kullanıcı adı ya da parola hatalı."
-                    : r != null ? "Klasöre erişilemedi (FTP " + (int)r.StatusCode + ")."
-                    : "FTP sunucusuna bağlanılamadı.";
+                ErrorText.LogTechnical("FTP sınama", ex);
+                AddStep("✕  " + ErrorText.Describe(ex), Theme.Danger);
             }
             finally
             {
-                test.Enabled = true;
+                _testBtn.Text = "Bağlantıyı sına";
+                _testBtn.Enabled = true;
+                _refreshCard.Enabled = _card != null && _canOperate();
             }
+        }
+
+        private void AddStep(string text, Color color)
+        {
+            int y = _steps.Controls.Cast<Control>().Select(c => c.Bottom).DefaultIfEmpty(0).Max();
+            var l = new GlyphLabel { Text = text, Font = Theme.UiSmall, ForeColor = color, AutoSize = true, BackColor = Color.Transparent, MaximumSize = new Size(540, 0) };
+            l.Location = new Point(0, y + 2);
+            _steps.Controls.Add(l);
+            new DarkToolTip().SetToolTip(l, text);
         }
     }
 }

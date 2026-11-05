@@ -136,9 +136,28 @@ namespace Vision
             foreach (var v in _views) v.RefreshTitle();
         }
 
+        /// <summary>Tüm kart terminallerinin ortak yakınlaştırma oranı; yeni açılan kartlar da bunu alır.</summary>
+        public float Zoom { get; private set; } = AppSettings.DefaultTerminalZoom;
+
+        /// <summary>Bir kartta Ctrl + tekerlek: +1 / -1 (ortak yakınlaştırma değişmeli).</summary>
+        public event Action<int> ZoomWheel;
+
+        /// <summary>Bir kartın kalıcı ayarı değişti (hızlı komut / reboot seçimi).</summary>
+        public event Action<CardConfig> CardConfigChanged;
+
+        /// <summary>Ortak yakınlaştırmayı tüm açık kartlara uygular (merkezi tek değer).</summary>
+        public void ApplyZoom(float zoom)
+        {
+            Zoom = AppSettings.ClampZoom(zoom);
+            foreach (var v in _views) v.SetZoom(Zoom);
+        }
+
         private CardView CreateView(CardSession session)
         {
             var view = new CardView(session);
+            view.SetZoom(Zoom);                                   // yeni kart ortak yakınlaştırmayla açılır
+            view.ZoomWheel += d => { var h = ZoomWheel; if (h != null) h(d); };
+            view.ConfigChanged += v => { var h = CardConfigChanged; if (h != null) h(v.Session.Card); };
             view.CloseRequested += v => Close(v);
             view.MaximizeToggled += v => SetMaximized(_maximized == v ? null : v);
             view.Activated += v => Select(v);
