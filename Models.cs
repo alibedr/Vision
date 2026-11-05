@@ -196,7 +196,10 @@ namespace Vision
             return Math.Max(MinTerminalZoom, Math.Min(MaxTerminalZoom, (float)Math.Round(z, 2)));
         }
 
-        public const int DefaultConnectTimeoutMs = 10000;   // önceki sabit değer 5000 ms idi (iki katına çıkarıldı)
+        public const int DefaultConnectTimeoutMs = 40000;   // 10000 ms'nin 4 katı (ilk sürüm 5000 ms, sonra 10000 ms idi)
+
+        /// <summary>Önceki sürümlerin varsayılanları: kayıtlı ayarda bunlardan biri varsa yeni varsayılana yükseltilir.</summary>
+        private static readonly int[] LegacyDefaultConnectTimeouts = { 5000, 10000 };
         public const int DefaultMaxTerminalLines = 1000;
         public const int MinTerminalLines = 100;
         public const int MaxTerminalLinesLimit = 100000;
@@ -216,7 +219,9 @@ namespace Vision
         /// <summary>Kayıttan gelen değerleri geçerli aralığa çeker.</summary>
         public void Normalize()
         {
-            if (ConnectTimeoutMs < 1000) ConnectTimeoutMs = DefaultConnectTimeoutMs;
+            // Eski sürümün varsayılanı dosyaya yazılmış olabilir; kullanıcı elle başka bir değer girdiyse dokunulmaz
+            if (ConnectTimeoutMs < 1000 || Array.IndexOf(LegacyDefaultConnectTimeouts, ConnectTimeoutMs) >= 0)
+                ConnectTimeoutMs = DefaultConnectTimeoutMs;
             if (MaxTerminalLines < MinTerminalLines) MaxTerminalLines = MinTerminalLines;
             if (MaxTerminalLines > MaxTerminalLinesLimit) MaxTerminalLines = MaxTerminalLinesLimit;
             TerminalZoom = ClampZoom(TerminalZoom);
@@ -258,41 +263,50 @@ namespace Vision
     }
 
     /// <summary>
-    /// Yapılandırmayı exe'nin yanındaki Konfig\config.xml dosyasında saklar (uygulamayla birlikte taşınır).
-    /// Exe yazma izni olmayan bir klasördeyse (ör. Program Files) %APPDATA%\TelnetCards\config.xml kullanılır.
-    /// İlk açılışta eski konumlardaki (%APPDATA%) yapılandırma Konfig klasörüne kopyalanır; hiçbir şey kaybolmaz.
+    /// Yapılandırmayı kullanıcının bilgisayarında, %APPDATA%\TelnetCards\config.xml dosyasında saklar
+    /// (projenin ilk sürümündeki gibi). Böylece yeni bir Vision sürümü indirilip başka bir klasörden
+    /// çalıştırıldığında gruplar, kartlar ve ayarlar kaybolmaz; her sürüm aynı dosyayı kullanır.
+    /// AppData'da dosya yoksa ilk açılışta eski konumlardaki (exe yanındaki Konfig klasörü, %APPDATA%\Kartograf)
+    /// yapılandırma oraya kopyalanır; eskisi yedek olarak yerinde kalır.
     /// </summary>
     public static class ConfigStore
     {
-        public const string FolderName = "Konfig";
+        /// <summary>Bir önceki sürümün exe yanında kullandığı klasör (yalnız taşıma için okunur).</summary>
+        public const string LegacyPortableFolderName = "Konfig";
         public const string FileName = "config.xml";
-
-        /// <summary>Exe'nin yanındaki Konfig\config.xml.</summary>
-        public static string PortablePath
-        {
-            get { return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, FolderName, FileName); }
-        }
 
         private static string AppDataPath(string folder)
         {
             return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), folder, FileName);
         }
 
+        /// <summary>Kalıcı yapılandırma dosyası: %APPDATA%\TelnetCards\config.xml.</summary>
+        public static string AppDataConfigPath
+        {
+            get { return AppDataPath(AppInfo.DataFolder); }
+        }
+
+        /// <summary>Bir önceki sürümün exe yanındaki Konfig\config.xml dosyası.</summary>
+        public static string LegacyPortablePath
+        {
+            get { return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, LegacyPortableFolderName, FileName); }
+        }
+
         /// <summary>Önceki sürümlerin kullandığı konumlar (yeniden eskiye).</summary>
         public static string[] LegacyPaths
         {
-            get { return new[] { AppDataPath(AppInfo.DataFolder), AppDataPath("Kartograf") }; }
+            get { return new[] { LegacyPortablePath, AppDataPath("Kartograf") }; }
         }
 
         /// <summary>
-        /// Kullanılacak dosya: Konfig klasörüne yazılabiliyorsa orası, değilse %APPDATA%.
-        /// fallback=true ise Konfig klasörüne yazılamadı.
+        /// Kullanılacak dosya: her zaman %APPDATA%\TelnetCards\config.xml.
+        /// fallback=true ise bu klasöre yazılamıyor (ayarlar kaydedilemeyebilir).
         /// </summary>
         public static string ResolvePath(out bool fallback)
         {
-            string portable = PortablePath;
-            fallback = !CanWrite(Path.GetDirectoryName(portable));
-            return fallback ? AppDataPath(AppInfo.DataFolder) : portable;
+            string path = AppDataConfigPath;
+            fallback = !CanWrite(Path.GetDirectoryName(path));
+            return path;
         }
 
         public static bool CanWrite(string dir)
@@ -311,10 +325,34 @@ namespace Vision
             }
         }
 
-        /// <summary>Dosya yoksa eski konumlardaki ilk yapılandırmayı kopyalar (taşımaz; eskisi yedek olarak kalır).</summary>
+        /// <summary>
+        /// Dosya yoksa eski konumlardaki ilk yapılandırmayı kopyalar (taşımaz; eskisi yedek olarak kalır).
+        /// Dosya varsa ama exe yanındaki Konfig\config.xml ondan DAHA YENİYSE (ilk sürümden kalma eski bir AppData
+        /// dosyası + Konfig'li sürümde yapılmış güncel ayarlar) güncel olan alınır; AppData'daki eski dosya
+        /// config.xml.onceki olarak yedeklenir. İlk kayıttan sonra AppData dosyası daha yeni olur, tekrar kopyalanmaz.
+        /// </summary>
         public static string MigrateIfMissing(string path)
         {
-            if (File.Exists(path)) return null;
+            if (File.Exists(path))
+            {
+                string portable = LegacyPortablePath;
+                try
+                {
+                    if (File.Exists(portable) &&
+                        !string.Equals(Path.GetFullPath(portable), Path.GetFullPath(path), StringComparison.OrdinalIgnoreCase) &&
+                        File.GetLastWriteTimeUtc(portable) > File.GetLastWriteTimeUtc(path))
+                    {
+                        File.Copy(path, path + ".onceki", true);
+                        File.Copy(portable, path, true);
+                        return portable;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ErrorText.LogTechnical("yapılandırma taşıma " + portable, ex);
+                }
+                return null;
+            }
             foreach (string old in LegacyPaths)
             {
                 if (string.Equals(Path.GetFullPath(old), Path.GetFullPath(path), StringComparison.OrdinalIgnoreCase)) continue;

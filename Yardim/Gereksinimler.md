@@ -15,7 +15,7 @@ Bu belge uygulamanın çalışması için gerekenleri (sistem gereksinimleri) ve
 | Ağ | Bilgisayardan kartlara TCP erişimi (varsayılan telnet portu 23; grup başına ayarlanabilir). |
 | Kart tarafı | Telnet sunucusu ve komut kabuğu. Dosya Gezgini için `devs` ve `ls` komutları ile `value = N = 0x…` biçiminde dönüş değeri basan (VxWorks benzeri) bir kabuk. |
 | Bağlantı izleme | Kartın TCP yığını keepalive yoklamalarını cevaplamalıdır (standart TCP davranışı). Yoklama sayısının 3'e ayarlanması Windows 10 sürüm 1703 ve sonrası gerektirir; daha eskilerde algılama ~20 sn sürer. |
-| Disk | Exe'nin bulunduğu klasörde yazma izni (`Konfig`, `Komutlar`, `logs`). Yoksa ayarlar `%APPDATA%\TelnetCards` içinde tutulur. |
+| Disk | Exe'nin bulunduğu klasörde yazma izni (`Komutlar`, `logs`); ayarlar için `%APPDATA%\TelnetCards` klasörüne yazma izni. |
 | Dosya işlemleri | Kartın imajında `ll`, `copy`, `mkdir`, `rmdir`, `rm`, `xdelete`, `mv`, `xcopy` (eksik olanlar için uyarı verilir). |
 | Karta yükleme | Bilgisayardan ve karttan erişilebilen bir FTP sunucusu (kartın `host:` gibi bir yolla gördüğü klasör). |
 
@@ -118,7 +118,7 @@ Bu belge uygulamanın çalışması için gerekenleri (sistem gereksinimleri) ve
 
 | No | Gereksinim | Durum | Nasıl karşılandı |
 |---|---|---|---|
-| G10.1 | Ayarlar exe'nin yanındaki `Konfig` klasöründe | Karşılandı | `Konfig\config.xml`; eski `%APPDATA%` ayarları ilk açılışta kopyalanır; yazılamazsa `%APPDATA%`'ya düşülür ve bildirilir. |
+| G10.1 | Ayarlar exe'nin yanındaki `Konfig` klasöründe | Değiştirildi (G18.3) | Ayarlar yeniden `%APPDATA%\TelnetCards\config.xml` içinde tutulur; eski `Konfig\config.xml` ilk açılışta oraya kopyalanır. |
 | G10.2 | Üst menü çubuğunda "Yardım" (F1 korunur) | Karşılandı | Kullanım Kılavuzu, Gereksinimler, Yardım klasörünü aç, Hakkında. |
 | G10.3 | Komut açıklamaları için yeni sekme | Karşılandı | "Komut Kütüphanesi" sekmesi: ad, açıklama, yazılış / örnek, örnek çıktı. |
 | G10.4 | Komut ekleme, çıkarma ve sonradan düzenleme | Karşılandı | Ekle / Düzenle / Sil; benzersiz ad doğrulaması; kaydedilmemiş değişiklik uyarısı; arama. |
@@ -214,6 +214,16 @@ Ana metin (≈ 14:1), terminal metni (≈ 13:1) ve başarı / uyarı renkleri za
 | G17.9 | Ortak terminal yakınlaştırması | Karşılandı | Ayar çubuğunda − %100 +; %60–%250; yüzdeye tıklama varsayılan; yeni kartlar aynı boyutla; Ctrl+tekerlek ve Ctrl + + / − / 0 ortak değeri değiştirir; tercih kaydedilir. |
 | G17.10 | Sürekli kayıt anahtarı yerine anlık kayıt düğmeleri (kart ve genel) | Karşılandı | Kart başlığında ve genel çubukta disket; terminalde o an tutulan içerik; her tıklama yeni dosya (`Grup_IP[_Ad]_anlik_tarih_saat.log`); genelde her kart ayrı dosya, ekranda olmayanlar hariç, kart kart rapor; arka planda yazılır; günlük durumu değişmez. |
 
+### G18 — Telnet, bağlantı, yapılandırma ve FTP düzeltmeleri
+
+| No | Gereksinim | Durum | Nasıl karşılandı |
+|---|---|---|---|
+| G18.1 | Genel komut çubuğunda tüm kartların ekranını bir kerede temizleyen silgi düğmesi | Karşılandı | Genel çubukta disketin yanında silgi; ekrandaki her kartta kart başlığındaki silgiyle aynı işi yapar (ekran + geçmiş); karta komut gönderilmez; sonuç çubukta yazar. Ekranda kart yokken pasif. |
+| G18.2 | Bağlantı zaman aşımı 4 katına çıkmalı | Karşılandı | `ConnectTimeoutMs` 10 sn → 40 sn. Eski sürümlerin dosyaya yazılmış varsayılanları (5000 / 10000) açılışta 40000'e yükseltilir; elle girilmiş başka değerlere dokunulmaz. Hızlı kart yine beklenmez. |
+| G18.3 | Ayarlar yeni sürüme geçişte korunmalı (`%APPDATA%`, ilk sürümdeki gibi) | Karşılandı | `%APPDATA%\TelnetCards\config.xml`; exe'nin konumundan bağımsız. Dosya yoksa exe yanındaki `Konfig\config.xml` (ya da `%APPDATA%\Kartograf`) kopyalanır; yazılamazsa durum çubuğunda uyarı. |
+| G18.4 | Telnet sekmesinde en fazla 24 kart | Karşılandı | Sınır 12 → 24; tüm açma yollarında geçerli; kartlar sığmazsa ızgara kaydırılır. |
+| G18.5 | `bspBootChange` ile FTP bilgisinin yanlış alınması düzeltilmeli | Karşılandı | Neden: `ftp password (pw) (blank = use rsh) :` satırı anahtardan sonra ikinci bir parantez içerdiği için tanınmıyor, parola hiç okunmuyor ve ham cevapta gizlenmiyordu. Artık değer alanın `:` işaretinden sonraki tüm kısımdır (`h` → FTP IP, `u` → kullanıcı, `pw` → parola; değerdeki `:` / `=` bölünmez). Enter, `value = …` (ya da `value= …`) dönüşü görülene kadar gönderilir; alan olmayan satırlarda (`sysMvraöSet: … success`) fazladan Enter gitmez. Parola açıklamalı satırda da `••••••` ile gizlenir. |
+
 **Sınırlamalar:** Dönüş ayrımı VxWorks kabuğunun `->` istemine ve dönüş satırı biçimine dayanır; bir log aynı satırın ortasına karışırsa o satır ayrılamaz ve terminalde kalır. İstem görmeyen kabukta açık komut 120 sn sonra kapanır. Anlık kayıt, terminalde tutulan satırları (satır sınırı) içerir; daha eski çıktı kaydedilemez. Yönetici olarak çalışan Vision'a normal yetkili Windows Gezgini'nden sürükleme Windows tarafından engellenir.
 
 ### G9 — Dosya Gezgini işlemleri (planlanan)
@@ -231,4 +241,4 @@ Ana metin (≈ 14:1), terminal metni (≈ 13:1) ve başarı / uyarı renkleri za
 
 | Sürüm | Değişiklikler |
 |---|---|
-| 1.0 | Temel telnet terminali; grup tabanlı kart yönetimi; çoklu kart ızgarası; bağlantı / görünüm ayrımı; bağlantı süresi; kaydırma koruması ve yeni satır göstergesi; çift satır düzeltmesi; komut geçmişi; genel komut çubuğu; gri görünüm ve kopma uyarısı; Türkçe hata mesajları; Kart Dosya Gezgini; periyodik bağlantı izleme ve otomatik yeniden bağlanma; 3 sütunlu `devs` desteği; Türkçe satır sonu seçenekleri; Yardım bölümü; Dosya Gezgini işlemleri (görüntüle, yeni klasör, yeniden adlandır, taşı / kopyala, sil), `ll` ile listeleme, eksik komut uyarısı ve FTP üzerinden karta yükleme; ayarlar `Konfig` klasöründe; Yardım menüsü; Komut Kütüphanesi; geri bildirim iyileştirmeleri (G11); salt okunur "Birlikte aç", simgeli düğmeler, sade kenar çubuğu düğmesi ve kontrast düzeltmeleri (G12); Komut Kütüphanesi modülleri ve yenilenen görünüm (G13); tüm arayüzde tek tip koyu tema kontrolleri, alt bantlı pencereler, çizilmiş simgeler ve uygulama simgesi (G14); uygulamanın adı Vision oldu ve yeni simgesi tasarlandı (G15); Dosya Gezgini yalnız içine girilebilen cihazları gösterir (G16); kart başına otomatik FTP bilgisi ve düzeltilmiş yükleme, FTP kopyalarını sil düğmesi, hızlı komut ve reboot düğmeleri, ayrı dönüş değerleri paneli, ortak yakınlaştırma ve anlık terminal kaydı (G17). |
+| 1.0 | Temel telnet terminali; grup tabanlı kart yönetimi; çoklu kart ızgarası; bağlantı / görünüm ayrımı; bağlantı süresi; kaydırma koruması ve yeni satır göstergesi; çift satır düzeltmesi; komut geçmişi; genel komut çubuğu; gri görünüm ve kopma uyarısı; Türkçe hata mesajları; Kart Dosya Gezgini; periyodik bağlantı izleme ve otomatik yeniden bağlanma; 3 sütunlu `devs` desteği; Türkçe satır sonu seçenekleri; Yardım bölümü; Dosya Gezgini işlemleri (görüntüle, yeni klasör, yeniden adlandır, taşı / kopyala, sil), `ll` ile listeleme, eksik komut uyarısı ve FTP üzerinden karta yükleme; ayarlar `Konfig` klasöründe; Yardım menüsü; Komut Kütüphanesi; geri bildirim iyileştirmeleri (G11); salt okunur "Birlikte aç", simgeli düğmeler, sade kenar çubuğu düğmesi ve kontrast düzeltmeleri (G12); Komut Kütüphanesi modülleri ve yenilenen görünüm (G13); tüm arayüzde tek tip koyu tema kontrolleri, alt bantlı pencereler, çizilmiş simgeler ve uygulama simgesi (G14); uygulamanın adı Vision oldu ve yeni simgesi tasarlandı (G15); Dosya Gezgini yalnız içine girilebilen cihazları gösterir (G16); kart başına otomatik FTP bilgisi ve düzeltilmiş yükleme, FTP kopyalarını sil düğmesi, hızlı komut ve reboot düğmeleri, ayrı dönüş değerleri paneli, ortak yakınlaştırma ve anlık terminal kaydı (G17); tüm kartları bir kerede temizleyen genel silgi, 40 sn bağlantı zaman aşımı, ayarların yeniden `%APPDATA%`'da tutulması, 24 kart sınırı ve `bspBootChange` FTP parolası ayrıştırma düzeltmesi (G18). |

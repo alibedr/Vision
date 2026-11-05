@@ -180,7 +180,7 @@ namespace Vision
                 if (SelectionLogic.IsLive(Session.State)) Session.Disconnect();
                 else await Session.ConnectAsync();
             };
-            _clearBtn.Click += (s, e) => { Session.ClearHistory(); _output.Clear(); HideNewLinesPill(); };
+            _clearBtn.Click += (s, e) => ClearTerminal();
             _maxBtn.Click += (s, e) => { var h = MaximizeToggled; if (h != null) h(this); };
             _closeBtn.Click += (s, e) => { var h = CloseRequested; if (h != null) h(this); };
             _header.DoubleClick += (s, e) => { var h = MaximizeToggled; if (h != null) h(this); };
@@ -608,6 +608,14 @@ namespace Vision
                 _newLinesPill.Visible = true;
                 _newLinesPill.BringToFront();
             }
+        }
+
+        /// <summary>Kartın terminal ekranını ve geçmişini temizler (kart silgisi ve genel silgi aynı işi yapar).</summary>
+        public void ClearTerminal()
+        {
+            Session.ClearHistory();
+            _output.Clear();
+            HideNewLinesPill();
         }
 
         private void HideNewLinesPill()

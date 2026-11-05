@@ -11,7 +11,7 @@ Vision; donanım kartlarına telnet ile bağlanmak, kartlara komut göndermek, b
 | Menü çubuğu | Pencerenin en üstü | **Yardım** menüsü: Kullanım Kılavuzu, Gereksinimler, Yardım klasörü, Hakkında. |
 | Kart Gezgini | Sol kenar | Grupları ve kartları listeler; kart ekleme, seçme, bağlanma ve gösterme buradan yapılır. Sekme şeridinin en solundaki kenar çubuğu düğmesi (Ctrl+B) ile gizlenip gösterilir. |
 | Sekmeler | Sağ alanın üstü | **Telnet** (kart terminalleri), **Kart Dosya Gezgini** ve **Komut Kütüphanesi** arasında geçiş (Ctrl+1 / 2 / 3). |
-| Telnet sekmesi | Sağ alan | Seçilen kartların terminal pencereleri ızgara düzeninde görünür (en fazla 12 kart). |
+| Telnet sekmesi | Sağ alan | Seçilen kartların terminal pencereleri ızgara düzeninde görünür (en fazla 24 kart). |
 | Terminal ayarları | Telnet sekmesinin üst çubuğu | Satır sonu, yerel eko, zaman damgası, dosyaya kaydet, satır sınırı ve "Tümünü kapat". |
 | Genel komut çubuğu | Telnet sekmesinin altı | Bir komutu ekrandaki tüm kartlara aynı anda gönderir. |
 | Durum çubuğu | Pencerenin en altı | Grup, kart ve bağlı kart sayıları; kısayol ipuçları ve geliştirici imzası. |
@@ -26,7 +26,7 @@ Yer kazanmak için sık kullanılan düğmeler yazı yerine simgeyle gösterilir
 | Yayın dalgaları (mavi) | **Hepsine Gönder** (Enter) | Genel komut çubuğu |
 | Fiş (yeşil) | **Bağlantı Kur** | Kart penceresi başlığı · Dosya Gezgini · Kart Gezgini (yazıyla birlikte) |
 | Üstü çizili fiş (kırmızı) | **Bağlantıyı Kes** | aynı yerler |
-| Silgi | **Temizle** (ekran ve geçmiş) | Kart penceresi başlığı |
+| Silgi | **Temizle** (ekran ve geçmiş) | Kart penceresi başlığı · Genel komut çubuğu (tüm kartlar) |
 | Kare / iki kare · ✕ | **Büyüt / Eski boyut** · **Ekrandan kaldır** | Kart penceresi başlığı |
 | Sol ok · dönen ok | **Geri** (Backspace) · **Yenile** (F5) | Dosya Gezgini |
 | Artılı klasör · yukarı ok · dişli | **Yeni klasör** · **Yükle** · **FTP ayarları** | Dosya Gezgini |
@@ -63,11 +63,11 @@ Kartın ne için kullanıldığını göstermek için isteğe bağlı bir ad ver
 - Ad yalnız gösterim içindir; bağlantı ve tüm komutlar her zaman **IP adresiyle** yapılır.
 - Ad Kart Gezgini'nde, kart penceresinin başlığında, Kart Dosya Gezgini'nin kart seçiminde ve uyarılarda görünür; Kart Gezgini aramasında da aranır.
 - Değiştirmek için yine **Adı değiştir…**; kaldırmak için alanı boş bırakın.
-- Ad `Konfig\config.xml` dosyasında saklanır; bağlantı kopsa da, yeniden bağlansa da kartla birlikte kalır.
+- Ad `config.xml` dosyasında saklanır; bağlantı kopsa da, yeniden bağlansa da kartla birlikte kalır.
 
 ### Gruplar nerede saklanır?
 
-Gruplar, kartlar ve tüm ayarlar exe'nin yanındaki **`Konfig\config.xml`** dosyasında tutulur ve uygulama her açıldığında geri gelir. Kayıt otomatiktir: grup / kart eklenince veya silinince, ayar değişince ve uygulama kapanınca dosya yazılır.
+Gruplar, kartlar ve tüm ayarlar bilgisayarınızda, **`%APPDATA%\TelnetCards\config.xml`** dosyasında tutulur ve uygulama her açıldığında geri gelir. Kayıt otomatiktir: grup / kart eklenince veya silinince, ayar değişince ve uygulama kapanınca dosya yazılır.
 
 | Geri gelir | Geri gelmez |
 |---|---|
@@ -75,10 +75,11 @@ Gruplar, kartlar ve tüm ayarlar exe'nin yanındaki **`Konfig\config.xml`** dosy
 | Satır sonu, yerel eko, zaman damgası, dosyaya kaydet | Bağlantılar (kartlara yeniden bağlanılır) |
 | Bağlantı izleme ve FTP ayarları | Terminal çıktıları ve komut geçmişleri |
 
-- `Konfig` klasörü exe ile birlikte taşınır: exe klasörünü başka bir yere ya da bilgisayara kopyalarsanız gruplar da gelir. Yalnız **FTP parolası** Windows kullanıcınıza bağlı şifrelendiği için başka bir kullanıcıda / bilgisayarda yeniden girilmelidir.
-- Visual Studio'dan çalıştırılan uygulama (`bin\Debug`) ile `HazirExe` klasöründeki uygulama **ayrı** `Konfig` klasörleri kullanır.
-- Önceki sürümler ayarları `%APPDATA%\TelnetCards` içinde tutuyordu. İlk açılışta oradaki ayarlar `Konfig` klasörüne **kopyalanır**; eski dosya yedek olarak yerinde kalır.
-- Exe yazma izni olmayan bir klasördeyse (ör. `Program Files`) ayarlar `%APPDATA%\TelnetCards` içinde tutulur ve durum çubuğunda bu belirtilir.
+- Dosya exe'den bağımsızdır: yeni bir Vision sürümünü indirip başka bir klasörden çalıştırdığınızda gruplarınız, kartlarınız ve ayarlarınız **aynen gelir**; her sürümde yeniden girmeniz gerekmez.
+- Visual Studio'dan çalıştırılan uygulama (`bin\Debug`) ile `HazirExe` klasöründeki uygulama **aynı** ayar dosyasını kullanır.
+- Bir önceki sürüm ayarları exe'nin yanındaki `Konfig\config.xml` içinde tutuyordu. `%APPDATA%\TelnetCards\config.xml` henüz yoksa, ilk açılışta exe'nin yanındaki `Konfig\config.xml` oraya **kopyalanır**; eski dosya yedek olarak yerinde kalır.
+- Ayarları başka bir bilgisayara taşımak için `config.xml` dosyasını kopyalayın. **FTP parolası** Windows kullanıcınıza bağlı şifrelendiği için başka bir kullanıcıda / bilgisayarda yeniden girilmelidir.
+- `%APPDATA%\TelnetCards` klasörüne yazılamıyorsa durum çubuğunda uyarı gösterilir.
 - Dosya bozulursa uygulama çökmez: bozuk dosyayı `config.xml.bozuk` olarak yedekleyip boş listeyle açılır.
 
 ## Kart Gezgini
@@ -114,7 +115,7 @@ Her kartın üç ayrı durumu vardır ve biri diğerini kendiliğinden değişti
 
 Kart Gezgini'nin altındaki düğme seçili kartların **bağlantı** durumuna göre değişir:
 
-- Bağlantı kurulurken kart en fazla **10 saniye** beklenir (yavaş kartlar için); kart hızlı cevap verirse beklenmez. Birden çok kart seçildiğinde her kart ayrı ve aynı anda bağlanır; yavaş ya da kapalı bir kart diğerlerini bekletmez. Süre `Konfig\config.xml` içindeki `ConnectTimeoutMs` değeriyle değiştirilebilir.
+- Bağlantı kurulurken kart en fazla **40 saniye** beklenir (yavaş kartlar için); kart hızlı cevap verirse beklenmez. Birden çok kart seçildiğinde her kart ayrı ve aynı anda bağlanır; yavaş ya da kapalı bir kart diğerlerini bekletmez. Süre `%APPDATA%\TelnetCards\config.xml` içindeki `ConnectTimeoutMs` değeriyle değiştirilebilir (eski sürümlerin 5000 / 10000 varsayılanları açılışta 40000'e yükseltilir).
 
 - Seçili kartların hepsi bağlıysa düğme **Bağlantıyı Kes** olur ve hepsinin bağlantısını keser.
 - En az biri bağlı değilse düğme **Bağlantı Kur** olur ve yalnız bağlı olmayanlara bağlanır.
@@ -138,13 +139,13 @@ Telnet sekmesinde **tam olarak** seçili kartları bırakır: seçimden çıkan 
 
 Açık kartlar pencere boyutuna göre dinamik bir ızgaraya dizilir (2 kart → 2×1, 4 → 2×2, 6 → 3×2 …). Kartlar çok küçülecekse alan kaydırılabilir olur.
 
-### En fazla 12 kart
+### En fazla 24 kart
 
-Aynı anda en fazla **12 kart** gösterilebilir (uygulama sınırı; değiştirilemez). Daha fazlası açılmak istendiğinde:
+Aynı anda en fazla **24 kart** gösterilebilir (uygulama sınırı; değiştirilemez). Daha fazlası açılmak istendiğinde:
 
 - Boş yer kadar kart açılır; açılamayanlar bir uyarı penceresinde listelenir.
 - Ekrandaki kartlar kapatılmaz ve değiştirilmez. Bir kartı kapatmak (✕) yer açar.
-- **Seçilenleri Göster** ile 12'den fazla kart seçilirse, zaten ekranda olan seçili kartlar korunur ve kalan yer seçim sırasıyla doldurulur.
+- **Seçilenleri Göster** ile 24'ten fazla kart seçilirse, zaten ekranda olan seçili kartlar korunur ve kalan yer seçim sırasıyla doldurulur.
 - Sınır tüm açma yollarında geçerlidir: çift tık, Enter, sağ tık → "Tümünü ekranda göster" / "Seçilileri ekranda göster", **Seçilenleri Göster**.
 
 - Kart başlığına **çift tıklamak** (ya da ⬜) kartı büyütür; tekrar çift tıklamak ızgaraya döndürür.
@@ -174,7 +175,7 @@ Her kartın komut satırının sağında bir **hızlı komut** düğmesi (şimş
 
 - İlk tıklamada (komut atanmamışsa) komut sorulur; sonra düğmede komutun kendisi yazar (ör. `i`).
 - Tıklayınca komut **yalnız o karta** gönderilir; diğer kartlar etkilenmez. Her kartın hızlı komutu ayrıdır.
-- **Sağ tık**: hızlı komutu düzenle / kaldır. Komut kartla birlikte `Konfig\config.xml`'e kaydedilir.
+- **Sağ tık**: hızlı komutu düzenle / kaldır. Komut kartla birlikte `config.xml`'e kaydedilir.
 - Kart bağlı değilken düğme pasiftir. Çift tıklama komutu iki kez göndermez.
 - Kart penceresi daraldığında düğme yalnız simge olarak görünür (ipucunda komut yazar); çok dar kartlarda gizlenir.
 
@@ -242,6 +243,7 @@ Gönder düğmesinin yanında, kart penceresindekilerin genel karşılıkları v
 | **Hızlı komut** (şimşek) | Genel hızlı komutu ekrandaki tüm bağlı kartlara birer kez gönderir. İlk tıklamada komut sorulur; sağ tık: düzenle / kaldır. Kaydedilir. |
 | **reboot ⇄** | Sol: seçili `reboot` / `reboot 2` komutunu ekrandaki tüm bağlı kartlara birer kez gönderir. Sağ ⇄: yalnız seçimi değiştirir (göndermez). Gönderdikten sonra 4 sn pasif. |
 | **Dosyaya kaydet** (disket) | Ekrandaki **her** kartın terminal içeriğini o anda alır ve **her kartı kendi dosyasına** kaydeder (aşağıya bakın). |
+| **Tümünü temizle** (silgi) | Ekrandaki **her** kartın terminal ekranını ve geçmişini bir kerede temizler (kart başlığındaki silgiyle aynı iş; karta komut gönderilmez). |
 
 Sonuç her zaman çubuğun sağında yazar; kaydetmede ayrıntı (hangi kart hangi dosyaya) ipucundadır.
 
@@ -399,7 +401,7 @@ FTP sunucusu, kullanıcı ve parola **elle girilmez**. Her kart için, o kartın
 
 - Bilgi, kart bağlıyken ilk FTP işleminde (yükleme, "Birlikte aç", bağlantı sınaması) otomatik alınır ve **yalnız o kart için, yalnız bellekte** tutulur. Başka kartın bilgisi asla kullanılmaz. Bağlantı kopunca / kesilince silinir; yeniden bağlanınca tekrar alınır.
 - Parola ekranda, ayar dosyasında ve log'larda gösterilmez; Dosya Gezgini'nin **Ham cevap** panelinde `••••••` olarak görünür. Eski sürümlerde elle girilmiş parola ayar dosyasından silinir.
-- Tablo (`host inet (h) : …`), kısa (`h: …`) ve boot satırı (`… h=… u=… pw=…`) biçimleri tanınır; boşluk / sekme farkları sorun değildir. Kart boot parametrelerini alan alan soruyorsa her alanda yalnız Enter gönderilir (değerler **değiştirilmez**).
+- Tablo (`host inet (h) : …`, `ftp password (pw) (blank = use rsh) : …`), kısa (`h: …`) ve boot satırı (`… h=… u=… pw=…`) biçimleri tanınır; değer her zaman alanın `:` işaretinden sonraki kısımdır (değerin içindeki `:` / `=` bölünmez); boşluk / sekme farkları sorun değildir. Kart boot parametrelerini alan alan soruyorsa her alanda `value = …` dönüşü görülene kadar yalnız Enter gönderilir (değerler **değiştirilmez**).
 - Bilgi alınamazsa nedeni yazılır: komut kartın imajında yoksa turuncu uyarı; `h` / `u` / `pw` eksikse hangisinin eksik olduğu (parola boşsa kart dosyalara FTP yerine RSH ile erişiyor olabilir); adres geçersizse adres.
 
 **FTP** (dişli simgesi) penceresi:
@@ -507,7 +509,7 @@ Uygulama, bağlı kartların ulaşılabilirliğini komut beklemeden sürekli den
 
 ### İzleme ayarları (isteğe bağlı)
 
-Arayüzde ayar yoktur; değerler `Konfig\config.xml` dosyasındaki `<Monitor>` bölümünden değiştirilebilir (uygulama kapalıyken düzenleyin):
+Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındaki `<Monitor>` bölümünden değiştirilebilir (uygulama kapalıyken düzenleyin):
 
 | Ayar | Varsayılan | Anlamı |
 |---|---|---|
@@ -554,14 +556,14 @@ Arayüzde ayar yoktur; değerler `Konfig\config.xml` dosyasındaki `<Monitor>` b
 
 | Konum | İçerik |
 |---|---|
-| `Konfig\config.xml` | Gruplar, kartlar (adları, hızlı komutları, reboot seçimleri), terminal, yakınlaştırma, izleme ve ortak FTP ayarları (otomatik kaydedilir; FTP parolası dosyada tutulmaz). |
+| `%APPDATA%\TelnetCards\config.xml` | Gruplar, kartlar (adları, hızlı komutları, reboot seçimleri), terminal, yakınlaştırma, izleme ve ortak FTP ayarları (otomatik kaydedilir; FTP parolası dosyada tutulmaz). |
 | `Komutlar\Komutlar.xml` | Komut Kütüphanesi: modüller ve komutlar (önceki sürüm: `Komutlar.xml.yedek`). |
 | `logs\GrupAdı_IP_anlik_tarih_saat.log` | "Dosyaya kaydet" ile alınan anlık terminal görüntüleri (her tıklama ayrı dosya). |
 | `logs\hatalar.log` | Bağlantı hatalarının teknik ayrıntıları (hata kodu, özgün İngilizce mesaj). Her zaman açıktır. |
 | `Yardim\` | Bu kılavuz ve gereksinimler belgesi. |
 | `%TEMP%\TelnetCards\SaltOkunur\` | "Birlikte aç" ile açılan salt okunur kopyalar (kapanışta silinir). |
 
-Tüm bu klasörler exe'nin yanındadır (Visual Studio'dan çalıştırırken `bin\Debug\`). `Konfig` yazılamazsa ayarlar `%APPDATA%\TelnetCards` içinde tutulur.
+`config.xml` ve `%TEMP%` dışındaki klasörler exe'nin yanındadır (Visual Studio'dan çalıştırırken `bin\Debug\`).
 
 ## Sorun giderme
 

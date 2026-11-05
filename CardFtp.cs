@@ -45,16 +45,22 @@ namespace Vision
         /// <summary>Çıktı etkileşimli düzenleme istemiyle bitti (kart her alan için giriş bekliyor).</summary>
         public bool WaitingForInput;
 
-        // Tablo biçimi:  "host inet (h)        : 192.168.1.100"   (alan adı serbest, anahtar parantez içinde)
-        private static readonly Regex TableLine = new Regex(@"^\s*(?<label>[^:()]*?)\s*\(\s*(?<key>[a-z]{1,3})\s*\)\s*:\s?(?<value>.*?)\s*$",
-                                                            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        // Tablo biçimi:  "host inet (h)        : 192.168.1.100"   (alan adı serbest, anahtar parantez içinde).
+        // Anahtardan sonra açıklama parantezleri olabilir: "ftp password (pw) (blank = use rsh) : gizli".
+        // Değer, anahtardan (ve açıklamalardan) SONRAKİ ilk ':' işaretinden itibaren satır sonuna kadar alınır;
+        // değerin kendisindeki ':' ya da '=' (ör. "10.0.0.5:ffffff00", "a:b=c" parolası) bölünmez.
+        private static readonly Regex TableLine = new Regex(
+            @"^\s*(?<label>[^:()]*?)\s*\(\s*(?<key>[a-z]{1,3})\s*\)(?:\s*\([^()]*\))*\s*:(?<value>.*)$",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        // Parantez anahtarı olmayan bspBootChange alanları ("boot device :", "processor number :", "host name :", "file name :")
+        private static readonly Regex PlainFieldLine = new Regex(@"^\s*(?:boot\s*device|processor\s*number|host\s*name|file\s*name)\s*:",
+                                                                 RegexOptions.IgnoreCase | RegexOptions.Compiled);
         // Kısa biçim:  "h: 192.168.1.100"  ya da  "pw = gizli"
         private static readonly Regex ShortLine = new Regex(@"^\s*(?<key>h|u|pw|hn)\s*[:=]\s*(?<value>.*?)\s*$",
                                                             RegexOptions.IgnoreCase | RegexOptions.Compiled);
         // Boot satırı:  "fei(0,0)host:/vxWorks e=192.168.1.10:ffffff00 h=192.168.1.100 u=target pw=gizli f=0x8"
         private static readonly Regex BootLineToken = new Regex(@"(?:^|\s)(?<key>h|u|pw|tn|hn)=(?<value>\S*)", RegexOptions.Compiled);
         private static readonly Regex BootLineHost = new Regex(@"^\s*[A-Za-z]+\d*\([^)]*\)(?<host>[A-Za-z0-9_.\-]+):", RegexOptions.Compiled);
-        private static readonly Regex FieldLine = new Regex(@"^\s*[A-Za-z][^:]{0,40}:\s?.*$", RegexOptions.Compiled);
         private static readonly Regex HostNameLine = new Regex(@"^\s*host\s*name\s*:\s*(?<value>\S*)\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         /// <summary>
@@ -72,7 +78,7 @@ namespace Vision
                 string line = (raw ?? "").Replace("\t", " ").TrimEnd();
                 if (line.Trim().Length == 0) continue;
                 last = line;
-                if (line.Contains("clear field") || line.Contains("^D = quit")) { seenInteractiveHeader = true; continue; }
+                if (line.Contains("clear field") || line.Contains("previous field") || line.Contains("= quit")) { seenInteractiveHeader = true; continue; }
 
                 Match hn = HostNameLine.Match(line);
                 if (hn.Success) { Set(p, "hn", hn.Groups["value"].Value); continue; }
@@ -94,12 +100,17 @@ namespace Vision
                     }
                 }
             }
-            // Etkileşimli düzenleme (bootChange gibi): başlık "'.' = clear field … ^D = quit" ya da son satır
-            // "alan : değer " biçiminde ve kabuk istemi (->) gelmemiş → kart her alan için giriş bekliyor
-            bool interactiveHeader = seenInteractiveHeader;
-            if (last != null && !last.TrimStart().StartsWith("->") && !last.TrimStart().StartsWith("value =") &&
-                (TableLine.IsMatch(last) || (interactiveHeader && FieldLine.IsMatch(last))))
-                p.WaitingForInput = true;
+            // Etkileşimli düzenleme (bspBootChange / bootChange): başlık "'.' = clear field; '-' = go to previous field; ^D = quit"
+            // ve son satır bir boot alanı ("alan (k) : değer " ya da "host name : …") → kart o alan için Enter bekliyor.
+            // "value = …" dönüş satırı ya da kabuk istemi (->) gelince düzenleme bitmiştir. Alan olmayan son satırlar
+            // ("sysMvraöSet: '…' success" gibi) giriş beklemez; böylece komut bittikten sonra kabuğa fazladan Enter gitmez.
+            if (last != null)
+            {
+                string t = last.TrimStart();
+                bool done = t.StartsWith("->") || Regex.IsMatch(t, @"^value\s*=", RegexOptions.IgnoreCase);
+                bool field = TableLine.IsMatch(last) || (seenInteractiveHeader && PlainFieldLine.IsMatch(last));
+                if (!done && field) p.WaitingForInput = true;
+            }
             return p;
         }
 
@@ -242,7 +253,8 @@ namespace Vision
             {
                 if (string.IsNullOrEmpty(s)) return s;
                 if (!string.IsNullOrEmpty(secret)) s = s.Replace(secret, Mask);
-                s = Regex.Replace(s, @"(\(\s*pw\s*\)\s*:\s?)\S+", "$1" + Mask, RegexOptions.IgnoreCase);
+                // "ftp password (pw) (blank = use rsh) : gizli" → değerin tamamı (boşluk içerse de) gizlenir
+                s = Regex.Replace(s, @"(\(\s*pw\s*\)(?:[ \t]*\([^()\r\n]*\))*[ \t]*:[ \t]*)[^\r\n]*\S", "$1" + Mask, RegexOptions.IgnoreCase);
                 s = Regex.Replace(s, @"(\bpw\s*[:=]\s*)\S+", "$1" + Mask, RegexOptions.IgnoreCase);
                 return s;
             };
