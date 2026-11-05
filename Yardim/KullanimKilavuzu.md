@@ -390,18 +390,23 @@ Yüklenen her dosya önce FTP sunucusuna kopyalanır. Bu kopyalar kendiliğinden
 
 ### FTP ayarları (kart başına otomatik)
 
-FTP sunucusu, kullanıcı ve parola **elle girilmez**. Her kart için, o kartın kendisinden `bspBootChange` komutuyla alınır:
+FTP sunucusu, kullanıcı ve parola **elle girilmez**. Her kart için, o kartın kendisinden `version` komutuyla alınır. Komutun cevabındaki `Boot line:` (`BootLine:`) satırının altında kartın boot satırı bulunur:
 
-| Boot parametresi | Kullanım |
+```
+Boot line:
+fei(0,0)host:/vxWorks e=192.168.1.10:ffffff00 h=192.168.1.100 u=ftpuser pw=parola f=0x8
+```
+
+| Boot satırındaki değer | Kullanım |
 |---|---|
-| `h` — host inet | FTP sunucusu adresi |
-| `u` — user | FTP kullanıcısı |
-| `pw` — ftp password | FTP parolası |
-| host name | Kartın FTP sunucusunu gördüğü aygıt (ör. `host:`) |
+| `h=` | FTP sunucusu (IP) |
+| `u=` | FTP kullanıcı adı |
+| `pw=` | FTP parolası |
+| `…host:` (satır başı) | Kartın FTP sunucusunu gördüğü aygıt (ör. `host:`) |
 
 - Bilgi, kart bağlıyken ilk FTP işleminde (yükleme, "Birlikte aç", bağlantı sınaması) otomatik alınır ve **yalnız o kart için, yalnız bellekte** tutulur. Başka kartın bilgisi asla kullanılmaz. Bağlantı kopunca / kesilince silinir; yeniden bağlanınca tekrar alınır.
 - Parola ekranda, ayar dosyasında ve log'larda gösterilmez; Dosya Gezgini'nin **Ham cevap** panelinde `••••••` olarak görünür. Eski sürümlerde elle girilmiş parola ayar dosyasından silinir.
-- Tablo (`host inet (h) : …`, `ftp password (pw) (blank = use rsh) : …`), kısa (`h: …`) ve boot satırı (`… h=… u=… pw=…`) biçimleri tanınır; değer her zaman alanın `:` işaretinden sonraki kısımdır (değerin içindeki `:` / `=` bölünmez); boşluk / sekme farkları sorun değildir. Kart boot parametrelerini alan alan soruyorsa her alanda `value = …` dönüşü görülene kadar yalnız Enter gönderilir (değerler **değiştirilmez**).
+- Yalnız `Boot line:` işaretinden sonraki boot satırı okunur; `version` çıktısının diğer satırları (sürüm, `value = …`) karışmaz. Değer `=` işaretinden sonraki boşluğa kadar olan kısımdır (değerin içindeki `:` / `=` bölünmez). `version` etkileşimli değildir; karta tek komut gider ve hiçbir boot parametresi değiştirilmez.
 - Bilgi alınamazsa nedeni yazılır: komut kartın imajında yoksa turuncu uyarı; `h` / `u` / `pw` eksikse hangisinin eksik olduğu (parola boşsa kart dosyalara FTP yerine RSH ile erişiyor olabilir); adres geçersizse adres.
 
 **FTP** (dişli simgesi) penceresi:
@@ -579,7 +584,7 @@ Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındak
 | Turuncu "komut kartın imajında yok" uyarısı | Kartın imajı bu komutu içermiyor; işlem o kartta yapılamaz. Kartta değişiklik olmaz. |
 | Yükleme: "FTP'ye gönderilemedi … 550" | FTP kullanıcısının o klasöre **yazma** izni yok ya da klasör yok. FTP sunucusunda (ör. FileZilla Server) kullanıcının klasör izinlerine **Write** ekleyin. **Bağlantıyı sına** bunu 2. aşamada gösterir. |
 | Yükleme: "FTP'ye gönderildi ama kartta kopyalanamadı" | Kart dosyayı aynı yerde göremiyor. **Bağlantıyı sına**'nın 3. aşamasına bakın; "Kartın aynı klasörü gördüğü yol" alanını boş (otomatik) bırakın. |
-| "Kartın FTP bilgisi alınamadı" | Ayrıntı uyarı şeridinde. `bspBootChange` kartta yoksa ya da h / u / pw boşsa kartın boot parametrelerini kontrol edin. |
+| "Kartın FTP bilgisi alınamadı" | Ayrıntı uyarı şeridinde. Kartta `version` yazıp `Boot line:` altındaki satırda `h=`, `u=`, `pw=` değerlerinin olduğunu kontrol edin. |
 | Sürükle-bırak hiç kabul edilmiyor | Vision yönetici olarak, Windows Gezgini normal çalışıyorsa Windows iki program arasında sürüklemeye izin vermez. İkisini de aynı yetkiyle çalıştırın ya da **Yükle** düğmesini kullanın. |
 
 ## Belgeleri güncelleme

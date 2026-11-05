@@ -14,7 +14,7 @@ namespace Vision
     /// <summary>
     /// Bilgisayardan karta yükleme ayarları. Akış: dosya önce kartın erişebildiği FTP sunucusuna gönderilir,
     /// sonra kartta "copy" (dosya) / "xcopy" (klasör) ile FTP konumundan hedef klasöre kopyalanır.
-    /// FTP sunucusu, kullanıcı ve parola KARTTAN alınır (bspBootChange; bkz. CardFtpConfigurator) ve kart başına
+    /// FTP sunucusu, kullanıcı ve parola KARTTAN alınır (version komutunun boot satırı; bkz. CardFtpConfigurator) ve kart başına
     /// yalnız bellekte tutulur. Burada kalanlar tüm kartlar için ortak, parola içermeyen ayarlardır.
     /// </summary>
     public sealed class TransferSettings

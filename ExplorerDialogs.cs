@@ -290,7 +290,7 @@ namespace Vision
     }
 
     /// <summary>
-    /// Kartın FTP bağlantısı. Sunucu, kullanıcı ve parola KARTTAN (bspBootChange) otomatik alınır ve yalnız
+    /// Kartın FTP bağlantısı. Sunucu, kullanıcı ve parola KARTTAN (version komutunun boot satırı) otomatik alınır ve yalnız
     /// gösterilir (parola gösterilmez). Kullanıcı yalnız tüm kartlar için ortak olan klasör / kip ayarlarını değiştirir.
     /// "Bağlantıyı sına" yalnız bağlanmayı değil, yazmayı ve kartın dosyayı görmesini de dener.
     /// </summary>
@@ -326,7 +326,7 @@ namespace Vision
             _s = settings; _card = card; _session = session; _ensure = ensure; _test = test; _canOperate = canOperate;
 
             var intro = Theme.MakeLabel(
-                "FTP sunucusu, kullanıcı ve parola her kart için kartın kendisinden (bspBootChange) otomatik alınır; elle girilmez. " +
+                "FTP sunucusu, kullanıcı ve parola her kart için kartın kendisinden (version komutundaki boot satırı: h= / u= / pw=) otomatik alınır; elle girilmez. " +
                 "Bilgiler yalnız bu oturumda bellekte tutulur, kaydedilmez.", Theme.Ui, Theme.TextMuted);
             intro.Location = new Point(20, 14);
             intro.MaximumSize = new Size(540, 0);
@@ -460,7 +460,7 @@ namespace Vision
             {
                 CardFtpCredentials c = _session.Ftp ?? await _ensure(false);
                 ShowCredentials(c, c == null ? "Kartın FTP bilgisi alınamadı." : null);
-                if (c == null) { AddStep("✕  Kartın FTP bilgisi alınamadı (bspBootChange).", Theme.Danger); return; }
+                if (c == null) { AddStep("✕  Kartın FTP bilgisi alınamadı (version).", Theme.Danger); return; }
                 var tmp = new TransferSettings();
                 Apply(tmp);
                 TransferSettings eff = tmp.ForCard(c);

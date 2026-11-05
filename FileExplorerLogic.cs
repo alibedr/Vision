@@ -758,7 +758,7 @@ namespace Vision
         {
             if (Current.IsRoot && destDir == null) return Reject("Yüklemek için önce kartta bir klasör açın.");
             if (Busy) return Reject("Başka bir işlem sürüyor.");
-            if (settings == null || !settings.IsConfigured) return Reject("Kartın FTP bilgisi yok: FTP sunucusu / kullanıcı / parola karttan (bspBootChange) alınamadı.");
+            if (settings == null || !settings.IsConfigured) return Reject("Kartın FTP bilgisi yok: FTP sunucusu / kullanıcı / parola karttan (version) alınamadı.");
             destDir = destDir ?? Current.Path;
             int ok = 0;
             var failures = new List<string>();
@@ -970,7 +970,7 @@ namespace Vision
         // ---------- Kart başına FTP ----------
 
         /// <summary>
-        /// Kartın FTP bilgisini (sunucu, kullanıcı, parola) kartın kendisinden alır (bspBootChange). Ham cevap
+        /// Kartın FTP bilgisini (sunucu, kullanıcı, parola) kartın kendisinden alır (version). Ham cevap
         /// tanılama paneline parolası gizlenmiş olarak yazılır.
         /// </summary>
         public async Task<CardFtpResult> ObtainFtpAsync()
@@ -990,7 +990,7 @@ namespace Vision
             }
             catch (Exception ex)
             {
-                ErrorText.LogTechnical("bspBootChange", ex);
+                ErrorText.LogTechnical("version (FTP bilgisi)", ex);
                 var r = new CardFtpResult { Error = "Kartın FTP bilgisi alınamadı: " + ErrorText.Describe(ex) };
                 Error = r.Error;
                 return r;
