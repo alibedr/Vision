@@ -1,0 +1,19 @@
+# Visual Studio derleme çıktıları
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.cache
+*.pdb
+
+# Hazır exe paketi (GitHub'da "Releases" bölümünde yayımlanır, depoda tutulmaz)
+HazirExe/
+*.zip
+
+# Çalışma sırasında oluşan dosyalar
+logs/
+Konfig/
+Komutlar/*.yedek
+Komutlar/*.bozuk
+Komutlar/*.tmp

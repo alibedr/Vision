@@ -1,0 +1,9 @@
+# Depoda LF, Windows'ta çalışırken (Visual Studio) CRLF
+* text=auto
+*.cs      text eol=crlf
+*.csproj  text eol=crlf
+*.sln     text eol=crlf
+*.md      text eol=crlf
+*.xml     text eol=crlf
+*.ico     binary
+*.png     binary

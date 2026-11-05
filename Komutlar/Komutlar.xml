@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Komut Kütüphanesi
+  Bu dosya uygulamadaki "Komut Kütüphanesi" sekmesinden düzenlenir (modül / komut ekle, düzenle, taşı, sil).
+  Elle düzenlemek isterseniz biçim şöyledir:
+
+  <Modul Ad="Task komutları">
+    <Aciklama>Görevleri listeleme, durdurma ve başlatma.</Aciklama>
+    <Komut Ad="i">
+      <Aciklama>Sistemdeki görevleri özetler.</Aciklama>
+      <Yazilis>i</Yazilis>
+    </Komut>
+  </Modul>
+
+  Bir modüle ait olmayan komutlar <Modul> dışında, doğrudan kökte durur:
+
+  <Komut Ad="devs">
+    <Aciklama>Karttaki cihazları listeler.</Aciklama>
+    <Yazilis>devs</Yazilis>
+    <OrnekCikti>drv refs name
+  0 [ 2] /null</OrnekCikti>
+  </Komut>
+-->
+<KomutKutuphanesi Surum="2" />
