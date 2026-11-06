@@ -104,39 +104,98 @@ namespace Vision
     }
 
     /// <summary>
-    /// Kart başına komut geçmişi. Yukarı ok daha eski komuta, aşağı ok daha yeniye gider;
+    /// Komut geçmişi. Yukarı ok daha eski komuta, aşağı ok daha yeniye gider;
     /// en yeninin de ötesine inince kullanıcının yazmakta olduğu metne (taslağa) döner.
-    /// Art arda aynı komut ve boş komut saklanmaz.
+    /// Aynı komut yinelenmez (en yeniye taşınır), boş komut saklanmaz.
+    /// Varsayılan kurucuyla oluşturulan tüm nesneler (her kart + genel komut çubuğu) AYNI kalıcı listeyi
+    /// paylaşır (CommandHistoryStore): uygulama kapanıp açılınca geçmiş ve otomatik tamamlama korunur.
+    /// Gezinme konumu (↑/↓) her nesnenin kendisinindir.
     /// </summary>
     public sealed class CommandHistory
     {
-        private const int MaxItems = 500;
+        /// <summary>Saklanacak en fazla komut; aşılınca en eski (en uzun süredir kullanılmayan) silinir.</summary>
+        public const int MaxItems = 5000;
 
-        private readonly List<string> _items = new List<string>();
+        private readonly List<string> _items;
+        private readonly Action _changed;
         private int _index = -1;          // -1: geçmişte gezinilmiyor
         private string _draft = "";
 
+        /// <summary>Ortak, kalıcı geçmiş (tüm kartlar ve genel komut çubuğu).</summary>
+        public CommandHistory() : this(CommandHistoryStore.SharedItems, CommandHistoryStore.Save) { }
+
+        /// <summary>Verilen listeyi kullanan geçmiş; changed: liste değişince çağrılır (kaydetme). Test / ayrı geçmiş için.</summary>
+        public CommandHistory(List<string> items, Action changed)
+        {
+            _items = items ?? new List<string>();
+            _changed = changed;
+        }
+
         public int Count { get { return _items.Count; } }
 
+        /// <summary>Eskiden yeniye komutlar.</summary>
         public IList<string> Items { get { return _items.AsReadOnly(); } }
 
         /// <summary>
         /// Komutu geçmişe ekler. Aynı komut daha önce varsa yinelenmez, en yeniye taşınır
-        /// (↑ ve otomatik tamamlama en son kullanılanı önce bulur). Boş komut saklanmaz.
+        /// (↑ ve otomatik tamamlama en son kullanılanı önce bulur). Boş ya da çok satırlı komut saklanmaz.
         /// </summary>
         public void Add(string command)
         {
-            if (!string.IsNullOrEmpty(command))
+            if (!string.IsNullOrEmpty(command) && command.IndexOf('\n') < 0 && command.IndexOf('\r') < 0)
             {
                 int existing = _items.LastIndexOf(command);
                 if (existing != _items.Count - 1 || _items.Count == 0)
                 {
                     if (existing >= 0) _items.RemoveAt(existing);
                     _items.Add(command);
-                    if (_items.Count > MaxItems) _items.RemoveAt(0);
+                    while (_items.Count > MaxItems) _items.RemoveAt(0);
+                    OnChanged();
                 }
             }
             ResetNavigation();
+        }
+
+        /// <summary>Komutu geçmişten siler (varsa). Silindiyse true.</summary>
+        public bool Remove(string command)
+        {
+            int i = command == null ? -1 : _items.LastIndexOf(command);
+            if (i < 0) return false;
+            _items.RemoveAt(i);
+            ResetNavigation();
+            OnChanged();
+            return true;
+        }
+
+        /// <summary>Tüm geçmişi siler.</summary>
+        public void Clear()
+        {
+            if (_items.Count == 0) return;
+            _items.Clear();
+            ResetNavigation();
+            OnChanged();
+        }
+
+        /// <summary>
+        /// Geriye doğru arama (Ctrl+R): metni İÇEREN komutlar, EN YENİDEN eskiye (büyük/küçük harf duyarsız).
+        /// Boş sorgu tüm geçmişi en yeniden eskiye döndürür.
+        /// </summary>
+        public List<string> Search(string query)
+        {
+            var result = new List<string>();
+            string q = query ?? "";
+            for (int i = _items.Count - 1; i >= 0; i--)
+            {
+                string c = _items[i];
+                if (q.Length == 0 || c.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0) result.Add(c);
+            }
+            return result;
+        }
+
+        private void OnChanged()
+        {
+            var h = _changed;
+            if (h != null) h();
         }
 
         /// <summary>↑/↓ ile geçmişte geziniliyor mu?</summary>
@@ -160,12 +219,13 @@ namespace Vision
         /// <summary>Daha eski komut. Gidilecek yer yoksa null (metin değişmesin).</summary>
         public string Previous(string currentText)
         {
-            if (_items.Count == 0) return null;
+            if (_items.Count == 0) { ResetNavigation(); return null; }
             if (_index == -1)
             {
                 _draft = currentText ?? "";
                 _index = _items.Count - 1;
             }
+            else if (_index >= _items.Count) _index = _items.Count - 1;   // ortak liste başka yerde kısalmış olabilir
             else if (_index > 0) _index--;
             else return null;
             return _items[_index];

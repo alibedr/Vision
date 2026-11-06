@@ -11,7 +11,7 @@ namespace Vision
         Back, Refresh, NewFolder, Upload, Settings, SidebarHide, SidebarShow, Folder,
         Plus, Search, Edit, Trash, Copy, Check, ChevronRight, ChevronDown, Module, ExpandAll, CollapseAll,
         ChevronUp, Warning, Info, Terminal, Book, Home, Clock, Dot,
-        Save, Bolt, Power, Swap, Minus, Return, Sun, Moon,
+        Save, Bolt, Power, Swap, Minus, Return, Sun, Moon, History,
     }
 
     /// <summary>
@@ -261,6 +261,12 @@ namespace Vision
                     case IconKind.Clock:
                         g.DrawEllipse(pen, 1.8f, 1.8f, 12.4f, 12.4f);
                         g.DrawLines(pen, new[] { P(8f, 4.6f), P(8f, 8f), P(10.6f, 9.6f) });
+                        break;
+
+                    case IconKind.History:   // geçmiş: saat yönünün tersine dönen yay + saat ibreleri
+                        g.DrawArc(pen, 2.2f, 2.2f, 11.6f, 11.6f, 200, 290);
+                        g.DrawLines(pen, new[] { P(1.4f, 3.6f), P(2.6f, 6.6f), P(5.6f, 5.6f) });
+                        g.DrawLines(pen, new[] { P(8f, 5f), P(8f, 8.2f), P(10.2f, 9.6f) });
                         break;
 
                     case IconKind.Dot:

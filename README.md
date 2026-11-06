@@ -12,7 +12,7 @@ Geliştiren: **Ali Bedir**
 
 - Grup tabanlı kart yönetimi (Kart Gezgini), kartlara isteğe bağlı ad
 - Aynı anda en fazla 24 kart terminali; bağlantı ve görünüm birbirinden bağımsız
-- Bağlantı süresi, kaydırma koruması ve yeni satır göstergesi, kart başına komut geçmişi ve otomatik tamamlama
+- Bağlantı süresi, kaydırma koruması ve yeni satır göstergesi, kalıcı komut geçmişi (geçmiş penceresi, Ctrl+R ile geriye doğru arama) ve otomatik tamamlama, kart ekranında sağ tıkla renklendirme
 - Genel komut çubuğu: ekrandaki tüm kartlara aynı komut
 - Periyodik bağlantı izleme ve otomatik yeniden bağlanma
 - Kart Dosya Gezgini: `devs` / `ll`, klasör ve dosya işlemleri, FTP üzerinden karta yükleme, salt okunur "Birlikte aç"

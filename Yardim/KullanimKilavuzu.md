@@ -42,6 +42,7 @@ Yer kazanmak için sık kullanılan düğmeler yazı yerine simgeyle gösterilir
 | Kenar çubuklu pencere | **Kart Gezgini'ni gizle / göster** (Ctrl+B) | Sekme şeridinin en solu |
 | Disket | **Dosyaya kaydet** (terminalin anlık görüntüsü) | Kart penceresi başlığı · Genel komut çubuğu |
 | Şimşek | **Hızlı komut** (atanmış komutu gönderir) | Kart komut satırı · Genel komut çubuğu |
+| Geri dönen ok + saat | **Komut geçmişi** (Ctrl+R): yazılmış tüm komutlar ve geriye doğru arama | Kart komut satırının içi (sağda) · Genel komut çubuğu |
 | Güç + ⇄ | **reboot / reboot 2** (sol: çalıştır, sağ ⇄: seçimi değiştir) | Kart komut satırı · Genel komut çubuğu |
 | − %100 + | **Yazı** (tüm terminallerin ortak yakınlaştırması) | Telnet ayar çubuğu |
 | Çöp kutusu | **FTP kopyalarını sil** | Dosya Gezgini |
@@ -82,7 +83,8 @@ Gruplar, kartlar ve tüm ayarlar bilgisayarınızda, **`%APPDATA%\TelnetCards\co
 |---|---|
 | Gruplar (ad, port, açık / kapalı), kartların IP'leri | Telnet sekmesinde açık olan kart pencereleri |
 | Satır sonu, yerel eko, zaman damgası, dosyaya kaydet | Bağlantılar (kartlara yeniden bağlanılır) |
-| Bağlantı izleme ve FTP ayarları | Terminal çıktıları ve komut geçmişleri |
+| Bağlantı izleme ve FTP ayarları | Terminal çıktıları |
+| Komut geçmişi (ayrı dosya: `KomutGecmisi.txt`) | Kart ekranındaki renklendirmeler |
 
 - Dosya exe'den bağımsızdır: yeni bir Vision sürümünü indirip başka bir klasörden çalıştırdığınızda gruplarınız, kartlarınız ve ayarlarınız **aynen gelir**; her sürümde yeniden girmeniz gerekmez.
 - Visual Studio'dan çalıştırılan uygulama (`bin\Debug`) ile `HazirExe` klasöründeki uygulama **aynı** ayar dosyasını kullanır.
@@ -174,6 +176,8 @@ Aynı anda en fazla **24 kart** gösterilebilir (uygulama sınırı; değiştiri
 | Kare / ✕ | Büyüt (büyütülmüşken iki kare: eski boyut) / ekrandan kaldır. |
 | Disket simgesi | **Dosyaya kaydet**: terminalde o an görünen içeriği bu kart için ayrı bir dosyaya kaydeder (aşağıya bakın). |
 | Kâğıt uçak (komut satırının sağı) | **Gönder** (Enter ile aynı). |
+| Saat simgesi (komut alanının içinde, sağda) | **Komut geçmişi** (Ctrl+R): daha önce yazılan tüm komutlar; içinde arama (aşağıya bakın). |
+| Terminalde sağ tık | **Kopyala** ve **Renklendir**: seçilen kelimeyi ekranda renkli gösterir (aşağıya bakın). |
 | Şimşek düğmesi (komut satırı) | **Hızlı komut**: bu karta atanmış komutu tek tıkla YALNIZ bu karta gönderir (aşağıya bakın). |
 | reboot ⇄ (komut satırı) | Sol bölme seçili komutu (`reboot` ya da `reboot 2`) YALNIZ bu karta gönderir; sağdaki ⇄ yalnız seçimi değiştirir. |
 | **Dönüş** çubuğu (komut satırının üstü) | Komutların dönüş değerleri (`value = …`); tıklayınca liste açılır (aşağıya bakın). |
@@ -213,9 +217,36 @@ Hızlı komutun yanındaki düğme iki bölmelidir:
 ### Komut satırı
 
 - **Enter** komutu gönderir. Boş Enter yalnız satır sonu gönderir.
-- **↑ / ↓** kartın kendi komut geçmişinde gezinir. En yeni komutun da ötesine inince, geçmişe girmeden önce yazdığınız metin geri gelir. Boş komut saklanmaz; aynı komut tekrar kullanılırsa yinelenmez, en yeniye taşınır. Her kartın geçmişi ayrıdır.
-- **Otomatik tamamlama:** Daha önce yazılmış bir komutun başını yazdığınızda (ör. `mod`), geçmişteki en son eşleşen komutun eksik kısmı imlecin sağında soluk renkte görünür (`moduleShow`). **Tab**, **↓** ya da imleç sondayken **→** öneriyi kabul eder. Kabul etmek komutu **çalıştırmaz**; ardından Enter ile gönderirsiniz. Yazmaya devam edebilir ya da **Esc** ile öneriyi gizleyebilirsiniz. Enter yalnız sizin yazdığınızı gönderir. Büyük / küçük harf duyarsızdır; genel komut çubuğunda da kendi geçmişiyle çalışır.
+- **↑ / ↓** komut geçmişinde gezinir. En yeni komutun da ötesine inince, geçmişe girmeden önce yazdığınız metin geri gelir. Boş komut saklanmaz; aynı komut tekrar kullanılırsa yinelenmez, en yeniye taşınır.
+- **Geçmiş kalıcıdır ve ortaktır:** Yazdığınız her komut `%APPDATA%\TelnetCards\KomutGecmisi.txt` dosyasına hemen kaydedilir; uygulamayı kapatıp açtığınızda geçmiş ve otomatik tamamlama önerileri geri gelir. Tüm kartlar ve genel komut çubuğu aynı geçmişi kullanır: bir kartta yazdığınız komut diğer kartlarda da ↑ ile ve otomatik tamamlamada bulunur. En fazla 5.000 komut tutulur; dolunca en uzun süredir kullanılmayan silinir.
+- **Otomatik tamamlama:** Daha önce yazılmış bir komutun başını yazdığınızda (ör. `mod`), geçmişteki en son eşleşen komutun eksik kısmı imlecin sağında soluk renkte görünür (`moduleShow`). **Tab**, **↓** ya da imleç sondayken **→** öneriyi kabul eder. Kabul etmek komutu **çalıştırmaz**; ardından Enter ile gönderirsiniz. Yazmaya devam edebilir ya da **Esc** ile öneriyi gizleyebilirsiniz. Enter yalnız sizin yazdığınızı gönderir. Büyük / küçük harf duyarsızdır; genel komut çubuğunda da çalışır.
+- **Ctrl+R** ya da komut alanının içindeki **saat simgesi** komut geçmişi penceresini açar (aşağıya bakın).
 - **Ctrl+C** (metin seçili değilken) karta kesme karakteri (ETX) gönderir.
+
+### Komut geçmişi penceresi ve geriye doğru arama (Ctrl+R)
+
+Komut alanının sağındaki **saat simgesine** tıklayın ya da komut satırındayken **Ctrl+R**'ye basın. Pencerede daha önce yazılmış **tüm** komutlar en yeniden eskiye listelenir.
+
+- Üstteki arama kutusuna yazdıkça yalnız o metni **içeren** komutlar kalır (komutun başında olması gerekmez; büyük / küçük harf duyarsız). Eşleşen kısım sarı zeminle gösterilir ve en yeni eşleşme seçili gelir.
+- Pencereyi Ctrl+R ile açarken komut satırında yazılı bir metin varsa arama o metinle başlar.
+- **↑ / ↓** (ya da Page Up / Down) seçimi taşır; **Ctrl+R** bir sonraki (daha eski) eşleşmeye, **Ctrl+Shift+R** bir öncekine geçer.
+- **Enter**, **çift tık** ya da **Komut satırına al**: seçilen komut komut satırına yazılır, **gönderilmez**; düzenleyip Enter ile gönderirsiniz.
+- **Sil** (listede **Delete**, arama kutusunda **Shift+Delete**) seçili komutu geçmişten çıkarır. **Tümünü sil…** onay sorup tüm geçmişi siler.
+- **Esc** ya da **Kapat** komut satırına dokunmadan kapatır.
+- Kart bağlı değilken kartın geçmiş düğmesi pasiftir (komut satırı yazılamaz).
+
+### Kart ekranında renklendirme
+
+Akan loglar arasında bir kelimeyi (ör. `error`) kolayca görmek için:
+
+1. Terminalde kelimeyi seçin ya da doğrudan **kelimenin üzerine sağ tıklayın** (seçim yoksa tıklanan kelime kendiliğinden seçilir).
+2. **Renklendir: "error"** menüsünden bir renk seçin (Sarı, Turuncu, Kırmızı, Pembe, Mor, Mavi, Camgöbeği, Yeşil) ya da **Diğer renk…** ile istediğiniz rengi belirleyin.
+
+- Ekranda o metnin geçtiği **her yer** seçilen renkli zeminle gösterilir; sonradan gelen satırlarda da kendiliğinden boyanır. Eşleşme büyük / küçük harf duyarsızdır (`error`, `Error`, `ERROR`).
+- Aynı metni başka renge boyamak rengini değiştirir. Birden çok metin farklı renklerle boyanabilir (en fazla 30).
+- Kaldırmak için metnin üzerinde sağ tık → **Renklendirmeyi kaldır**, ya da **Renklendirmeler** alt menüsünden tek tek / **Tüm renklendirmeleri kaldır**.
+- Renklendirmeler **o karta** aittir ve yalnız ekrandaki görünümü değiştirir (karta bir şey gönderilmez, kayıt dosyalarına renk yazılmaz). Kart penceresi kapatılıp yeniden açılsa da korunur; uygulama kapanınca silinir.
+- Seçim tek satırda olmalıdır (en fazla 200 karakter); baştaki ve sondaki boşluklar yok sayılır.
 
 ### Bağlı olmayan kart
 
@@ -243,7 +274,7 @@ Telnet sekmesinin altındaki **TÜM AÇIK KARTLARA** çubuğu, yazılan komutu e
 - Her kart komutu **tam bir kez** alır.
 - Bağlı olmayan açık kartlar atlanır ve sonuçta raporlanır: `⚠ 3/4 karta gönderildi · gönderilemedi: 192.168.1.12 (bağlı değil)`.
 - Bir kartın hatası diğer kartlara gönderimi durdurmaz.
-- Kendi komut geçmişi vardır (↑ / ↓). Bu çubuk Kart Dosya Gezgini sekmesinde görünmez.
+- Komut geçmişi kartlarla ortaktır ve kalıcıdır (↑ / ↓, otomatik tamamlama, saat simgesi ya da Ctrl+R ile geçmiş penceresi). Bu çubuk Kart Dosya Gezgini sekmesinde görünmez.
 
 Gönder düğmesinin yanında, kart penceresindekilerin genel karşılıkları vardır:
 
@@ -554,6 +585,7 @@ Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındak
 | Ctrl+F | Komut Kütüphanesi'nde ara |
 | Enter | Komut gönder · Kart Gezgini'nde seçili kartı göster · Dosya Gezgini'nde aç |
 | ↑ / ↓ | Komut geçmişi |
+| Ctrl+R | Komut satırında: komut geçmişi penceresi ve geriye doğru arama · pencerede: sonraki eşleşme |
 | Ctrl+C | Karta kesme (ETX) gönder (metin seçili değilken) |
 | Delete | Kart Gezgini'nde seçili kartı / grubu sil |
 | Backspace / F5 | Dosya Gezgini'nde Geri / Yenile |
@@ -571,6 +603,7 @@ Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındak
 | Konum | İçerik |
 |---|---|
 | `%APPDATA%\TelnetCards\config.xml` | Gruplar, kartlar (adları, hızlı komutları, reboot seçimleri), terminal, yakınlaştırma, izleme ve ortak FTP ayarları (otomatik kaydedilir; FTP parolası dosyada tutulmaz). |
+| `%APPDATA%\TelnetCards\KomutGecmisi.txt` | Komut geçmişi: yazılan tüm komutlar, satır başına bir komut, eskiden yeniye (en fazla 5.000; tüm kartlar ve genel çubuk ortak; otomatik kaydedilir). Silinirse geçmiş boş başlar. |
 | `Komutlar\Komutlar.xml` | Komut Kütüphanesi: modüller ve komutlar (önceki sürüm: `Komutlar.xml.yedek`). |
 | `logs\GrupAdı_IP_anlik_tarih_saat.log` | "Dosyaya kaydet" ile alınan anlık terminal görüntüleri (her tıklama ayrı dosya). |
 | `logs\hatalar.log` | Bağlantı hatalarının teknik ayrıntıları (hata kodu, özgün İngilizce mesaj). Her zaman açıktır. |

@@ -368,6 +368,7 @@ namespace Vision
                 if (old != null && !ReferenceEquals(old, Theme.Mono)) old.Dispose();
                 if (_alertFont != null) { _alertFont.Dispose(); _alertFont = null; }
                 ColorizeAlerts(0, null);                     // kalın kırmızı uyarı satırları yeni boyutla
+                ApplyHighlights(0, null);
             }
             finally
             {

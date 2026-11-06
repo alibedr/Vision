@@ -10,7 +10,7 @@ namespace Vision
     /// <summary>
     /// Ana pencerenin altındaki genel komut çubuğu: yazılan komutu çalışma alanında AÇIK olan
     /// tüm kartlara gönderir. Kart komut satırlarından görsel olarak ayrışır (vurgu renkli şerit ve etiket).
-    /// Kendi komut geçmişi vardır (yukarı / aşağı ok).
+    /// Komut geçmişi kartlarla ortak ve kalıcıdır (yukarı / aşağı ok, Ctrl+R ya da geçmiş düğmesiyle arama).
     /// </summary>
     public sealed class GlobalCommandBar : UserControl
     {
@@ -28,6 +28,7 @@ namespace Vision
         private readonly Panel _field = new Panel { Dock = DockStyle.Fill, BackColor = FieldBack, Padding = new Padding(10, 7, 8, 4) };
         private readonly TextBox _input = new TextBox { BorderStyle = BorderStyle.None, Dock = DockStyle.Fill };
         private readonly IconButton _sendBtn = new IconButton(IconKind.SendAll, IconTone.Primary);   // "Hepsine Gönder"
+        private readonly IconButton _historyBtn = new IconButton(IconKind.History, IconTone.Ghost) { IconSize = 15, TabStop = false };
         private readonly Label _result = new GlyphLabel { Font = Theme.UiSmall, ForeColor = Theme.TextMuted, AutoSize = true, BackColor = Color.Transparent };
         private readonly ToolTip _tips = new DarkToolTip();
         private bool _sending;
@@ -63,7 +64,11 @@ namespace Vision
             _input.ForeColor = Theme.Text;
             _input.Font = new Font("Consolas", 10.5f);
             Theme.SetCueBanner(_input, "Komut yazıp Enter'a basın — ekrandaki tüm kartlara aynı anda gönderilir");
+            _historyBtn.Dock = DockStyle.Right;
+            _historyBtn.Width = 26;
+            _historyBtn.Click += (s, e) => ShowHistory();
             _field.Controls.Add(_input);
+            _field.Controls.Add(_historyBtn);   // komut alanının sağında: geçmiş + geriye doğru arama
             _fieldBorder.Controls.Add(_field);
 
             _sendBtn.Width = 40;
@@ -94,10 +99,11 @@ namespace Vision
             RefreshQuickButton();
             RefreshRebootButton();
 
+            _historyBtn.SetTip(_tips, "Komut geçmişi (Ctrl+R) — daha önce yazılan tüm komutları listeler ve içinde arar;\nseçilen komut komut satırına yazılır (gönderilmez)");
             _sendBtn.SetTip(_tips, "Hepsine Gönder (Enter)\nYalnızca Telnet sekmesinde açık olan kartlara gönderilir.\nBağlı olmayan açık kartlar atlanır ve raporlanır.");
             _sendBtn.AccessibleName = "Hepsine Gönder";
             _input.KeyDown += Input_KeyDown;
-            _autoComplete = new InputAutoComplete(_input, () => _history);   // kendi geçmişinden tamamlama
+            _autoComplete = new InputAutoComplete(_input, () => _history);   // ortak, kalıcı geçmişten tamamlama
             _sendBtn.Click += async (s, e) => await SendAsync();
             _field.Click += (s, e) => _input.Focus();
 
@@ -271,6 +277,23 @@ namespace Vision
                 string next = _history.Next();
                 if (next != null) _autoComplete.SetTextQuiet(next);
             }
+            else if (e.KeyCode == Keys.R && e.Control && !e.Alt)
+            {
+                e.SuppressKeyPress = true;    // Ctrl+R: geriye doğru arama
+                e.Handled = true;
+                ShowHistory();
+            }
+        }
+
+        /// <summary>Komut geçmişi penceresini açar; seçilen komut komut satırına yazılır (gönderilmez).</summary>
+        private void ShowHistory()
+        {
+            string query = _input.SelectionLength > 0 ? _input.SelectedText : _input.Text;
+            string chosen = CommandHistoryDialog.Pick(FindForm(), _history, query, "Tüm açık kartlar");
+            if (chosen == null) return;
+            _history.ResetNavigation();
+            _autoComplete.SetTextQuiet(chosen);
+            _input.Focus();
         }
 
         private async Task SendAsync()
