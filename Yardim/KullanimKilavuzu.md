@@ -472,15 +472,47 @@ Bağlantı başarılı olsa da yazma izni yoksa ya da kartın gördüğü yol FT
 
 ## Komut Kütüphanesi
 
-**Komut Kütüphanesi** sekmesi (**Ctrl+3**), kart komutlarının açıklamalarını, yazılışlarını ve örnek çıktılarını tek yerde toplar. Komutlar **modüllerde** gruplanır: ör. **Task komutları** modülünde `i`, `rtpi`, `tt`, `tr`, `ts`, `td`, `sp`, `taskSpawn`; **Memory ve network** modülünde `adrSpaceShow`, `netstat`, `checkStack`. İçerik exe'nin yanındaki **`Komutlar\Komutlar.xml`** dosyasında tutulur.
+**Komut Kütüphanesi** sekmesi (**Ctrl+3**), kart komutlarının açıklamalarını, yazılışlarını ve örnek çıktılarını tek yerde toplar. Komutlar **modüllerde** gruplanır. İçerik exe'nin yanındaki **`Komutlar\Komutlar.xml`** dosyasında tutulur.
+
+### Hazır VxWorks 6.4 komutları
+
+Vision, VxWorks 6.4 kabuğunun (C yorumlayıcısı, `->` istemi) sık kullanılan **70 komutuyla** birlikte gelir. Her komutta ne işe yaradığı, yazılışı / örnek kullanımı ve kartın verdiği örnek çıktı vardır. Komutlar 10 modülde toplanmıştır:
+
+| Modül | Komutlar |
+|---|---|
+| Kabuk kullanımı | `help`, `h`, `printf`, değişken tanımlama, `lkup`, `lkAddr`, `cmd`, `logout` |
+| Sistem bilgisi | `version`, `sysModel`, `sysClkRateGet`, `sysClkRateSet`, `tickGet`, `spy`, `spyStop` |
+| Görevler (task) | `i`, `ti`, `sp`, `taskSpawn`, `td`, `ts`, `tr`, `tt`, `taskPrioritySet`, `checkStack`, `period`, `repeat` |
+| Bellek | `memShow`, `d`, `m`, `l`, `memPartShow` |
+| Modüller ve semboller | `moduleShow`, `ld`, `unld`, `printErrno` |
+| Boot / BSP ayarları | `bspBootChange`, `bootChange` (PowerPC kartları), `reboot` |
+| Dosya sistemi | `devs`, `ls`, `ll`, `cd`, `pwd`, `copy`, `xcopy`, `mv`, `rm`, `mkdir`, `rmdir`, `xdelete`, `iosFdShow` |
+| Ağ | `ifShow`, `inetstatShow`, `ping`, `routeShow`, `routeAdd`, `arpShow`, `hostShow`, `hostAdd`, `tcpstatShow`, `netStackSysPoolShow` |
+| Senkronizasyon nesneleri | `semShow`, `msgQShow`, `wdShow`, `show` |
+| Hata ayıklama | `b`, `bd`, `c`, `s` |
+
+- Örnek çıktılar temsilîdir: adresler, görev kimlikleri ve satırlar kartın BSP'sine ve imajına göre değişir. Bir komut kartın imajında yoksa kart `undefined symbol` der; `lkup "ad"` ile kartta olup olmadığına bakabilirsiniz.
+- Hazır komutlar sizin komutlarınız gibidir: düzenleyebilir, silebilir, modüller arasında taşıyabilir, yanlarına kendi komutlarınızı ve modüllerinizi ekleyebilirsiniz.
+- Kütüphane tamamen boşsa (ilk açılış) hazır komutlar kendiliğinden eklenir. Üst çubuktaki **Hazır komutlar** düğmesi, Vision ile gelen komutlardan kütüphanenizde **eksik** olanları ekler; aynı adlı komutlarınız ve düzenlemeleriniz **değiştirilmez** (ör. bir komutu sildiyseniz geri getirmek için).
+
+### Karta aktar
+
+Bir komutu kütüphaneden alıp doğrudan bir kartta denemek için:
+
+1. Komutu seçin; **YAZILIŞ / ÖRNEK KULLANIM** başlığının sağındaki **Karta aktar**'a tıklayın (ya da soldaki listede komuta sağ tık → **Karta aktar**).
+2. Açılan listeden kartı seçin. Kartlar gruplarıyla ve bağlantı durumlarını gösteren renkli noktayla listelenir; en altta **Ekrandaki tüm kartlar** seçeneği komutu genel komut çubuğuna yazar.
+3. Vision Telnet sekmesine geçer, kartı açar (açıksa öne getirir) ve komutu kartın komut satırına **yazar — göndermez**. Argümanları (ör. dosya yolu, görev adı) düzenleyip **Enter** ile gönderin.
+
+- Yazılış birden çok satırsa (birden çok örnek), aktarmadan önce yazılış kutusunda istediğiniz satırı **seçin**; seçmezseniz ilk satır aktarılır. Satır sonundaki ` // açıklama` kısmı aktarılmaz.
+- Kart bağlı değilse önce bağlanılır; bağlantı kurulunca komut yazılır. Bağlanılamazsa kartta uyarı çıkar ve komut yazılmaz.
 
 ### Ekran
 
 | Bölüm | Ne gösterir |
 |---|---|
-| Üst çubuk | Toplam komut / modül sayısı; **Yeni modül** (Ctrl+Shift+M), **Yeni komut** (Ctrl+Shift+N) ve klasör simgesi (Komutlar klasörünü açar). |
+| Üst çubuk | Toplam komut / modül sayısı; **Hazır komutlar** (eksik hazır komutları ekler), klasör simgesi (Komutlar klasörünü açar), **Yeni modül** (Ctrl+Shift+M), **Yeni komut** (Ctrl+Shift+N). |
 | Sol liste | Arama kutusu ve modül ağacı. Her modül başlığında komut sayısı yazar; başlığın solundaki ok ile modül daraltılır / genişletilir. Modüle atanmamış komutlar en altta **Modülsüz** grubunda durur. Alttaki iki simge tüm modülleri genişletir / daraltır. |
-| Komut sayfası | Komutun adı, bulunduğu modül (tıklayınca modülün sayfasına gider), son değişiklik zamanı, açıklama, yazılış (**Kopyala** ile panoya) ve örnek çıktı. |
+| Komut sayfası | Komutun adı, bulunduğu modül (tıklayınca modülün sayfasına gider), son değişiklik zamanı, açıklama, yazılış (**Karta aktar** ile bir kartın komut satırına, **Kopyala** ile panoya) ve örnek çıktı. |
 | Modül sayfası | Bir modül başlığı seçilince açılır: modülün adı, açıklaması, komut sayısı ve komutlarının listesi (ad, yazılış, özet). Listeden bir komuta tıklamak o komutu açar. **Komut ekle**, **Düzenle**, **Sil** düğmeleri buradadır. |
 
 ### Modüller
@@ -508,7 +540,7 @@ Bir komut tek bir modülde bulunur; komut adları kütüphane genelinde benzersi
 | Komut adı | Ör. `taskSpawn`. Kütüphanede benzersizdir (büyük / küçük harf duyarsız). | Evet |
 | Modül | Komutun bulunduğu modül ya da Modülsüz. | Hayır |
 | Açıklama | Komutun ne yaptığı. İlk satırı listede özet olarak görünür. | Hayır |
-| Yazılış / örnek kullanım | Ör. `ll "/ata0a"`. **Kopyala** ile panoya alınıp terminale yapıştırılabilir. | Hayır |
+| Yazılış / örnek kullanım | Ör. `ll "/ata0a"`. Her satır ayrı bir örnektir; satır sonuna ` // açıklama` yazılabilir (aktarılmaz). **Karta aktar** ile kartın komut satırına yazılır, **Kopyala** ile panoya alınır. | Hayır |
 | Örnek çıktı | Kartın bu komuta verdiği örnek cevap. | Hayır |
 
 - **Ekleme:** **Yeni komut** (Ctrl+Shift+N) → alanları doldurun → **Kaydet** (Ctrl+S).
@@ -604,7 +636,7 @@ Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındak
 |---|---|
 | `%APPDATA%\TelnetCards\config.xml` | Gruplar, kartlar (adları, hızlı komutları, reboot seçimleri), terminal, yakınlaştırma, izleme ve ortak FTP ayarları (otomatik kaydedilir; FTP parolası dosyada tutulmaz). |
 | `%APPDATA%\TelnetCards\KomutGecmisi.txt` | Komut geçmişi: yazılan tüm komutlar, satır başına bir komut, eskiden yeniye (en fazla 5.000; tüm kartlar ve genel çubuk ortak; otomatik kaydedilir). Silinirse geçmiş boş başlar. |
-| `Komutlar\Komutlar.xml` | Komut Kütüphanesi: modüller ve komutlar (önceki sürüm: `Komutlar.xml.yedek`). |
+| `Komutlar\Komutlar.xml` | Komut Kütüphanesi: modüller ve komutlar; Vision ile hazır VxWorks 6.4 komutlarıyla gelir (önceki sürüm: `Komutlar.xml.yedek`). |
 | `logs\GrupAdı_IP_anlik_tarih_saat.log` | "Dosyaya kaydet" ile alınan anlık terminal görüntüleri (her tıklama ayrı dosya). |
 | `logs\hatalar.log` | Bağlantı hatalarının teknik ayrıntıları (hata kodu, özgün İngilizce mesaj). Her zaman açıktır. |
 | `Yardim\` | Bu kılavuz ve gereksinimler belgesi. |

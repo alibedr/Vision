@@ -76,6 +76,10 @@
       <DependentUpon>CommandLibraryView.cs</DependentUpon>
       <SubType>UserControl</SubType>
     </Compile>
+    <Compile Include="CommandLibraryView.Transfer.cs">
+      <DependentUpon>CommandLibraryView.cs</DependentUpon>
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="ErrorText.cs" />
     <Compile Include="Theme.cs" />
     <Compile Include="MainForm.cs">
@@ -126,7 +130,13 @@
     <!-- Komut kütüphanesi: exe'nin yanındaki Komutlar klasörüne YALNIZ dosya yoksa kopyalanır.
          Uygulamadan eklenen komutlar yeniden derlemede silinmez / üzerine yazılmaz. -->
     <None Include="Vision.ico" />
-    <None Include="Komutlar\Komutlar.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Hazır komutlar exe'ye de gömülür: kütüphane boşsa ilk açılışta, istenirse "Hazır komutlar" düğmesiyle
+         eksik olanlar eklenir (kullanıcının komutlarına dokunulmaz). -->
+    <EmbeddedResource Include="Komutlar\Komutlar.xml">
+      <LogicalName>Komutlar.Varsayilan.xml</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="AfterBuild">

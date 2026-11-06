@@ -402,6 +402,7 @@ namespace Vision
                 _stateStrip.ForeColor = Color.White;
             }
             ApplyLook(st == CardState.Connected, drop);
+            ApplyPendingInput(st);
             _header.Invalidate();
             Invalidate();   // kenarlık rengi
         }
@@ -846,6 +847,55 @@ namespace Vision
                 // Ctrl+C: karta kesme (ETX) gönder
                 e.SuppressKeyPress = true;
                 try { await Session.SendRawAsync("\x03"); } catch { }
+            }
+        }
+
+        private string _pendingInput;   // kart bağlanınca komut satırına yazılacak komut (kütüphaneden aktarma)
+
+        /// <summary>
+        /// Komutu komut satırına yazar (GÖNDERMEZ) ve odaklanır — Komut Kütüphanesi'nden "Karta aktar".
+        /// Kart bağlı değilse bağlanmayı başlatır; komut bağlantı kurulunca yazılır (kurulamazsa vazgeçilir).
+        /// </summary>
+        public void InsertCommand(string command)
+        {
+            if (string.IsNullOrEmpty(command)) return;
+            if (Session.State == CardState.Connected)
+            {
+                _pendingInput = null;
+                Session.CommandHistory.ResetNavigation();
+                SetInput(command);
+                _input.Focus();
+                ShowToast("✓  Kütüphaneden alındı — düzenleyip Enter ile gönderin.", true, null);
+                return;
+            }
+            _pendingInput = command;
+            ShowToast("ℹ  Kart bağlı değil — bağlanılıyor; bağlanınca komut satırına yazılacak.", true, null);
+            if (!SelectionLogic.IsLive(Session.State)) ConnectForPending();
+        }
+
+        private async void ConnectForPending()
+        {
+            try { await Session.ConnectAsync(); }
+            catch (Exception ex) { ErrorText.LogTechnical(Session.Card.DisplayName + " bağlantı", ex); }
+        }
+
+        /// <summary>Durum değişince bekleyen (kütüphaneden aktarılan) komutu yazar ya da bağlantı kurulamadıysa bırakır.</summary>
+        private void ApplyPendingInput(CardState st)
+        {
+            if (_pendingInput == null) return;
+            if (st == CardState.Connected)
+            {
+                string cmd = _pendingInput;
+                _pendingInput = null;
+                Session.CommandHistory.ResetNavigation();
+                SetInput(cmd);
+                _input.Focus();
+                ShowToast("✓  Bağlandı — komut yazıldı; düzenleyip Enter ile gönderin.", true, null);
+            }
+            else if (st == CardState.Error || st == CardState.Disconnected)
+            {
+                _pendingInput = null;
+                ShowToast("⚠  Karta bağlanılamadı — komut yazılmadı.", false, null);
             }
         }
 

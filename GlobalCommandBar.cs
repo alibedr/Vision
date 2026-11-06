@@ -285,6 +285,15 @@ namespace Vision
             }
         }
 
+        /// <summary>Komutu komut satırına yazar (gönderilmez) ve odaklanır (Komut Kütüphanesi'nden aktarma).</summary>
+        public void InsertCommand(string command)
+        {
+            _history.ResetNavigation();
+            _autoComplete.SetTextQuiet(command ?? "");
+            _input.Focus();
+            ShowResult("ℹ  Kütüphaneden alındı — düzenleyip Enter ile ekrandaki kartlara gönderin", Theme.TextMuted, null);
+        }
+
         /// <summary>Komut geçmişi penceresini açar; seçilen komut komut satırına yazılır (gönderilmez).</summary>
         private void ShowHistory()
         {

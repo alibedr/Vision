@@ -71,6 +71,7 @@ namespace Vision
             BuildModulePage();
             WireEvents();
             ReloadFromDisk(null, null);
+            SeedBundledIfEmpty();     // ilk açılış: boş kütüphane hazır VxWorks 6.4 komutlarıyla dolar
         }
 
         // =====================================================================
@@ -88,11 +89,13 @@ namespace Vision
             _newModuleBtn.Size = new Size(122, 34);
             _folderBtn.Size = new Size(34, 34);
             top.Controls.AddRange(new Control[] { title, _stats, _newBtn, _newModuleBtn, _folderBtn });
+            BuildBundledButton(top);
             top.Resize += (s, e) =>
             {
                 _newBtn.Location = new Point(top.Width - 20 - _newBtn.Width, 17);
                 _newModuleBtn.Location = new Point(_newBtn.Left - 8 - _newModuleBtn.Width, 17);
                 _folderBtn.Location = new Point(_newModuleBtn.Left - 8 - _folderBtn.Width, 17);
+                _bundledBtn.Location = new Point(_folderBtn.Left - 8 - _bundledBtn.Width, 17);
             };
             top.Paint += (s, e) => { using (var p = new Pen(Theme.Border)) e.Graphics.DrawLine(p, 0, top.Height - 1, top.Width, top.Height - 1); };
             _newBtn.SetTip(_tips, "Yeni komut — seçili modüle eklenir  ·  Ctrl+Shift+N");
@@ -656,6 +659,7 @@ namespace Vision
                 CommandDoc d = r.Doc;
                 AddMenu(_menu.Items, "Düzenle", StartEdit, "F2");
                 if (!string.IsNullOrEmpty(d.Usage)) AddMenu(_menu.Items, "Yazılışı kopyala", CopyUsage, null);
+                AddTransferSubmenu(_menu.Items, d);
                 var move = new ToolStripMenuItem("Modüle taşı") { ForeColor = Theme.Text };
                 foreach (CommandModule m in _library.Modules)
                 {

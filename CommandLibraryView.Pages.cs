@@ -90,7 +90,7 @@ namespace Vision
             _copyUsageBtn.Font = Theme.UiSmall;
             _copyUsageBtn.Size = new Size(100, 26);
             _copyUsageBtn.SetTip(_tips, "Yazılışı panoya kopyala (terminale yapıştırmak için)");
-            _form.Controls.Add(SectionCaption("YAZILIŞ / ÖRNEK KULLANIM", _copyUsageBtn), 0, 4);
+            _form.Controls.Add(SectionCaption("YAZILIŞ / ÖRNEK KULLANIM", UsageActions()), 0, 4);
             _form.Controls.Add(Framed(_usage), 0, 5);
             _form.Controls.Add(SectionCaption("ÖRNEK ÇIKTI", null), 0, 6);
             _form.Controls.Add(Framed(_output), 0, 7);
@@ -260,6 +260,8 @@ namespace Vision
             _editBtn.Visible = _deleteBtn.Visible = !edit && _current != null;
             _saveBtn.Visible = _cancelBtn.Visible = _keysHint.Visible = edit;
             _copyUsageBtn.Visible = !edit && _current != null && !string.IsNullOrEmpty(_current.Usage);
+            _transferBtn.Visible = !edit && _current != null && CanTransfer;
+            _bundledBtn.Enabled = !edit;
             LayoutButtons();
             UpdateButtons();
             _newBtn.Enabled = !_isNew;

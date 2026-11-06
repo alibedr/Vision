@@ -116,6 +116,8 @@ namespace Vision
                 Dock = DockStyle.Fill,
                 Visible = false,
             };
+            // Kütüphaneden "Karta aktar": komut seçilen kartın (ya da genel çubuğun) komut satırına yazılır, gönderilmez
+            _commandLibrary.EnableTransfer(() => _config.Groups, StateOf, TransferCommandToCard, TransferCommandToAll);
             BuildLayout();
             LoadSettingsToUi();
             WireEvents();
@@ -450,6 +452,27 @@ namespace Vision
             if (last != null && cards.Count == 1) last.FocusInput();
             _statesDirty = true;
             if (rejected.Count > 0) WarnCardLimit(toOpen.Count, rejected);
+        }
+
+        /// <summary>
+        /// Komut Kütüphanesi'nden "Karta aktar": kartı Telnet sekmesinde açar (açıksa öne getirir) ve komutu komut satırına
+        /// yazar (göndermez). Kart bağlı değilse kart penceresi bağlanır ve bağlanınca yazar.
+        /// </summary>
+        private void TransferCommandToCard(CardConfig card, string command)
+        {
+            ShowTab(MainTab.Workspace);
+            if (_activeTab != MainTab.Workspace) return;   // kütüphanede kaydedilmemiş değişiklik: kullanıcı vazgeçti
+            OpenCards(new List<CardConfig> { card });
+            CardView view = _grid.FindView(GetSession(card));
+            if (view != null) view.InsertCommand(command);
+        }
+
+        /// <summary>Komut Kütüphanesi'nden "ekrandaki tüm kartlar": komut genel komut çubuğuna yazılır (gönderilmez).</summary>
+        private void TransferCommandToAll(string command)
+        {
+            ShowTab(MainTab.Workspace);
+            if (_activeTab != MainTab.Workspace) return;
+            _globalBar.InsertCommand(command);
         }
 
         /// <summary>"Seçilenleri Göster": ekranda tam olarak bu kartlar kalır (en fazla 12). Bağlantıya dokunmaz.</summary>
