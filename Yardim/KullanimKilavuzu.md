@@ -476,22 +476,25 @@ Bağlantı başarılı olsa da yazma izni yoksa ya da kartın gördüğü yol FT
 
 ### Hazır VxWorks 6.4 komutları
 
-Vision, VxWorks 6.4 kabuğunun (C yorumlayıcısı, `->` istemi) sık kullanılan **70 komutuyla** birlikte gelir. Her komutta ne işe yaradığı, yazılışı / örnek kullanımı ve kartın verdiği örnek çıktı vardır. Komutlar 10 modülde toplanmıştır:
+Vision, VxWorks 6.4 kabuğunun (C yorumlayıcısı, `->` istemi) sık kullanılan **113 komutuyla** birlikte gelir. Her komutta ne işe yaradığı, yazılışı / örnek kullanımı ve varsa kartın verdiği örnek çıktı vardır. Komutlar 12 modülde toplanmıştır:
 
 | Modül | Komutlar |
 |---|---|
-| Kabuk kullanımı | `help`, `h`, `printf`, değişken tanımlama, `lkup`, `lkAddr`, `cmd`, `logout` |
+| Kabuk kullanımı | `help`, `h`, `printf`, değişken tanımlama, `lkup`, `lkAddr`, `cmd`, `logout`, `dbgHelp`, `ioHelp`, `netHelp`, `spyHelp`, `rtpHelp`, `timexHelp`, `<`, `>` |
 | Sistem bilgisi | `version`, `sysModel`, `sysClkRateGet`, `sysClkRateSet`, `tickGet`, `spy`, `spyStop` |
-| Görevler (task) | `i`, `ti`, `sp`, `taskSpawn`, `td`, `ts`, `tr`, `tt`, `taskPrioritySet`, `checkStack`, `period`, `repeat` |
-| Bellek | `memShow`, `d`, `m`, `l`, `memPartShow` |
-| Modüller ve semboller | `moduleShow`, `ld`, `unld`, `printErrno` |
-| Boot / BSP ayarları | `bspBootChange`, `bootChange` (PowerPC kartları), `reboot` |
-| Dosya sistemi | `devs`, `ls`, `ll`, `cd`, `pwd`, `copy`, `xcopy`, `mv`, `rm`, `mkdir`, `rmdir`, `xdelete`, `iosFdShow` |
-| Ağ | `ifShow`, `inetstatShow`, `ping`, `routeShow`, `routeAdd`, `arpShow`, `hostShow`, `hostAdd`, `tcpstatShow`, `netStackSysPoolShow` |
-| Senkronizasyon nesneleri | `semShow`, `msgQShow`, `wdShow`, `show` |
-| Hata ayıklama | `b`, `bd`, `c`, `s` |
+| Görevler (task) | `i`, `ti`, `sp`, `taskSpawn`, `td`, `ts`, `tr`, `tt`, `taskPrioritySet`, `checkStack`, `period`, `repeat`, `taskShow`, `w` |
+| Bellek | `memShow`, `d`, `m`, `l`, `memPartShow`, `adrSpaceShow`, `vmContextShow` |
+| Modüller ve semboller | `moduleShow`, `ld`, `unld`, `printErrno`, `unldByModuleId` |
+| Boot / BSP ayarları | `bspBootChange`, `bootChange`, `reboot`, `reboot 2`, `bootParamsShow`, `FPGAGiveBoardReset` |
+| Dosya sistemi | `devs`, `ls`, `ll`, `cd`, `pwd`, `copy`, `xcopy`, `mv`, `rm`, `mkdir`, `rmdir`, `xdelete`, `iosFdShow`, `llr`, `rename`, `cp`, `dosFsShow` |
+| Ağ | `ifShow`, `inetstatShow`, `ping`, `routeShow`, `routeAdd`, `arpShow`, `hostShow`, `hostAdd`, `tcpstatShow`, `netStackSysPoolShow`, `ifconfig`, `netstat`, `netstat "-a"`, `sockShow`, `ipcom_socketclose`, `sysvar list`, `syslog list` |
+| Senkronizasyon nesneleri | `semShow`, `msgQShow`, `show` |
+| Hata ayıklama | `b`, `bd`, `c`, `s`, `edrShow`, `debugAgentStart` |
+| Süreçler (RTP) | `rtpShow`, `rtpi`, `rtpSp`, `rtpSpawn` |
+| Zamanlayıcılar ve watchdog | `timer_create`, `timer_connect`, `timer_settime`, `timer_gettime`, `timer_cancel`, `timer_delete`, `wdCreate`, `wdStart`, `wdCancel`, `wdDelete`, `wdShow` |
 
 - Örnek çıktılar temsilîdir: adresler, görev kimlikleri ve satırlar kartın BSP'sine ve imajına göre değişir. Bir komut kartın imajında yoksa kart `undefined symbol` der; `lkup "ad"` ile kartta olup olmadığına bakabilirsiniz.
+- `FPGAGiveBoardReset` ve `debugAgentStart` standart VxWorks komutu değildir (karta / BSP'ye özel); açıklamaları adlarına göre yazılmıştır, kendi kartınızdaki davranışa göre güncelleyin. `sysvar list` ve `syslog list` IPCOM komutlarıdır ve `cmd` ile geçilen komut yorumlayıcısında yazılır.
 - Hazır komutlar sizin komutlarınız gibidir: düzenleyebilir, silebilir, modüller arasında taşıyabilir, yanlarına kendi komutlarınızı ve modüllerinizi ekleyebilirsiniz.
 - Kütüphane tamamen boşsa (ilk açılış) hazır komutlar kendiliğinden eklenir. Üst çubuktaki **Hazır komutlar** düğmesi, Vision ile gelen komutlardan kütüphanenizde **eksik** olanları ekler; aynı adlı komutlarınız ve düzenlemeleriniz **değiştirilmez** (ör. bir komutu sildiyseniz geri getirmek için).
 

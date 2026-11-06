@@ -16,7 +16,7 @@ Geliştiren: **Ali Bedir**
 - Genel komut çubuğu: ekrandaki tüm kartlara aynı komut
 - Periyodik bağlantı izleme ve otomatik yeniden bağlanma
 - Kart Dosya Gezgini: `devs` / `ll`, klasör ve dosya işlemleri, FTP üzerinden karta yükleme, salt okunur "Birlikte aç"
-- Komut Kütüphanesi: hazır 70 VxWorks 6.4 kabuk komutu (açıklama, örnek kullanım, örnek çıktı), modüllerde gruplama ve komutu tek tıkla bir kartın komut satırına aktarma
+- Komut Kütüphanesi: hazır 113 VxWorks 6.4 kabuk komutu (açıklama, örnek kullanım, örnek çıktı), modüllerde gruplama ve komutu tek tıkla bir kartın komut satırına aktarma
 - Koyu ve açık tema (menü çubuğundaki düğme ya da Ctrl+Shift+L; seçim hatırlanır)
 - Türkçe arayüz ve hata mesajları, uygulama içi yardım (F1)
 
