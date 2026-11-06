@@ -269,8 +269,8 @@ namespace Vision
         {
             _toastPath = path;
             _toast.Text = text;
-            _toast.BackColor = ok ? Color.FromArgb(22, 58, 44) : Color.FromArgb(96, 22, 28);
-            _toast.ForeColor = ok ? Color.FromArgb(190, 240, 214) : Color.White;
+            _toast.BackColor = ok ? Theme.SuccessBanner : Theme.ErrorBanner;
+            _toast.ForeColor = ok ? Theme.SuccessBannerText : Color.White;
             _toast.MaximumSize = new Size(Math.Max(120, _outputHost.ClientSize.Width - 24), 0);
             _toast.Visible = true;
             _toast.BringToFront();

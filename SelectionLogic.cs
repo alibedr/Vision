@@ -54,7 +54,7 @@ namespace Vision
         }
 
         /// <summary>Aynı anda gösterilebilecek en fazla kart sayısı (uygulama sınırı; kullanıcı değiştiremez).</summary>
-        public const int MaxVisibleCards = 12;
+        public const int MaxVisibleCards = 24;
 
         /// <summary>
         /// Kartları EKLEME (çift tık, "Tümünü ekranda göster"): zaten açık olanlar sayılmaz ve yeniden açılmaz;

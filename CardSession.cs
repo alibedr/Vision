@@ -71,7 +71,7 @@ namespace Vision
         public CardConfig Card { get; private set; }
 
         /// <summary>
-        /// Bu kartın FTP bilgisi (karttan bspBootChange ile alınır; yalnız bellekte). Başka kartla paylaşılmaz.
+        /// Bu kartın FTP bilgisi (karttan version komutuyla alınır; yalnız bellekte). Başka kartla paylaşılmaz.
         /// Bağlantı kopunca / kesilince silinir: yeniden bağlanınca karttan tekrar alınır (kart değişmiş olabilir).
         /// </summary>
         public CardFtpCredentials Ftp

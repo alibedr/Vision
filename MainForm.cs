@@ -17,7 +17,7 @@ namespace Vision
     public sealed class MainForm : Form
     {
         private readonly string _configPath;
-        /// <summary>Konfig klasörüne yazılamadıysa durum çubuğunda gösterilecek not.</summary>
+        /// <summary>%APPDATA% yapılandırma klasörüne yazılamadıysa durum çubuğunda gösterilecek not.</summary>
         private readonly string _configNote;
         private readonly AppConfig _config;
         private readonly Dictionary<CardConfig, CardSession> _sessions = new Dictionary<CardConfig, CardSession>();
@@ -85,9 +85,9 @@ namespace Vision
         {
             bool fallback;
             _configPath = ConfigStore.ResolvePath(out fallback);
-            ConfigStore.MigrateIfMissing(_configPath);   // eski %APPDATA% ayarları ilk açılışta Konfig'e kopyalanır
+            ConfigStore.MigrateIfMissing(_configPath);   // exe yanındaki eski Konfig\config.xml ilk açılışta %APPDATA%'ya kopyalanır
             _config = ConfigStore.Load(_configPath);
-            if (fallback) _configNote = "Ayarlar %APPDATA% içinde (exe klasöründeki Konfig'e yazılamadı)";
+            if (fallback) _configNote = "Ayarlar kaydedilemiyor (%APPDATA%\\" + AppInfo.DataFolder + " klasörüne yazılamadı)";
             // FTP bilgisi artık her karttan otomatik alınır: eski sürümlerde elle girilmiş parola dosyada tutulmaz
             if (_config.Settings.Transfer != null) _config.Settings.Transfer.ClearLegacyCredentials();
 
@@ -324,6 +324,7 @@ namespace Vision
             _zoomIn.Click += (s, e) => ChangeZoom(+1);
             _zoomReset.Click += (s, e) => SetZoom(AppSettings.DefaultTerminalZoom);
             _globalBar.SaveSnapshotsRequested += async () => await SaveAllSnapshotsAsync();
+            _globalBar.ClearAllRequested += ClearAllTerminals;
             _closeAllBtn.Click += (s, e) => _grid.CloseAll();
 
             _lineEnd.SelectedIndexChanged += (s, e) => SaveSettingsFromUi();
@@ -568,6 +569,17 @@ namespace Vision
             _zoomIn.Enabled = z < AppSettings.MaxTerminalZoom - 0.001f;
         }
 
+        // ---------- Genel temizleme ----------
+
+        /// <summary>Ekrandaki tüm kartların terminal ekranını temizler (her kartın silgi düğmesiyle aynı iş).</summary>
+        private void ClearAllTerminals()
+        {
+            List<CardView> views = _grid.Views.ToList();
+            if (views.Count == 0) { _globalBar.ShowResult("Ekranda kart yok — temizlenecek terminal yok.", Theme.Warning, null); return; }
+            foreach (CardView v in views) v.ClearTerminal();
+            _globalBar.ShowResult("✓  " + views.Count + " kartın ekranı temizlendi", Theme.Success, null);
+        }
+
         // ---------- Genel anlık kayıt ----------
 
         /// <summary>
@@ -752,7 +764,50 @@ namespace Vision
             var dd = help.DropDown as ToolStripDropDownMenu;
             if (dd != null) dd.ShowImageMargin = false;
             menu.Items.Add(help);
+
+            // En sağda: koyu / açık tema geçişi (seçim kaydedilir, uygulama yeniden açılınca hatırlanır)
+            _themeItem = new ToolStripMenuItem
+            {
+                Alignment = ToolStripItemAlignment.Right,
+                ForeColor = Theme.Text,
+                ShortcutKeys = Keys.Control | Keys.Shift | Keys.L,
+                DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
+                ImageScaling = ToolStripItemImageScaling.None,
+                Margin = new Padding(0, 0, 8, 0),
+            };
+            _themeItem.Click += (s, e) => ToggleTheme();
+            menu.Items.Add(_themeItem);
+            RefreshThemeItem();
             return menu;
+        }
+
+        private ToolStripMenuItem _themeItem;
+
+        /// <summary>Tema düğmesi: geçilecek temayı gösterir (koyudayken "Açık tema" + güneş, açıktayken "Koyu tema" + ay).</summary>
+        private void RefreshThemeItem()
+        {
+            if (_themeItem == null) return;
+            bool dark = Theme.IsDark;
+            _themeItem.Text = dark ? "Açık tema" : "Koyu tema";
+            _themeItem.ToolTipText = (dark ? "Açık temaya geç" : "Koyu temaya geç") + "  (Ctrl+Shift+L)";
+            _themeItem.AccessibleName = _themeItem.ToolTipText;
+            _themeItem.ForeColor = Theme.Text;
+            var bmp = new Bitmap(16, 16);
+            using (Graphics g = Graphics.FromImage(bmp))
+                IconRenderer.Draw(g, dark ? IconKind.Sun : IconKind.Moon, new RectangleF(0, 0, 16, 16), dark ? Theme.Warning : Theme.Accent);
+            Image old = _themeItem.Image;
+            _themeItem.Image = bmp;
+            if (old != null) old.Dispose();
+        }
+
+        /// <summary>Koyu ↔ açık tema: açık tüm pencereler hemen yeni temaya geçer; bağlantılar ve terminaller etkilenmez.</summary>
+        private void ToggleTheme()
+        {
+            ThemeMode next = Theme.IsDark ? ThemeMode.Light : ThemeMode.Dark;
+            Theme.SetMode(next);
+            _config.Settings.UiTheme = next;
+            RefreshThemeItem();
+            SaveConfig();
         }
 
         private void OnUiTick()

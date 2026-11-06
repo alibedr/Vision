@@ -451,10 +451,10 @@ namespace Vision
         private void DrawModuleRow(Graphics g, Rectangle b, LibRow row, bool selected, bool hover, bool drop)
         {
             if (!row.First)
-                using (var p = new Pen(Color.FromArgb(40, 45, 54))) g.DrawLine(p, b.X + 4, b.Y + 1, b.Right - 4, b.Y + 1);
+                using (var p = new Pen(Theme.RowDividerMid)) g.DrawLine(p, b.X + 4, b.Y + 1, b.Right - 4, b.Y + 1);
 
             var box = new RectangleF(b.X + 2, b.Y + 4, b.Width - 6, b.Height - 7);
-            Color back = drop ? Color.FromArgb(30, 58, 104) : selected ? Theme.Selection : hover ? Theme.Hover : Color.Transparent;
+            Color back = drop ? Theme.DropHighlightSoft : selected ? Theme.Selection : hover ? Theme.Hover : Color.Transparent;
             if (back.A > 0)
             {
                 g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
@@ -479,7 +479,7 @@ namespace Vision
             Size cs = TextRenderer.MeasureText(count, Theme.UiSmall, Size.Empty, TextFormatFlags.NoPadding);
             var pill = new RectangleF(b.Right - 14 - cs.Width - 14, cy - 10, cs.Width + 14, 20);
             using (var path = IconRenderer.RoundRect(pill, 9.5f))
-            using (var br = new SolidBrush(selected ? Color.FromArgb(52, 84, 130) : Theme.SurfaceHigh))
+            using (var br = new SolidBrush(selected ? Theme.ListSelectedStrong : Theme.SurfaceHigh))
                 g.FillPath(br, path);
             TextRenderer.DrawText(g, count, Theme.UiSmall, Rectangle.Round(pill), selected ? Theme.Text : Theme.TextMuted,
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
@@ -494,7 +494,7 @@ namespace Vision
         {
             CommandDoc d = row.Doc;
             // Modül içindeki girinti çizgisi
-            using (var p = new Pen(Color.FromArgb(46, 52, 63))) g.DrawLine(p, b.X + 17, b.Y, b.X + 17, b.Bottom);
+            using (var p = new Pen(Theme.RowDividerStrong)) g.DrawLine(p, b.X + 17, b.Y, b.X + 17, b.Bottom);
 
             var box = new RectangleF(b.X + CommandIndent - 6, b.Y + 2, b.Width - CommandIndent + 2, b.Height - 4);
             Color back = selected ? Theme.Selection : hover ? Theme.Hover : Color.Transparent;
@@ -514,7 +514,7 @@ namespace Vision
             using (var nf = new Font("Consolas", 10f, FontStyle.Bold))
                 TextRenderer.DrawText(g, d.Name, nf, nameRect, Theme.Text, TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
             string summary = d.Summary.Length > 0 ? d.Summary : "(açıklama yok)";
-            TextRenderer.DrawText(g, summary, Theme.UiSmall, sumRect, selected ? Color.FromArgb(200, 208, 220) : Theme.TextMuted,
+            TextRenderer.DrawText(g, summary, Theme.UiSmall, sumRect, selected ? Theme.ListSelectedText : Theme.TextMuted,
                 TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
         }
 
@@ -772,8 +772,8 @@ namespace Vision
         {
             _banner.Text = text;
             _tips.SetToolTip(_banner, "Kapatmak için tıklayın");
-            _banner.BackColor = error ? Color.FromArgb(96, 22, 28) : Color.FromArgb(22, 58, 44);
-            _banner.ForeColor = error ? Color.White : Color.FromArgb(190, 240, 214);
+            _banner.BackColor = error ? Theme.ErrorBanner : Theme.SuccessBanner;
+            _banner.ForeColor = error ? Color.White : Theme.SuccessBannerText;
             _banner.Visible = true;
         }
 

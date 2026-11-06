@@ -11,7 +11,7 @@ namespace Vision
         Back, Refresh, NewFolder, Upload, Settings, SidebarHide, SidebarShow, Folder,
         Plus, Search, Edit, Trash, Copy, Check, ChevronRight, ChevronDown, Module, ExpandAll, CollapseAll,
         ChevronUp, Warning, Info, Terminal, Book, Home, Clock, Dot,
-        Save, Bolt, Power, Swap, Minus, Return,
+        Save, Bolt, Power, Swap, Minus, Return, Sun, Moon,
     }
 
     /// <summary>
@@ -195,6 +195,30 @@ namespace Vision
                         DrawRoundRect(g, pen, 1.6f, 2.4f, 12.8f, 11.2f, 1.8f);
                         g.DrawLines(pen, new[] { P(4.4f, 6.2f), P(6.6f, 8.2f), P(4.4f, 10.2f) });
                         g.DrawLine(pen, 8.2f, 10.4f, 11.4f, 10.4f);
+                        break;
+
+                    case IconKind.Sun:       // güneş (açık tema)
+                        g.DrawEllipse(pen, 5.2f, 5.2f, 5.6f, 5.6f);
+                        for (int k = 0; k < 8; k++)
+                        {
+                            double a = k * Math.PI / 4;
+                            float cx = (float)Math.Cos(a), cy = (float)Math.Sin(a);
+                            g.DrawLine(pen, 8f + cx * 4.6f, 8f + cy * 4.6f, 8f + cx * 6.4f, 8f + cy * 6.4f);
+                        }
+                        break;
+
+                    case IconKind.Moon:      // hilal (koyu tema): daireden kaydırılmış bir daire çıkarılır
+                        using (var disc = new GraphicsPath())
+                        using (var cut = new GraphicsPath())
+                        {
+                            disc.AddEllipse(2.2f, 2.6f, 11.4f, 11.4f);
+                            cut.AddEllipse(6.4f, 0.6f, 9.8f, 9.8f);
+                            using (var crescent = new Region(disc))
+                            {
+                                crescent.Exclude(cut);
+                                g.FillRegion(brush, crescent);
+                            }
+                        }
                         break;
 
                     case IconKind.Book:      // açık kitap
@@ -469,7 +493,7 @@ namespace Vision
                     fore = Color.White;
                     break;
                 case IconTone.Success:
-                    back = _pressed ? Color.FromArgb(28, 70, 52) : _hover ? Color.FromArgb(22, 56, 42) : Color.Transparent;
+                    back = _pressed ? Theme.SuccessPressed : _hover ? Theme.SuccessHover : Color.Transparent;
                     fore = Theme.Success;
                     break;
                 case IconTone.Secondary:    // ikincil düğme: yükseltilmiş zemin + ince kenarlık (OnPaint'te)
@@ -477,11 +501,11 @@ namespace Vision
                     fore = Theme.Text;
                     break;
                 case IconTone.DangerFill:   // geniş "Bağlantıyı Kes" düğmesi: hafif kırmızı zemin, kırmızı yazı
-                    back = _pressed ? Color.FromArgb(90, 40, 44) : _hover ? Color.FromArgb(72, 36, 40) : Color.FromArgb(56, 32, 36);
+                    back = _pressed ? Theme.DangerPressed : _hover ? Theme.DangerHover : Theme.DangerIdle;
                     fore = Theme.Danger;
                     break;
                 case IconTone.Danger:
-                    back = _pressed ? Color.FromArgb(90, 40, 44) : _hover ? Color.FromArgb(72, 36, 40) : Color.Transparent;
+                    back = _pressed ? Theme.DangerPressed : _hover ? Theme.DangerHover : Color.Transparent;
                     fore = Theme.Danger;
                     break;
                 default:

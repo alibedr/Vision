@@ -101,7 +101,7 @@ namespace Vision
             ok.Click += (s, e) =>
             {
                 string err = _validate != null ? _validate(_box.Text) : null;
-                if (err != null) { _error.Text = err; _box.BackColor = Color.FromArgb(70, 30, 34); return; }
+                if (err != null) { _error.Text = err; _box.BackColor = Theme.DangerSurface; return; }
                 DialogResult = DialogResult.OK;
                 Close();
             };
@@ -180,7 +180,7 @@ namespace Vision
             base.OnPaint(e);
             Graphics g = e.Graphics;
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-            using (var b = new SolidBrush(_danger ? Color.FromArgb(70, 34, 38) : Color.FromArgb(30, 52, 88)))
+            using (var b = new SolidBrush(_danger ? Theme.DangerSurface : Theme.AccentSurface))
                 g.FillEllipse(b, 22, 18, 42, 42);
             IconRenderer.Draw(g, _danger ? IconKind.Warning : IconKind.Info, new RectangleF(32, 28, 22, 22), _danger ? Theme.Danger : Theme.Accent);
         }
@@ -290,7 +290,7 @@ namespace Vision
     }
 
     /// <summary>
-    /// Kartın FTP bağlantısı. Sunucu, kullanıcı ve parola KARTTAN (bspBootChange) otomatik alınır ve yalnız
+    /// Kartın FTP bağlantısı. Sunucu, kullanıcı ve parola KARTTAN (version komutunun boot satırı) otomatik alınır ve yalnız
     /// gösterilir (parola gösterilmez). Kullanıcı yalnız tüm kartlar için ortak olan klasör / kip ayarlarını değiştirir.
     /// "Bağlantıyı sına" yalnız bağlanmayı değil, yazmayı ve kartın dosyayı görmesini de dener.
     /// </summary>
@@ -326,7 +326,7 @@ namespace Vision
             _s = settings; _card = card; _session = session; _ensure = ensure; _test = test; _canOperate = canOperate;
 
             var intro = Theme.MakeLabel(
-                "FTP sunucusu, kullanıcı ve parola her kart için kartın kendisinden (bspBootChange) otomatik alınır; elle girilmez. " +
+                "FTP sunucusu, kullanıcı ve parola her kart için kartın kendisinden (version komutundaki boot satırı: h= / u= / pw=) otomatik alınır; elle girilmez. " +
                 "Bilgiler yalnız bu oturumda bellekte tutulur, kaydedilmez.", Theme.Ui, Theme.TextMuted);
             intro.Location = new Point(20, 14);
             intro.MaximumSize = new Size(540, 0);
@@ -338,7 +338,7 @@ namespace Vision
             box.Paint += (s, e) => { using (var p = new Pen(Theme.Border)) e.Graphics.DrawRectangle(p, 0, 0, box.Width - 1, box.Height - 1); };
             var cap = Caption("BU KARTIN FTP BİLGİSİ  ·  " + (card != null ? card.Label : "—"), 14, 12);
             box.Controls.Add(cap);
-            string[] names = { "FTP sunucusu (h)", "Kullanıcı (u)", "Parola (pw)", "Kartın FTP aygıtı" };
+            string[] names = { "FTP sunucusu (h)", "Kullanıcı (u)", "Parola (pw)", "Kartın FTP yolu" };
             Label[] values = { _hostValue, _userValue, _passValue, _deviceValue };
             for (int i = 0; i < names.Length; i++)
             {
@@ -390,7 +390,7 @@ namespace Vision
             _passive.Checked = settings.UsePassive;
             _delete.Checked = settings.DeleteAfterCopy;
             ShowCredentials(session != null ? session.Ftp : null, null);
-            Theme.SetCueBanner(_prefix, "Otomatik (kartın FTP aygıtı + FTP klasörü)");
+            Theme.SetCueBanner(_prefix, "Otomatik: /host.<kartın aygıtı> + FTP klasörü (ör. /host.host)");
 
             _dir.TextChanged += (s, e) => UpdateMapping();
             _prefix.TextChanged += (s, e) => UpdateMapping();
@@ -411,7 +411,7 @@ namespace Vision
             _hostValue.Text = c != null ? c.Host : "—";
             _userValue.Text = c != null ? c.User : "—";
             _passValue.Text = c != null ? CardFtpConfigurator.Mask + "  (gösterilmez)" : "—";
-            _deviceValue.Text = c != null ? c.CardDevice : "—";
+            _deviceValue.Text = c != null ? c.CardFtpRoot + "   (aygıt " + c.CardDevice + ")" : "—";
             if (error != null) { _cardStatus.ForeColor = Theme.Danger; _cardStatus.Text = "⚠  " + error; }
             else if (c != null) { _cardStatus.ForeColor = Theme.Success; _cardStatus.Text = "✓  Karttan alındı (" + c.ObtainedAtUtc.ToLocalTime().ToString("HH:mm:ss") + ")"; }
             else if (_card == null) { _cardStatus.ForeColor = Theme.TextMuted; _cardStatus.Text = "Dosya Gezgini'nde bir kart seçin."; }
@@ -460,7 +460,7 @@ namespace Vision
             {
                 CardFtpCredentials c = _session.Ftp ?? await _ensure(false);
                 ShowCredentials(c, c == null ? "Kartın FTP bilgisi alınamadı." : null);
-                if (c == null) { AddStep("✕  Kartın FTP bilgisi alınamadı (bspBootChange).", Theme.Danger); return; }
+                if (c == null) { AddStep("✕  Kartın FTP bilgisi alınamadı (version).", Theme.Danger); return; }
                 var tmp = new TransferSettings();
                 Apply(tmp);
                 TransferSettings eff = tmp.ForCard(c);

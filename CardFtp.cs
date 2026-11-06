@@ -18,21 +18,30 @@ namespace Vision
         public string User { get; set; }
         /// <summary>FTP parolası (pw = ftp password). Yalnız bellekte.</summary>
         public string Password { get; set; }
-        /// <summary>Kartın FTP sunucusunu gördüğü aygıt adı (boot parametresi "host name"; yoksa "host").</summary>
+        /// <summary>
+        /// Kartın FTP sunucusunu gördüğü aygıt adı: boot satırında aygıt parantezi kapandıktan sonra ':' işaretine kadar
+        /// olan kelime ("gei(0,0)host:" → "host", "gei(1,0)ali:" → "ali"). Bulunamazsa "host".
+        /// </summary>
         public string HostName { get; set; }
         public DateTime ObtainedAtUtc { get; set; }
 
         /// <summary>Kartın aygıtı: "host:" gibi.</summary>
-        public string CardDevice { get { return (string.IsNullOrWhiteSpace(HostName) ? "host" : HostName.Trim()) + ":"; } }
+        public string CardDevice { get { return DeviceName + ":"; } }
+
+        /// <summary>Aygıt adı, sonundaki ':' olmadan ("host", "ali").</summary>
+        public string DeviceName { get { return string.IsNullOrWhiteSpace(HostName) ? "host" : HostName.Trim().TrimEnd(':'); } }
+
+        /// <summary>Kartın FTP köküne eriştiği yol: "/host." + aygıt adı ("gei(0,0)host:" → "/host.host").</summary>
+        public string CardFtpRoot { get { return TransferSettings.CardRootFor(DeviceName); } }
 
         /// <summary>Parolasız özet (ekranda gösterilebilir).</summary>
         public override string ToString()
         {
-            return User + "@" + Host + " (kartın aygıtı " + CardDevice + ")";
+            return User + "@" + Host + " (kartın yolu " + CardFtpRoot + ")";
         }
     }
 
-    /// <summary>bspBootChange çıktısının ayrıştırma sonucu.</summary>
+    /// <summary>Kartın boot parametrelerinin (version çıktısındaki boot satırı) ayrıştırma sonucu.</summary>
     public sealed class BootParams
     {
         public string Host;
@@ -45,17 +54,61 @@ namespace Vision
         /// <summary>Çıktı etkileşimli düzenleme istemiyle bitti (kart her alan için giriş bekliyor).</summary>
         public bool WaitingForInput;
 
-        // Tablo biçimi:  "host inet (h)        : 192.168.1.100"   (alan adı serbest, anahtar parantez içinde)
-        private static readonly Regex TableLine = new Regex(@"^\s*(?<label>[^:()]*?)\s*\(\s*(?<key>[a-z]{1,3})\s*\)\s*:\s?(?<value>.*?)\s*$",
-                                                            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        // Tablo biçimi:  "host inet (h)        : 192.168.1.100"   (alan adı serbest, anahtar parantez içinde).
+        // Anahtardan sonra açıklama parantezleri olabilir: "ftp password (pw) (blank = use rsh) : gizli".
+        // Değer, anahtardan (ve açıklamalardan) SONRAKİ ilk ':' işaretinden itibaren satır sonuna kadar alınır;
+        // değerin kendisindeki ':' ya da '=' (ör. "10.0.0.5:ffffff00", "a:b=c" parolası) bölünmez.
+        private static readonly Regex TableLine = new Regex(
+            @"^\s*(?<label>[^:()]*?)\s*\(\s*(?<key>[a-z]{1,3})\s*\)(?:\s*\([^()]*\))*\s*:(?<value>.*)$",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        // Parantez anahtarı olmayan bspBootChange alanları ("boot device :", "processor number :", "host name :", "file name :")
+        private static readonly Regex PlainFieldLine = new Regex(@"^\s*(?:boot\s*device|processor\s*number|host\s*name|file\s*name)\s*:",
+                                                                 RegexOptions.IgnoreCase | RegexOptions.Compiled);
         // Kısa biçim:  "h: 192.168.1.100"  ya da  "pw = gizli"
         private static readonly Regex ShortLine = new Regex(@"^\s*(?<key>h|u|pw|hn)\s*[:=]\s*(?<value>.*?)\s*$",
                                                             RegexOptions.IgnoreCase | RegexOptions.Compiled);
         // Boot satırı:  "fei(0,0)host:/vxWorks e=192.168.1.10:ffffff00 h=192.168.1.100 u=target pw=gizli f=0x8"
         private static readonly Regex BootLineToken = new Regex(@"(?:^|\s)(?<key>h|u|pw|tn|hn)=(?<value>\S*)", RegexOptions.Compiled);
-        private static readonly Regex BootLineHost = new Regex(@"^\s*[A-Za-z]+\d*\([^)]*\)(?<host>[A-Za-z0-9_.\-]+):", RegexOptions.Compiled);
-        private static readonly Regex FieldLine = new Regex(@"^\s*[A-Za-z][^:]{0,40}:\s?.*$", RegexOptions.Compiled);
+        // Boot satırının başı: "gei(0,3)host:/vxWorks …" → parantez kapandıktan sonra ':' işaretine kadar olan kelime ("host")
+        private static readonly Regex BootLineHost = new Regex(@"^\s*[^\s(]*\([^)]*\)(?<host>[^:\s()]+):", RegexOptions.Compiled);
         private static readonly Regex HostNameLine = new Regex(@"^\s*host\s*name\s*:\s*(?<value>\S*)\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        // version çıktısındaki işaret satırı: "Boot line:" / "BootLine:" (boot satırı bir alt satırda ya da aynı satırda gelir)
+        private static readonly Regex BootLineMarker = new Regex(@"^\s*boot\s*line\s*:\s*(?<rest>.*)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex EndOfBootLine = new Regex(@"^\s*(?:->|value\s*=)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        /// <summary>
+        /// "version" komutunun çıktısını ayrıştırır. Çıktıda "Boot line:" (ya da "BootLine:") satırı aranır; ondan sonraki
+        /// satır kartın boot satırıdır ("fei(0,0)host:/vxWorks e=… h=10.0.0.5 u=kullanici pw=parola f=0x8 …").
+        /// h= FTP sunucusu, u= kullanıcı, pw= parola olarak alınır. YALNIZ boot satırındaki anahtarlar okunur; version
+        /// çıktısının diğer satırlarındaki "=" işaretleri (ör. "value = 0 = 0x0") karışmaz.
+        /// "Boot line:" işareti yoksa genel ayrıştırıcıya (Parse) düşülür.
+        /// </summary>
+        public static BootParams ParseVersion(IEnumerable<string> lines)
+        {
+            var list = (lines ?? Enumerable.Empty<string>()).Select(l => (l ?? "").Replace("\t", " ").TrimEnd()).ToList();
+            int marker = list.FindIndex(l => BootLineMarker.IsMatch(l));
+            if (marker < 0) return Parse(list);
+
+            // İşaretten sonraki boot satırı (işaretle aynı satırda da olabilir). Uzun satır terminalde bölünmüşse
+            // boş satıra, dönüş değerine ya da isteme kadar olan satırlar birleştirilir.
+            var parts = new List<string>();
+            string rest = BootLineMarker.Match(list[marker]).Groups["rest"].Value.Trim();
+            if (rest.Length > 0) parts.Add(rest);
+            for (int i = marker + 1; i < list.Count; i++)
+            {
+                string l = list[i];
+                if (l.Trim().Length == 0) { if (parts.Count > 0) break; continue; }
+                if (EndOfBootLine.IsMatch(l)) break;
+                parts.Add(l.Trim());
+            }
+            string bootLine = string.Join(" ", parts);
+
+            var p = new BootParams();
+            foreach (Match t in BootLineToken.Matches(bootLine)) Set(p, t.Groups["key"].Value, t.Groups["value"].Value);
+            Match bh = BootLineHost.Match(bootLine);
+            if (bh.Success && p.HostName == null) p.HostName = bh.Groups["host"].Value;
+            return p;
+        }
 
         /// <summary>
         /// bspBootChange (ya da bootChange / boot satırı) çıktısını ayrıştırır. Biçim farklılıklarına dayanıklıdır:
@@ -72,7 +125,7 @@ namespace Vision
                 string line = (raw ?? "").Replace("\t", " ").TrimEnd();
                 if (line.Trim().Length == 0) continue;
                 last = line;
-                if (line.Contains("clear field") || line.Contains("^D = quit")) { seenInteractiveHeader = true; continue; }
+                if (line.Contains("clear field") || line.Contains("previous field") || line.Contains("= quit")) { seenInteractiveHeader = true; continue; }
 
                 Match hn = HostNameLine.Match(line);
                 if (hn.Success) { Set(p, "hn", hn.Groups["value"].Value); continue; }
@@ -94,12 +147,17 @@ namespace Vision
                     }
                 }
             }
-            // Etkileşimli düzenleme (bootChange gibi): başlık "'.' = clear field … ^D = quit" ya da son satır
-            // "alan : değer " biçiminde ve kabuk istemi (->) gelmemiş → kart her alan için giriş bekliyor
-            bool interactiveHeader = seenInteractiveHeader;
-            if (last != null && !last.TrimStart().StartsWith("->") && !last.TrimStart().StartsWith("value =") &&
-                (TableLine.IsMatch(last) || (interactiveHeader && FieldLine.IsMatch(last))))
-                p.WaitingForInput = true;
+            // Etkileşimli düzenleme (bspBootChange / bootChange): başlık "'.' = clear field; '-' = go to previous field; ^D = quit"
+            // ve son satır bir boot alanı ("alan (k) : değer " ya da "host name : …") → kart o alan için Enter bekliyor.
+            // "value = …" dönüş satırı ya da kabuk istemi (->) gelince düzenleme bitmiştir. Alan olmayan son satırlar
+            // ("sysMvraöSet: '…' success" gibi) giriş beklemez; böylece komut bittikten sonra kabuğa fazladan Enter gitmez.
+            if (last != null)
+            {
+                string t = last.TrimStart();
+                bool done = t.StartsWith("->") || Regex.IsMatch(t, @"^value\s*=", RegexOptions.IgnoreCase);
+                bool field = TableLine.IsMatch(last) || (seenInteractiveHeader && PlainFieldLine.IsMatch(last));
+                if (!done && field) p.WaitingForInput = true;
+            }
             return p;
         }
 
@@ -172,13 +230,14 @@ namespace Vision
     }
 
     /// <summary>
-    /// Kartın FTP bilgisini kartın kendisinden (bspBootChange) alır. Kartın MEVCUT telnet oturumunu kullanır.
+    /// Kartın FTP bilgisini kartın kendisinden "version" komutuyla alır (çıktıdaki "Boot line:" satırının altındaki
+    /// boot satırı: h= FTP sunucusu, u= kullanıcı, pw= parola). Kartın MEVCUT telnet oturumunu kullanır.
+    /// version etkileşimli değildir: karta tek komut gider, hiçbir boot parametresi değiştirilmez.
     /// </summary>
     public static class CardFtpConfigurator
     {
-        public const string Command = "bspBootChange";
+        public const string Command = "version";
         private const int TimeoutSec = 6;
-        private const int MaxInteractiveSteps = 40;
         public const string Mask = "••••••";
 
         public static async Task<CardFtpResult> ObtainAsync(Func<string, int, Task<ShellResponse>> exec)
@@ -192,18 +251,7 @@ namespace Vision
             if (resp.UndefinedSymbol != null)
                 return Fail(result, resp, "Kartın imajında \"" + resp.UndefinedSymbol + "\" komutu yok; FTP bilgisi karttan alınamadı.", resp.UndefinedSymbol);
 
-            BootParams bp = BootParams.Parse(all);
-            // Etkileşimli düzenleme açıldıysa (bootChange gibi) her alanda yalnız Enter: değerler DEĞİŞMEDEN geçilir
-            int steps = 0;
-            while (bp.WaitingForInput && !ShellResponse.EndsAtPrompt(raw) && steps++ < MaxInteractiveSteps)
-            {
-                ShellResponse next = await exec("", 1).ConfigureAwait(false);   // istem satırı bitmez: kısa sessizlik yeter
-                if (next.Failure != null) break;
-                all.AddRange(next.OutputLines);
-                raw += next.Raw ?? "";
-                bp = BootParams.Parse(all);
-                if (next.ReturnCode.HasValue) break;
-            }
+            BootParams bp = BootParams.ParseVersion(all);
 
             ShellResponse masked = MaskSecret(ShellResponse.Parse(Command, raw), bp.Password);
             result.MaskedResponse = masked;
@@ -212,6 +260,7 @@ namespace Vision
             if (invalid != null)
             {
                 if (resp.TimedOut && bp.FieldsFound == 0) invalid = "Kart \"" + Command + "\" komutuna zamanında cevap vermedi.";
+                else if (bp.FieldsFound == 0) invalid = "Kartın \"" + Command + "\" cevabında \"Boot line:\" satırı ya da h= / u= / pw= değerleri bulunamadı.";
                 result.Error = invalid;
                 return result;
             }
@@ -242,7 +291,8 @@ namespace Vision
             {
                 if (string.IsNullOrEmpty(s)) return s;
                 if (!string.IsNullOrEmpty(secret)) s = s.Replace(secret, Mask);
-                s = Regex.Replace(s, @"(\(\s*pw\s*\)\s*:\s?)\S+", "$1" + Mask, RegexOptions.IgnoreCase);
+                // "ftp password (pw) (blank = use rsh) : gizli" → değerin tamamı (boşluk içerse de) gizlenir
+                s = Regex.Replace(s, @"(\(\s*pw\s*\)(?:[ \t]*\([^()\r\n]*\))*[ \t]*:[ \t]*)[^\r\n]*\S", "$1" + Mask, RegexOptions.IgnoreCase);
                 s = Regex.Replace(s, @"(\bpw\s*[:=]\s*)\S+", "$1" + Mask, RegexOptions.IgnoreCase);
                 return s;
             };

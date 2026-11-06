@@ -14,9 +14,9 @@ namespace Vision
     /// </summary>
     public sealed class GlobalCommandBar : UserControl
     {
-        private static readonly Color BarBack = Color.FromArgb(22, 32, 50);
-        private static readonly Color FieldBack = Color.FromArgb(12, 18, 30);
-        private static readonly Color FieldBorder = Color.FromArgb(52, 92, 160);
+        private static Color BarBack { get { return Theme.CommandBarBack; } }
+        private static Color FieldBack { get { return Theme.CommandFieldBack; } }
+        private static Color FieldBorder { get { return Theme.CommandFieldBorder; } }
 
         private readonly Func<IList<CardSession>> _targets;
         private readonly CommandHistory _history = new CommandHistory();
@@ -40,11 +40,15 @@ namespace Vision
         private readonly IconButton _quickBtn = new IconButton(IconKind.Bolt, IconTone.Secondary) { IconSize = 14 };
         private readonly SplitActionButton _rebootBtn = new SplitActionButton { MainIcon = IconKind.Power };
         private readonly IconButton _saveBtn = new IconButton(IconKind.Save, IconTone.Secondary);
+        private readonly IconButton _clearAllBtn = new IconButton(IconKind.Clear, IconTone.Secondary);
         private readonly ContextMenuStrip _quickMenu = new ContextMenuStrip();
         private readonly Timer _rebootCooldown = new Timer { Interval = 4000 };
 
         /// <summary>"Dosyaya kaydet": ekrandaki tüm kartların o anki terminal içeriği ayrı dosyalara kaydedilmeli.</summary>
         public event Action SaveSnapshotsRequested;
+
+        /// <summary>"Tümünü temizle": ekrandaki tüm kartların terminal ekranı temizlenmeli.</summary>
+        public event Action ClearAllRequested;
 
         public GlobalCommandBar(Func<IList<CardSession>> openSessions, AppSettings settings, Action saveSettings)
         {
@@ -73,16 +77,20 @@ namespace Vision
             _quickBtn.Height = 34;
             _rebootBtn.Height = 34;
             _saveBtn.Size = new Size(36, 34);
+            _clearAllBtn.Size = new Size(36, 34);
             _quickMenu.Renderer = new DarkMenuRenderer();
             _quickMenu.ShowImageMargin = false;
             _saveBtn.SetTip(_tips, "Dosyaya kaydet — ekrandaki HER kartın terminalinde şu an görünen içeriği\nkartın kendi dosyasına kaydeder (kart başına ayrı dosya; sürekli kayıt başlatmaz)");
-            Controls.AddRange(new Control[] { _title, _targetInfo, _fieldBorder, _sendBtn, _quickBtn, _rebootBtn, _saveBtn, _result });
+            _clearAllBtn.SetTip(_tips, "Tümünü temizle — ekrandaki HER kartın terminal ekranını ve geçmişini temizler\n(kartlardaki silgi düğmesiyle aynı işi tüm kartlara bir kerede yapar; karta komut gönderilmez)");
+            _clearAllBtn.AccessibleName = "Tüm kartların ekranını temizle";
+            Controls.AddRange(new Control[] { _title, _targetInfo, _fieldBorder, _sendBtn, _quickBtn, _rebootBtn, _saveBtn, _clearAllBtn, _result });
             _quickBtn.Click += async (s, e) => await RunQuickAsync();
             _quickBtn.MouseUp += (s, e) => { if (e.Button == MouseButtons.Right) ShowQuickMenu(); };
             _rebootBtn.MainClick += async (s, e) => await RunRebootAsync();
             _rebootBtn.ToggleClick += (s, e) => ToggleReboot();
             _rebootCooldown.Tick += (s, e) => { _rebootCooldown.Stop(); UpdateTargets(); };
             _saveBtn.Click += (s, e) => { var h = SaveSnapshotsRequested; if (h != null) h(); };
+            _clearAllBtn.Click += (s, e) => { var h = ClearAllRequested; if (h != null) h(); };
             RefreshQuickButton();
             RefreshRebootButton();
 
@@ -111,10 +119,11 @@ namespace Vision
             int fieldX = left + 178;
             int resultW = Width >= 1300 ? 300 : 180;   // sonuç her zaman görünür kalır
             int y = (h - 34) / 2 + 1;
-            // Sağdan sola: [sonuç] [kaydet] [reboot ⇄] [hızlı komut] [Hepsine Gönder] [komut alanı]
+            // Sağdan sola: [sonuç] [temizle] [kaydet] [reboot ⇄] [hızlı komut] [Hepsine Gönder] [komut alanı]
             int x = Width - 16 - resultW;
             _result.SetBounds(x, y, resultW, 34);
-            x -= 12 + _saveBtn.Width; _saveBtn.Location = new Point(x, y);
+            x -= 12 + _clearAllBtn.Width; _clearAllBtn.Location = new Point(x, y);
+            x -= 6 + _saveBtn.Width; _saveBtn.Location = new Point(x, y);
             _rebootBtn.Width = _rebootBtn.GetPreferredSize(Size.Empty).Width;
             x -= 6 + _rebootBtn.Width; _rebootBtn.Location = new Point(x, y);
             x -= 6 + _quickBtn.Width; _quickBtn.Location = new Point(x, y);
@@ -150,6 +159,7 @@ namespace Vision
             if (_rebootBtn.Enabled != canReboot) _rebootBtn.Enabled = canReboot;
             bool canSave = _targetCount > 0;
             if (_saveBtn.Enabled != canSave) _saveBtn.Enabled = canSave;
+            if (_clearAllBtn.Enabled != canSave) _clearAllBtn.Enabled = canSave;
         }
 
         // ---------- Genel hızlı komut ----------

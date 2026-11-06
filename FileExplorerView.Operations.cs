@@ -259,7 +259,7 @@ namespace Vision
             if (!CanOperate || e == null || e.Kind != FsKind.File) return;
             FileBrowser b = _browser;
             CardConfig card = _card;
-            // FTP bilgisi bu karttan alınır (bspBootChange); alınamazsa metin olarak açma önerilir
+            // FTP bilgisi bu karttan alınır (version); alınamazsa metin olarak açma önerilir
             CardFtpCredentials creds = await EnsureCardFtpAsync(false);
             if (card != _card || b != _browser) return;
             bool viaFtp = creds != null;
@@ -339,7 +339,7 @@ namespace Vision
         // ---------- Kart başına FTP ----------
 
         /// <summary>
-        /// Seçili kartın FTP bilgisini hazırlar: bu bağlantıda henüz alınmadıysa (ya da force) karttan bspBootChange ile
+        /// Seçili kartın FTP bilgisini hazırlar: bu bağlantıda henüz alınmadıysa (ya da force) karttan version komutuyla
         /// alınır ve yalnız o kartın oturumunda saklanır. Başarısızsa hata şeritte gösterilir ve null döner.
         /// </summary>
         private async Task<CardFtpCredentials> EnsureCardFtpAsync(bool force)

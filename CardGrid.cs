@@ -69,7 +69,7 @@ namespace Vision
                 ScrollControlIntoView(existing);
                 return existing;
             }
-            if (_views.Count >= MaxViews) return null;   // en fazla 12 kart; açık kartlara dokunulmaz
+            if (_views.Count >= MaxViews) return null;   // en fazla 24 kart; açık kartlara dokunulmaz
 
             var view = CreateView(session);
             if (_maximized != null) SetMaximized(null);
@@ -86,7 +86,7 @@ namespace Vision
         /// listede olmayan görünümler kapatılır, eksik olanlar açılır.
         /// Yalnız görünüm değişir; hiçbir bağlantı kurulmaz ya da kesilmez.
         /// </summary>
-        /// <returns>Sınır (12) nedeniyle gösterilemeyen oturumlar.</returns>
+        /// <returns>Sınır (24) nedeniyle gösterilemeyen oturumlar.</returns>
         public List<CardSession> ShowExactly(IList<CardSession> requested)
         {
             var shown = new List<CardSession>();

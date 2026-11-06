@@ -11,12 +11,13 @@ Geliştiren: **Ali Bedir**
 ## Özellikler
 
 - Grup tabanlı kart yönetimi (Kart Gezgini), kartlara isteğe bağlı ad
-- Aynı anda en fazla 12 kart terminali; bağlantı ve görünüm birbirinden bağımsız
+- Aynı anda en fazla 24 kart terminali; bağlantı ve görünüm birbirinden bağımsız
 - Bağlantı süresi, kaydırma koruması ve yeni satır göstergesi, kart başına komut geçmişi ve otomatik tamamlama
 - Genel komut çubuğu: ekrandaki tüm kartlara aynı komut
 - Periyodik bağlantı izleme ve otomatik yeniden bağlanma
 - Kart Dosya Gezgini: `devs` / `ll`, klasör ve dosya işlemleri, FTP üzerinden karta yükleme, salt okunur "Birlikte aç"
 - Komut Kütüphanesi: komutları modüllerde gruplama (ör. "Task komutları")
+- Koyu ve açık tema (menü çubuğundaki düğme ya da Ctrl+Shift+L; seçim hatırlanır)
 - Türkçe arayüz ve hata mesajları, uygulama içi yardım (F1)
 
 ## Gereksinimler
@@ -41,7 +42,7 @@ Geliştiren: **Ali Bedir**
 | `Komutlar\Komutlar.xml` | Komut Kütüphanesi başlangıç dosyası (derlemede yalnız hedefte yoksa kopyalanır) |
 | `Vision.ico` | Uygulama simgesi (`docs/simge.png`: büyük önizleme) |
 
-Çalışırken exe'nin yanında `Konfig\config.xml` (gruplar, kartlar, ayarlar) ve `logs\` oluşur; bunlar depoya alınmaz.
+Gruplar, kartlar ve ayarlar kullanıcının bilgisayarında `%APPDATA%\TelnetCards\config.xml` dosyasında tutulur (yeni sürüme geçişte korunur). Çalışırken exe'nin yanında `logs\` oluşur; depoya alınmaz.
 
 ## Ayrıntılı belgeler
 
