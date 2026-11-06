@@ -110,8 +110,8 @@ namespace Vision
                 Dock = DockStyle.Fill,
                 Visible = false,
             };
-            // Komut kütüphanesi exe'nin yanındaki Komutlar\Komutlar.xml dosyasında
-            _commandLibrary = new CommandLibraryView(new CommandLibrary(CommandLibrary.DefaultPath))
+            // Komut kütüphanesi exe'ye gömülü (Komutlar\Komutlar.xml kaynağı); uygulamadan değiştirilemez
+            _commandLibrary = new CommandLibraryView(CommandLibrary.Embedded())   // gömülü, salt okunur
             {
                 Dock = DockStyle.Fill,
                 Visible = false,
@@ -251,7 +251,7 @@ namespace Vision
             new DarkToolTip().SetToolTip(_signature, AppInfo.Copyright);
 
             // Sekme şeridi: [◀ kenar çubuğu] Telnet | Kart Dosya Gezgini | Komut Kütüphanesi
-            var tabStrip = new Panel { Dock = DockStyle.Top, Height = 40, BackColor = Theme.Sidebar, Padding = new Padding(6, 0, 0, 0) };
+            var tabStrip = new Panel { Dock = DockStyle.Top, Height = 40, BackColor = Theme.Sidebar, Padding = new Padding(6, 0, 8, 0) };
             _workspaceTab.Dock = DockStyle.Left;
             _filesTab.Dock = DockStyle.Left;
             _commandsTab.Dock = DockStyle.Left;
@@ -261,6 +261,7 @@ namespace Vision
             tabStrip.Controls.Add(_filesTab);
             tabStrip.Controls.Add(_workspaceTab);
             tabStrip.Controls.Add(_sidebarToggle);
+            BuildHeaderButtons(tabStrip);       // sağda: Yardım + tema (eski üst menü çubuğu kaldırıldı)
             _sidebarToggle.Click += (s, e) => SetSidebarCollapsed(!_split.Panel1Collapsed);
             tabStrip.Paint += (s, e) => { using (var p = new Pen(Theme.Border)) e.Graphics.DrawLine(p, 0, tabStrip.Height - 1, tabStrip.Width, tabStrip.Height - 1); };
             _workspaceTab.Click += (s, e) => ShowTab(MainTab.Workspace);
@@ -279,9 +280,6 @@ namespace Vision
 
             Controls.Add(_split);
             Controls.Add(status);
-            MenuStrip menu = BuildMenu();       // en üstte (son eklenen en dışa yerleşir)
-            Controls.Add(menu);
-            MainMenuStrip = menu;
         }
 
         protected override void OnHandleCreated(EventArgs e)
@@ -370,6 +368,11 @@ namespace Vision
             {
                 e.SuppressKeyPress = true;
                 ShowHelp(HelpPage.Guide);
+            }
+            else if (e.Control && e.Shift && e.KeyCode == Keys.L)   // koyu ↔ açık tema
+            {
+                e.SuppressKeyPress = true;
+                ToggleTheme();
             }
             else if (e.Control && !e.Shift && e.KeyCode == Keys.N)   // Ctrl+Shift+N: gezgin / kütüphane "yeni"
             {
@@ -756,71 +759,51 @@ namespace Vision
             _statesDirty = true;
         }
 
-        /// <summary>Üst menü çubuğu: Yardım menüsü (F1 kısayolu ayrıca çalışmaya devam eder).</summary>
-        private MenuStrip BuildMenu()
-        {
-            var menu = new MenuStrip
-            {
-                Dock = DockStyle.Top,
-                BackColor = Theme.Sidebar,
-                ForeColor = Theme.Text,
-                Font = Theme.Ui,
-                Renderer = new DarkMenuRenderer(),
-                Padding = new Padding(8, 3, 0, 3),
-            };
-            menu.Paint += (s, e) => { using (var p = new Pen(Theme.Border)) e.Graphics.DrawLine(p, 0, menu.Height - 1, menu.Width, menu.Height - 1); };
+        // Sekme şeridinin sağı: [Yardım] [Açık / Koyu tema] — ayrı menü çubuğu yok
+        private readonly TabStripButton _helpBtn = new TabStripButton("Yardım", IconKind.Info) { IsTab = false };
+        private readonly TabStripButton _themeBtn = new TabStripButton("Açık tema", IconKind.Sun) { IsTab = false };
+        private readonly ContextMenuStrip _helpMenu = new ContextMenuStrip();
+        private readonly DarkToolTip _headerTips = new DarkToolTip();
 
-            var help = new ToolStripMenuItem("Yardım") { ForeColor = Theme.Text };
-            Func<string, string, Action, ToolStripMenuItem> item = (text, keys, action) =>
+        /// <summary>Yardım ve tema düğmelerini sekme şeridinin sağına yerleştirir (F1 ve Ctrl+Shift+L formda işlenir).</summary>
+        private void BuildHeaderButtons(Panel tabStrip)
+        {
+            _helpMenu.Renderer = new DarkMenuRenderer();
+            _helpMenu.ShowImageMargin = false;
+            Action<string, string, Action> item = (text, keys, action) =>
             {
                 var it = new ToolStripMenuItem(text) { ForeColor = Theme.Text, ShortcutKeyDisplayString = keys };
                 it.Click += (s, e) => action();
-                return it;
+                _helpMenu.Items.Add(it);
             };
-            // F1 burada yalnız gösterilir; kısayolu formun kendisi işler (iki kez açılmasın)
-            help.DropDownItems.Add(item("Kullanım Kılavuzu", "F1", () => ShowHelp(HelpPage.Guide)));
-            help.DropDownItems.Add(item("Gereksinimler", null, () => ShowHelp(HelpPage.Requirements)));
-            help.DropDownItems.Add(new ToolStripSeparator());
-            help.DropDownItems.Add(item("Yardım klasörünü aç", null, () => HelpDialog.OpenHelpFolder(this)));
-            help.DropDownItems.Add(new ToolStripSeparator());
-            help.DropDownItems.Add(item("Hakkında", null, () => ShowHelp(HelpPage.About)));
-            var dd = help.DropDown as ToolStripDropDownMenu;
-            if (dd != null) dd.ShowImageMargin = false;
-            menu.Items.Add(help);
+            item("Kullanım Kılavuzu", "F1", () => ShowHelp(HelpPage.Guide));
+            item("Gereksinimler", null, () => ShowHelp(HelpPage.Requirements));
+            _helpMenu.Items.Add(new ToolStripSeparator());
+            item("Yardım klasörünü aç", null, () => HelpDialog.OpenHelpFolder(this));
+            _helpMenu.Items.Add(new ToolStripSeparator());
+            item("Hakkında", null, () => ShowHelp(HelpPage.About));
 
-            // En sağda: koyu / açık tema geçişi (seçim kaydedilir, uygulama yeniden açılınca hatırlanır)
-            _themeItem = new ToolStripMenuItem
-            {
-                Alignment = ToolStripItemAlignment.Right,
-                ForeColor = Theme.Text,
-                ShortcutKeys = Keys.Control | Keys.Shift | Keys.L,
-                DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
-                ImageScaling = ToolStripItemImageScaling.None,
-                Margin = new Padding(0, 0, 8, 0),
-            };
-            _themeItem.Click += (s, e) => ToggleTheme();
-            menu.Items.Add(_themeItem);
+            _helpBtn.Dock = DockStyle.Right;
+            _themeBtn.Dock = DockStyle.Right;
+            _helpBtn.Click += (s, e) => _helpMenu.Show(_helpBtn, new Point(0, _helpBtn.Height));
+            _themeBtn.Click += (s, e) => ToggleTheme();
+            _headerTips.SetToolTip(_helpBtn, "Kullanım kılavuzu, gereksinimler, hakkında  (F1: kılavuz)");
+            tabStrip.Controls.Add(_helpBtn);    // Dock=Right: son eklenen en sağda → [Yardım] [Tema]
+            tabStrip.Controls.Add(_themeBtn);
             RefreshThemeItem();
-            return menu;
         }
-
-        private ToolStripMenuItem _themeItem;
 
         /// <summary>Tema düğmesi: geçilecek temayı gösterir (koyudayken "Açık tema" + güneş, açıktayken "Koyu tema" + ay).</summary>
         private void RefreshThemeItem()
         {
-            if (_themeItem == null) return;
             bool dark = Theme.IsDark;
-            _themeItem.Text = dark ? "Açık tema" : "Koyu tema";
-            _themeItem.ToolTipText = (dark ? "Açık temaya geç" : "Koyu temaya geç") + "  (Ctrl+Shift+L)";
-            _themeItem.AccessibleName = _themeItem.ToolTipText;
-            _themeItem.ForeColor = Theme.Text;
-            var bmp = new Bitmap(16, 16);
-            using (Graphics g = Graphics.FromImage(bmp))
-                IconRenderer.Draw(g, dark ? IconKind.Sun : IconKind.Moon, new RectangleF(0, 0, 16, 16), dark ? Theme.Warning : Theme.Accent);
-            Image old = _themeItem.Image;
-            _themeItem.Image = bmp;
-            if (old != null) old.Dispose();
+            _themeBtn.Text = dark ? "Açık tema" : "Koyu tema";
+            _themeBtn.Icon = dark ? IconKind.Sun : IconKind.Moon;
+            _themeBtn.IconColor = dark ? Theme.Warning : Theme.Accent;
+            _themeBtn.FitToText();
+            string tip = (dark ? "Açık temaya geç" : "Koyu temaya geç") + "  (Ctrl+Shift+L)";
+            _themeBtn.AccessibleName = tip;
+            _headerTips.SetToolTip(_themeBtn, tip);
         }
 
         /// <summary>Koyu ↔ açık tema: açık tüm pencereler hemen yeni temaya geçer; bağlantılar ve terminaller etkilenmez.</summary>
@@ -892,7 +875,7 @@ namespace Vision
     internal sealed class TabStripButton : Control
     {
         private bool _active, _hover;
-        private readonly IconKind _icon;
+        private IconKind _icon;
 
         public TabStripButton(string text, IconKind icon)
         {
@@ -911,6 +894,25 @@ namespace Vision
             set { _active = value; Invalidate(); }
         }
 
+        /// <summary>false: sekme değil, şeritteki bir düğme (Yardım, tema) — etkin çizgisi yok.</summary>
+        public bool IsTab { get; set; } = true;
+
+        public IconKind Icon
+        {
+            get { return _icon; }
+            set { _icon = value; Invalidate(); }
+        }
+
+        /// <summary>Simge rengi (boşsa yazı rengi).</summary>
+        public Color IconColor { get; set; }
+
+        /// <summary>Genişliği yazıya göre yeniden hesaplar (metin değişince).</summary>
+        public void FitToText()
+        {
+            Width = TextRenderer.MeasureText(Text, Font, Size.Empty, TextFormatFlags.NoPadding).Width + 16 + 8 + 32;
+            Invalidate();
+        }
+
         protected override void OnMouseEnter(EventArgs e) { base.OnMouseEnter(e); _hover = true; Invalidate(); }
         protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); _hover = false; Invalidate(); }
 
@@ -927,10 +929,11 @@ namespace Vision
             Color fore = _active || _hover ? Theme.Text : Theme.TextMuted;
             Size ts = TextRenderer.MeasureText(Text, Font, Size.Empty, TextFormatFlags.NoPadding);
             int x = (Width - (16 + 8 + ts.Width)) / 2;
-            IconRenderer.Draw(g, _icon, new RectangleF(x, (Height - 16) / 2f - 1, 16, 16), _active ? Theme.Accent : fore);
+            Color iconColor = _active ? Theme.Accent : !IconColor.IsEmpty ? IconColor : fore;
+            IconRenderer.Draw(g, _icon, new RectangleF(x, (Height - 16) / 2f - 1, 16, 16), iconColor);
             TextRenderer.DrawText(g, Text, Font, new Rectangle(x + 24, 0, ts.Width + 4, Height - 2), fore,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding);
-            if (_active)
+            if (_active && IsTab)
             {
                 g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
                 using (var path = IconRenderer.RoundRect(new RectangleF(12, Height - 3, Width - 24, 4), 1.5f))

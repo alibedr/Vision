@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Komut Kütüphanesi — VxWorks 6.4 kabuk (C yorumlayıcısı) komutları
-  Bu dosya Vision ile birlikte gelir. Uygulamadaki "Komut Kütüphanesi" sekmesinden düzenlenir: komut / modül ekleme,
-  düzenleme, modüller arasında taşıma, silme. Seçilen komut "Karta aktar" ile istenen kartın komut satırına yazılır.
+  Bu dosya derlemede Vision.exe'ye GÖMÜLÜR; uygulamadan eklenemez, düzenlenemez, silinemez. Komut eklemek ya da
+  düzeltmek için bu dosya düzenlenir ve Vision'ın yeni sürümü derlenir. Seçilen komut "Karta aktar" ile istenen
+  kartın komut satırına yazılır.
   Örnek çıktılar temsilîdir; adresler, görev kimlikleri ve satırlar kartın BSP'sine ve imajına göre değişir.
 
-  Elle düzenlemek isterseniz biçim şöyledir:
+  Biçim:
 
   <Modul Ad="Görevler (task)">
     <Aciklama>Görevleri listeleme, durdurma ve başlatma.</Aciklama>

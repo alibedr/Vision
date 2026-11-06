@@ -672,10 +672,103 @@ namespace Vision
                 "\"" + name + "\" klasörü oluşturulamadı", "\"" + name + "\" klasörü oluşturuldu.");
         }
 
-        /// <param name="recursive">Klasör içindekilerle birlikte silinsin (xdelete). false: yalnız boş klasör (rmdir).</param>
-        public Task<OpResult> DeleteAsync(FsEntry entry, bool recursive)
+        // ---------- Korunan öğeler ----------
+
+        /// <summary>Kartın açılışı / çalışması için gerekli öğe: bu adlı dosya ya da klasör ve içindekiler silinemez, taşınamaz, yeniden adlandırılamaz.</summary>
+        public const string ProtectedName = "EFI";
+
+        public static string ProtectedMessage(string name)
         {
-            if (entry.Kind == FsKind.Device) return Task.FromResult(Reject("Cihazlar silinemez."));
+            return "\"" + name + "\" korumalıdır: \"" + ProtectedName + "\" kartın çalışması (açılışı) için gereklidir; " +
+                   "silinemez, taşınamaz ve yeniden adlandırılamaz.";
+        }
+
+        /// <summary>Ad tam olarak EFI mi (büyük / küçük harf duyarsız; klasörlerin sonundaki / yok sayılır)?</summary>
+        public static bool IsProtectedName(string name)
+        {
+            if (name == null) return false;
+            return string.Equals(name.Trim().TrimEnd('/'), ProtectedName, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>Yol EFI'nin kendisi ya da içinde bir öğe mi (yolun herhangi bir parçası EFI)?</summary>
+        public static bool IsProtectedPath(string fullPath)
+        {
+            if (string.IsNullOrEmpty(fullPath)) return false;
+            foreach (string part in fullPath.Split('/'))
+                if (IsProtectedName(part)) return true;
+            return false;
+        }
+
+        /// <summary>Korumalı öğe için uyarıyı şeritte gösterir (karta komut gönderilmez).</summary>
+        public OpResult RejectProtected(FsEntry e)
+        {
+            return Reject(ProtectedMessage(e == null ? ProtectedName : e.Name));
+        }
+
+        public static bool IsProtected(FsEntry e)
+        {
+            return e != null && e.Kind != FsKind.Device && (IsProtectedName(e.Name) || IsProtectedPath(e.FullPath));
+        }
+
+        /// <summary>
+        /// Klasörün içinde (alt klasörler dahil) EFI var mı? Silme (xdelete) ve taşıma öncesi denetlenir: klasörler listeleme
+        /// komutuyla tek tek açılır. Bulunursa yolunu, bulunamazsa null döndürür; çok büyük ağaçta denetim tamamlanamazsa
+        /// güvenli tarafta kalınır ("denetlenemedi" metni döner).
+        /// </summary>
+        private async Task<string> FindProtectedInsideAsync(string folder)
+        {
+            const int MaxFolders = 300;
+            var queue = new Queue<string>();
+            queue.Enqueue(folder);
+            int visited = 0;
+            BeginWork("EFI denetimi  ·  " + _listCommand + " " + FsPath.Quote(folder));
+            try
+            {
+                while (queue.Count > 0)
+                {
+                    if (++visited > MaxFolders) return "(" + MaxFolders + " klasörden fazlası var, EFI denetimi tamamlanamadı)";
+                    string dir = queue.Dequeue();
+                    string cmd = _listCommand + " " + FsPath.Quote(dir);
+                    PendingCommand = "EFI denetimi  ·  " + cmd;
+                    Raise();
+                    ShellResponse r = await Exec(cmd, ShortTimeoutSec);
+                    if (r.Failure != null || !r.IsSuccess) continue;   // açılamayan klasör: içinde ne olduğu bilinemez, atlanır
+                    foreach (FsEntry child in LsParser.Parse(r.OutputLines, dir))
+                    {
+                        if (IsProtectedName(child.Name)) return child.FullPath;
+                        if (child.Kind == FsKind.Folder) queue.Enqueue(child.FullPath);
+                    }
+                }
+                return null;
+            }
+            finally
+            {
+                EndWork();
+            }
+        }
+
+        /// <summary>Öğe ya da (klasörse) içindekiler korumalıysa reddeder; değilse null.</summary>
+        private async Task<OpResult> CheckProtectedAsync(FsEntry entry, bool scanInside)
+        {
+            if (IsProtected(entry)) return Reject(ProtectedMessage(entry.Name));
+            if (scanInside && entry.Kind != FsKind.File)
+            {
+                if (Busy) return Reject("Başka bir işlem sürüyor.");
+                string found = await FindProtectedInsideAsync(entry.FullPath);
+                if (found != null)
+                    return Reject("\"" + entry.Name + "\" silinemez / taşınamaz: içinde " + found + " var. " +
+                                  "\"" + ProtectedName + "\" kartın çalışması (açılışı) için gereklidir.");
+            }
+            return null;
+        }
+
+        /// <param name="recursive">Klasör içindekilerle birlikte silinsin (xdelete). false: yalnız boş klasör (rmdir).</param>
+        public async Task<OpResult> DeleteAsync(FsEntry entry, bool recursive)
+        {
+            if (entry.Kind == FsKind.Device) return Reject("Cihazlar silinemez.");
+            // EFI korumalı: kendisi, içindekiler ve EFI içeren klasörler (xdelete) silinemez. rmdir yalnız boş klasörü siler.
+            OpResult blocked = await CheckProtectedAsync(entry, recursive);
+            if (blocked != null) return blocked;
             string cmd;
             int timeout = ShortTimeoutSec;
             if (entry.Kind == FsKind.File) cmd = "rm " + FsPath.Quote(entry.FullPath);
@@ -684,32 +777,45 @@ namespace Vision
 
             string failHint = entry.Kind == FsKind.File ? null
                 : recursive ? null : "Klasör boş değilse \"İçindekilerle birlikte sil\"i kullanın.";
-            return RunAsync(cmd, timeout, "\"" + entry.Name + "\" silinemedi", "\"" + entry.Name + "\" silindi.", failHint);
+            return await RunAsync(cmd, timeout, "\"" + entry.Name + "\" silinemedi", "\"" + entry.Name + "\" silindi.", failHint);
         }
 
-        public Task<OpResult> RenameAsync(FsEntry entry, string newName)
+        public async Task<OpResult> RenameAsync(FsEntry entry, string newName)
         {
             string reason;
-            if (entry.Kind == FsKind.Device) return Task.FromResult(Reject("Cihazlar yeniden adlandırılamaz."));
-            if (!FsPath.IsValidName(newName, out reason)) return Task.FromResult(Reject(reason));
-            if (newName == entry.Name) return Task.FromResult(Reject("Yeni ad eskisiyle aynı."));
+            if (entry.Kind == FsKind.Device) return Reject("Cihazlar yeniden adlandırılamaz.");
+            if (IsProtected(entry)) return Reject(ProtectedMessage(entry.Name));
+            if (!FsPath.IsValidName(newName, out reason)) return Reject(reason);
+            if (newName == entry.Name) return Reject("Yeni ad eskisiyle aynı.");
             if (Entries.Any(e => e != entry && string.Equals(e.Name, newName, StringComparison.OrdinalIgnoreCase)))
-                return Task.FromResult(Reject("\"" + newName + "\" adında bir öğe zaten var."));
+                return Reject("\"" + newName + "\" adında bir öğe zaten var.");
+            // EFI içeren bir klasörün adı değişirse EFI'nin yolu da değişir: o da engellenir
+            if (entry.Kind != FsKind.File)
+            {
+                OpResult blocked = await CheckProtectedAsync(entry, true);
+                if (blocked != null) return blocked;
+            }
             string dst = FsPath.Join(ParentOf(entry), newName);
-            return RunAsync("mv " + FsPath.Quote(entry.FullPath) + ", " + FsPath.Quote(dst), ShortTimeoutSec,
+            return await RunAsync("mv " + FsPath.Quote(entry.FullPath) + ", " + FsPath.Quote(dst), ShortTimeoutSec,
                 "\"" + entry.Name + "\" yeniden adlandırılamadı", "\"" + entry.Name + "\" → \"" + newName + "\"");
         }
 
         /// <summary>Öğeyi kart içinde başka bir klasöre taşır (mv) ya da kopyalar (dosya: copy, klasör: xcopy).</summary>
-        public Task<OpResult> TransferAsync(FsEntry entry, string destDir, bool copy)
+        public async Task<OpResult> TransferAsync(FsEntry entry, string destDir, bool copy)
         {
-            if (entry.Kind == FsKind.Device) return Task.FromResult(Reject("Cihazlar taşınamaz / kopyalanamaz."));
-            if (string.IsNullOrWhiteSpace(destDir)) return Task.FromResult(Reject("Hedef klasör belirtilmedi."));
+            if (entry.Kind == FsKind.Device) return Reject("Cihazlar taşınamaz / kopyalanamaz.");
+            if (string.IsNullOrWhiteSpace(destDir)) return Reject("Hedef klasör belirtilmedi.");
             destDir = destDir.TrimEnd('/');
             if (destDir == ParentOf(entry).TrimEnd('/'))
-                return Task.FromResult(Reject("Öğe zaten bu klasörde."));
+                return Reject("Öğe zaten bu klasörde.");
             if (destDir == entry.FullPath || destDir.StartsWith(entry.FullPath + "/"))
-                return Task.FromResult(Reject("Bir klasör kendi içine taşınamaz / kopyalanamaz."));
+                return Reject("Bir klasör kendi içine taşınamaz / kopyalanamaz.");
+            if (!copy)
+            {
+                // EFI taşınırsa (yerinden çıkarsa) kart açılamaz: kendisi, içindekiler ve EFI içeren klasörler taşınamaz
+                OpResult blocked = await CheckProtectedAsync(entry, true);
+                if (blocked != null) return blocked;
+            }
 
             string dst = FsPath.Join(destDir, entry.Name);
             string verb = copy ? "kopyalandı" : "taşındı";
@@ -717,7 +823,7 @@ namespace Vision
             if (!copy) cmd = "mv " + FsPath.Quote(entry.FullPath) + ", " + FsPath.Quote(dst);
             else if (entry.Kind == FsKind.File) cmd = "copy " + FsPath.Quote(entry.FullPath) + ", " + FsPath.Quote(dst);
             else cmd = "xcopy " + FsPath.Quote(entry.FullPath) + ", " + FsPath.Quote(dst);
-            return RunAsync(cmd, copy ? LongTimeoutSec : ShortTimeoutSec,
+            return await RunAsync(cmd, copy ? LongTimeoutSec : ShortTimeoutSec,
                 "\"" + entry.Name + "\" " + (copy ? "kopyalanamadı" : "taşınamadı"),
                 "\"" + entry.Name + "\" → " + destDir + " " + verb + ".");
         }

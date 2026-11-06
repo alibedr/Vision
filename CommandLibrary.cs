@@ -128,6 +128,18 @@ namespace Vision
             Path = path;
         }
 
+        /// <summary>
+        /// Exe'ye gömülü, SALT OKUNUR kütüphane: içerik yalnız Vision'ın yeni sürümleriyle değişir; uygulamadan
+        /// ekleme / düzenleme / silme / taşıma yapılamaz ve diskteki bir dosya okunmaz ya da yazılmaz.
+        /// </summary>
+        public static CommandLibrary Embedded()
+        {
+            return new CommandLibrary(null) { IsReadOnly = true };
+        }
+
+        /// <summary>Gömülü, değiştirilemez kütüphane mi?</summary>
+        public bool IsReadOnly { get; private set; }
+
         public static string DefaultPath
         {
             get { return System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, FolderName, FileName); }
@@ -150,6 +162,28 @@ namespace Vision
             _items = new List<CommandDoc>();
             _modules = new List<CommandModule>();
             LoadedWriteTimeUtc = DateTime.MinValue;
+            if (IsReadOnly)
+            {
+                CommandLibraryFile embedded = LoadBundled();
+                if (embedded == null) { LoadError = "Gömülü komut kütüphanesi okunamadı."; return; }
+                foreach (CommandModule m in embedded.Modules ?? new List<CommandModule>())
+                {
+                    string mn = (m.Name ?? "").Trim();
+                    if (mn.Length == 0 || SameName(mn, NoModuleName)) mn = "";
+                    CommandModule target = mn.Length == 0 ? null : _modules.FirstOrDefault(x => SameName(x.Name, mn));
+                    if (mn.Length > 0 && target == null)
+                    {
+                        target = new CommandModule { Name = mn, Description = NormalizeText(m.Description), Modified = m.Modified };
+                        _modules.Add(target);
+                    }
+                    foreach (CommandDoc d in m.Commands ?? new List<CommandDoc>()) AddLoaded(d, target != null ? target.Name : "");
+                }
+                foreach (CommandDoc d in embedded.Commands ?? new List<CommandDoc>()) AddLoaded(d, "");
+                foreach (CommandModule m in _modules) m.Commands = new List<CommandDoc>();
+                Sort(_items);
+                SortModules(_modules);
+                return;
+            }
             if (!File.Exists(Path)) return;
             try
             {
@@ -199,6 +233,7 @@ namespace Vision
         /// <summary>Dosya, yüklendikten sonra dışarıdan (metin düzenleyiciyle) değiştirildi mi?</summary>
         public bool ChangedOnDisk()
         {
+            if (IsReadOnly) return false;
             try
             {
                 return File.Exists(Path) && File.GetLastWriteTimeUtc(Path) != LoadedWriteTimeUtc;
@@ -412,6 +447,11 @@ namespace Vision
         private bool TrySave(List<CommandDoc> next, List<CommandModule> modules, out string error)
         {
             error = null;
+            if (IsReadOnly)
+            {
+                error = "Komut kütüphanesi Vision'a gömülüdür ve değiştirilemez; yeni komutlar sonraki sürümlerle gelir.";
+                return false;
+            }
             try
             {
                 Save(next, modules);

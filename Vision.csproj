@@ -127,20 +127,14 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
-    <!-- Komut kütüphanesi: exe'nin yanındaki Komutlar klasörüne YALNIZ dosya yoksa kopyalanır.
-         Uygulamadan eklenen komutlar yeniden derlemede silinmez / üzerine yazılmaz. -->
     <None Include="Vision.ico" />
   </ItemGroup>
   <ItemGroup>
-    <!-- Hazır komutlar exe'ye de gömülür: kütüphane boşsa ilk açılışta, istenirse "Hazır komutlar" düğmesiyle
-         eksik olanlar eklenir (kullanıcının komutlarına dokunulmaz). -->
+    <!-- Komut kütüphanesi exe'ye GÖMÜLÜDÜR ve salt okunurdur: dışarıda Komutlar klasörü / dosyası yoktur.
+         Komut eklemek / düzeltmek için Komutlar\Komutlar.xml düzenlenip yeni sürüm derlenir. -->
     <EmbeddedResource Include="Komutlar\Komutlar.xml">
       <LogicalName>Komutlar.Varsayilan.xml</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <Target Name="AfterBuild">
-    <MakeDir Directories="$(OutDir)Komutlar" Condition="!Exists('$(OutDir)Komutlar')" />
-    <Copy SourceFiles="Komutlar\Komutlar.xml" DestinationFolder="$(OutDir)Komutlar" Condition="!Exists('$(OutDir)Komutlar\Komutlar.xml')" />
-  </Target>
 </Project>

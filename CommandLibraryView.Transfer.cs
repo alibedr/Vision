@@ -156,6 +156,7 @@ namespace Vision
         /// <summary>İlk açılış: kütüphane tamamen boşsa (dosya yok ya da boş şablon) hazır komutlarla doldurulur.</summary>
         private void SeedBundledIfEmpty()
         {
+            if (ReadOnlyLibrary) return;   // gömülü kütüphane değiştirilemez
             if (_library.LoadError != null || !_library.IsEmpty) return;
             CommandLibraryFile bundled = CommandLibrary.LoadBundled();
             if (bundled == null) return;
@@ -172,6 +173,7 @@ namespace Vision
 
         private void ImportBundled()
         {
+            if (ReadOnlyLibrary) return;   // gömülü kütüphane değiştirilemez
             if (_editing) return;
             CommandLibraryFile bundled = CommandLibrary.LoadBundled();
             string error;

@@ -140,12 +140,20 @@ namespace Vision
                     _itemMenu.Items.Add(new ToolStripSeparator());
                 }
                 else AddMenu("Aç", async () => await _browser.OpenAsync(e), "Enter");
-                AddMenu("Yeniden adlandır…", async () => await RenameSelectedAsync(), "F2");
-                AddMenu("Taşı…", async () => await TransferWithDialogAsync(e, false), null);
+                bool locked = FileBrowser.IsProtected(e);   // EFI: kartın açılışı için gerekli, silinemez / taşınamaz
+                ToolStripItem ren = AddMenu("Yeniden adlandır…", async () => await RenameSelectedAsync(), "F2");
+                ToolStripItem mov = AddMenu("Taşı…", async () => await TransferWithDialogAsync(e, false), null);
                 AddMenu("Kopyala…", async () => await TransferWithDialogAsync(e, true), null);
                 _itemMenu.Items.Add(new ToolStripSeparator());
                 ToolStripItem del = AddMenu("Sil…", async () => await DeleteSelectedAsync(), "Delete");
                 del.ForeColor = Theme.Danger;
+                if (locked)
+                {
+                    ren.Enabled = mov.Enabled = del.Enabled = false;
+                    var info = new ToolStripMenuItem("Korumalı: " + FileBrowser.ProtectedName + " kartın açılışı için gerekli — silinemez, taşınamaz")
+                    { Enabled = false, ForeColor = Theme.Warning };
+                    _itemMenu.Items.Add(info);
+                }
                 _itemMenu.Items.Add(new ToolStripSeparator());
             }
             else if (e != null && e.Kind == FsKind.Device)
@@ -192,6 +200,7 @@ namespace Vision
             FsEntry e = SelectedEntry;
             if (e == null || e.Kind == FsKind.Device || !CanOperate) return;
             FileBrowser b = _browser;
+            if (FileBrowser.IsProtected(e)) { b.RejectProtected(e); return; }   // EFI: uyarı şeritte, komut gönderilmez
             string name = InputDialog.Ask(FindForm(), "Yeniden adlandır", "\"" + e.Name + "\" için yeni ad:", e.Name,
                 v =>
                 {
@@ -209,6 +218,8 @@ namespace Vision
             FsEntry e = SelectedEntry;
             if (e == null || e.Kind == FsKind.Device || !CanOperate) return;
             FileBrowser b = _browser;
+            // EFI korumalı: onay sorulmadan reddedilir (uyarı şeritte görünür, karta komut gönderilmez)
+            if (FileBrowser.IsProtected(e)) { b.RejectProtected(e); return; }
 
             if (e.Kind == FsKind.File)
             {
@@ -329,6 +340,7 @@ namespace Vision
         private async Task TransferWithDialogAsync(FsEntry e, bool copy)
         {
             if (!CanOperate) return;
+            if (!copy && FileBrowser.IsProtected(e)) { _browser.RejectProtected(e); return; }
             string target = InputDialog.Ask(FindForm(), copy ? "Kopyala" : "Taşı",
                 "\"" + e.Name + "\" hangi klasöre " + (copy ? "kopyalansın" : "taşınsın") + "? (kart üzerindeki tam yol)",
                 _browser.Current.Path,

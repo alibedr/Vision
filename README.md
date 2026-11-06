@@ -16,8 +16,8 @@ Geliştiren: **Ali Bedir**
 - Genel komut çubuğu: ekrandaki tüm kartlara aynı komut
 - Periyodik bağlantı izleme ve otomatik yeniden bağlanma
 - Kart Dosya Gezgini: `devs` / `ll`, klasör ve dosya işlemleri, FTP üzerinden karta yükleme, salt okunur "Birlikte aç"
-- Komut Kütüphanesi: hazır 113 VxWorks 6.4 kabuk komutu (açıklama, örnek kullanım, örnek çıktı), modüllerde gruplama ve komutu tek tıkla bir kartın komut satırına aktarma
-- Koyu ve açık tema (menü çubuğundaki düğme ya da Ctrl+Shift+L; seçim hatırlanır)
+- Komut Kütüphanesi: exe'ye gömülü, salt okunur 113 VxWorks 6.4 kabuk komutu (açıklama, örnek kullanım, örnek çıktı), modüllerde gruplama ve komutu tek tıkla bir kartın komut satırına aktarma
+- Koyu ve açık tema (sekme şeridinin sağındaki düğme ya da Ctrl+Shift+L; seçim hatırlanır)
 - Türkçe arayüz ve hata mesajları, uygulama içi yardım (F1)
 
 ## Gereksinimler
@@ -31,7 +31,7 @@ Geliştiren: **Ali Bedir**
 
 1. `Vision.sln` dosyasını Visual Studio 2019 ile açın.
 2. **Build → Build Solution** (Ctrl+Shift+B).
-3. Çıktı `bin\Debug\` (ya da `bin\Release\`) klasöründedir. `Yardim\` ve `Komutlar\` klasörleri exe'nin yanına kopyalanır.
+3. Çıktı `bin\Debug\` (ya da `bin\Release\`) klasöründedir. `Yardim\` klasörü exe'nin yanına kopyalanır; komut kütüphanesi exe'ye gömülüdür.
 
 ## Klasör yapısı
 
@@ -39,7 +39,7 @@ Geliştiren: **Ali Bedir**
 |---|---|
 | `*.cs` | Kaynak kod (WinForms) |
 | `Yardim\` | Kullanım Kılavuzu ve Gereksinimler (uygulama içi yardımda gösterilir) |
-| `Komutlar\Komutlar.xml` | Komut Kütüphanesi başlangıç dosyası: hazır VxWorks 6.4 komutları (derlemede yalnız hedefte yoksa kopyalanır; exe'ye de gömülür) |
+| `Komutlar\Komutlar.xml` | Komut Kütüphanesi içeriği (VxWorks 6.4 komutları); derlemede exe'ye gömülür, dışarıya kopyalanmaz |
 | `Vision.ico` | Uygulama simgesi (`docs/simge.png`: büyük önizleme) |
 
 Gruplar, kartlar ve ayarlar kullanıcının bilgisayarında `%APPDATA%\TelnetCards\config.xml` dosyasında tutulur (yeni sürüme geçişte korunur). Çalışırken exe'nin yanında `logs\` oluşur; depoya alınmaz.
