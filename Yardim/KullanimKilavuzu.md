@@ -8,9 +8,8 @@ Vision; donanım kartlarına telnet ile bağlanmak, kartlara komut göndermek, b
 
 | Bölüm | Konum | Ne işe yarar |
 |---|---|---|
-| Menü çubuğu | Pencerenin en üstü | **Yardım** menüsü: Kullanım Kılavuzu, Gereksinimler, Yardım klasörü, Hakkında. En sağda **tema düğmesi** (koyu ↔ açık; aşağıya bakın). |
 | Kart Gezgini | Sol kenar | Grupları ve kartları listeler; kart ekleme, seçme, bağlanma ve gösterme buradan yapılır. Sekme şeridinin en solundaki kenar çubuğu düğmesi (Ctrl+B) ile gizlenip gösterilir. |
-| Sekmeler | Sağ alanın üstü | **Telnet** (kart terminalleri), **Kart Dosya Gezgini** ve **Komut Kütüphanesi** arasında geçiş (Ctrl+1 / 2 / 3). |
+| Sekmeler | Sağ alanın üstü | **Telnet** (kart terminalleri), **Kart Dosya Gezgini** ve **Komut Kütüphanesi** arasında geçiş (Ctrl+1 / 2 / 3). Aynı şeridin en sağında **Yardım** (Kullanım Kılavuzu, Gereksinimler, Yardım klasörü, Hakkında) ve **tema düğmesi** (koyu ↔ açık; aşağıya bakın) bulunur. |
 | Telnet sekmesi | Sağ alan | Seçilen kartların terminal pencereleri ızgara düzeninde görünür (en fazla 24 kart). |
 | Terminal ayarları | Telnet sekmesinin üst çubuğu | Satır sonu, yerel eko, zaman damgası, dosyaya kaydet, satır sınırı ve "Tümünü kapat". |
 | Genel komut çubuğu | Telnet sekmesinin altı | Bir komutu ekrandaki tüm kartlara aynı anda gönderir. |
@@ -18,7 +17,7 @@ Vision; donanım kartlarına telnet ile bağlanmak, kartlara komut göndermek, b
 
 ### Koyu ve açık tema
 
-Uygulama koyu ya da açık temayla kullanılabilir. Geçiş için menü çubuğunun en sağındaki düğmeye tıklayın (ya da **Ctrl+Shift+L**):
+Uygulama koyu ya da açık temayla kullanılabilir. Geçiş için sekme şeridinin en sağındaki düğmeye (Yardım'ın yanında) tıklayın (ya da **Ctrl+Shift+L**):
 
 - Koyu temadayken düğmede güneş simgesi ve **Açık tema**, açık temadayken ay simgesi ve **Koyu tema** yazar.
 - Geçiş anında olur: açık tüm pencereler (kart terminalleri, Dosya Gezgini, Komut Kütüphanesi, başlık ve kaydırma çubukları) yeni temaya geçer. Bağlantılar kesilmez, terminal içerikleri silinmez.
@@ -42,6 +41,7 @@ Yer kazanmak için sık kullanılan düğmeler yazı yerine simgeyle gösterilir
 | Kenar çubuklu pencere | **Kart Gezgini'ni gizle / göster** (Ctrl+B) | Sekme şeridinin en solu |
 | Disket | **Dosyaya kaydet** (terminalin anlık görüntüsü) | Kart penceresi başlığı · Genel komut çubuğu |
 | Şimşek | **Hızlı komut** (atanmış komutu gönderir) | Kart komut satırı · Genel komut çubuğu |
+| Geri dönen ok + saat | **Komut geçmişi** (Ctrl+R): yazılmış tüm komutlar ve geriye doğru arama | Kart komut satırının içi (sağda) · Genel komut çubuğu |
 | Güç + ⇄ | **reboot / reboot 2** (sol: çalıştır, sağ ⇄: seçimi değiştir) | Kart komut satırı · Genel komut çubuğu |
 | − %100 + | **Yazı** (tüm terminallerin ortak yakınlaştırması) | Telnet ayar çubuğu |
 | Çöp kutusu | **FTP kopyalarını sil** | Dosya Gezgini |
@@ -82,7 +82,8 @@ Gruplar, kartlar ve tüm ayarlar bilgisayarınızda, **`%APPDATA%\TelnetCards\co
 |---|---|
 | Gruplar (ad, port, açık / kapalı), kartların IP'leri | Telnet sekmesinde açık olan kart pencereleri |
 | Satır sonu, yerel eko, zaman damgası, dosyaya kaydet | Bağlantılar (kartlara yeniden bağlanılır) |
-| Bağlantı izleme ve FTP ayarları | Terminal çıktıları ve komut geçmişleri |
+| Bağlantı izleme ve FTP ayarları | Terminal çıktıları |
+| Komut geçmişi (ayrı dosya: `KomutGecmisi.txt`) | Kart ekranındaki renklendirmeler |
 
 - Dosya exe'den bağımsızdır: yeni bir Vision sürümünü indirip başka bir klasörden çalıştırdığınızda gruplarınız, kartlarınız ve ayarlarınız **aynen gelir**; her sürümde yeniden girmeniz gerekmez.
 - Visual Studio'dan çalıştırılan uygulama (`bin\Debug`) ile `HazirExe` klasöründeki uygulama **aynı** ayar dosyasını kullanır.
@@ -174,6 +175,8 @@ Aynı anda en fazla **24 kart** gösterilebilir (uygulama sınırı; değiştiri
 | Kare / ✕ | Büyüt (büyütülmüşken iki kare: eski boyut) / ekrandan kaldır. |
 | Disket simgesi | **Dosyaya kaydet**: terminalde o an görünen içeriği bu kart için ayrı bir dosyaya kaydeder (aşağıya bakın). |
 | Kâğıt uçak (komut satırının sağı) | **Gönder** (Enter ile aynı). |
+| Saat simgesi (komut alanının içinde, sağda) | **Komut geçmişi** (Ctrl+R): daha önce yazılan tüm komutlar; içinde arama (aşağıya bakın). |
+| Terminalde sağ tık | **Kopyala** ve **Renklendir**: seçilen kelimeyi ekranda renkli gösterir (aşağıya bakın). |
 | Şimşek düğmesi (komut satırı) | **Hızlı komut**: bu karta atanmış komutu tek tıkla YALNIZ bu karta gönderir (aşağıya bakın). |
 | reboot ⇄ (komut satırı) | Sol bölme seçili komutu (`reboot` ya da `reboot 2`) YALNIZ bu karta gönderir; sağdaki ⇄ yalnız seçimi değiştirir. |
 | **Dönüş** çubuğu (komut satırının üstü) | Komutların dönüş değerleri (`value = …`); tıklayınca liste açılır (aşağıya bakın). |
@@ -213,9 +216,36 @@ Hızlı komutun yanındaki düğme iki bölmelidir:
 ### Komut satırı
 
 - **Enter** komutu gönderir. Boş Enter yalnız satır sonu gönderir.
-- **↑ / ↓** kartın kendi komut geçmişinde gezinir. En yeni komutun da ötesine inince, geçmişe girmeden önce yazdığınız metin geri gelir. Boş komut saklanmaz; aynı komut tekrar kullanılırsa yinelenmez, en yeniye taşınır. Her kartın geçmişi ayrıdır.
-- **Otomatik tamamlama:** Daha önce yazılmış bir komutun başını yazdığınızda (ör. `mod`), geçmişteki en son eşleşen komutun eksik kısmı imlecin sağında soluk renkte görünür (`moduleShow`). **Tab**, **↓** ya da imleç sondayken **→** öneriyi kabul eder. Kabul etmek komutu **çalıştırmaz**; ardından Enter ile gönderirsiniz. Yazmaya devam edebilir ya da **Esc** ile öneriyi gizleyebilirsiniz. Enter yalnız sizin yazdığınızı gönderir. Büyük / küçük harf duyarsızdır; genel komut çubuğunda da kendi geçmişiyle çalışır.
+- **↑ / ↓** komut geçmişinde gezinir. En yeni komutun da ötesine inince, geçmişe girmeden önce yazdığınız metin geri gelir. Boş komut saklanmaz; aynı komut tekrar kullanılırsa yinelenmez, en yeniye taşınır.
+- **Geçmiş kalıcıdır ve ortaktır:** Yazdığınız her komut `%APPDATA%\TelnetCards\KomutGecmisi.txt` dosyasına hemen kaydedilir; uygulamayı kapatıp açtığınızda geçmiş ve otomatik tamamlama önerileri geri gelir. Tüm kartlar ve genel komut çubuğu aynı geçmişi kullanır: bir kartta yazdığınız komut diğer kartlarda da ↑ ile ve otomatik tamamlamada bulunur. En fazla 5.000 komut tutulur; dolunca en uzun süredir kullanılmayan silinir.
+- **Otomatik tamamlama:** Daha önce yazılmış bir komutun başını yazdığınızda (ör. `mod`), geçmişteki en son eşleşen komutun eksik kısmı imlecin sağında soluk renkte görünür (`moduleShow`). **Tab**, **↓** ya da imleç sondayken **→** öneriyi kabul eder. Kabul etmek komutu **çalıştırmaz**; ardından Enter ile gönderirsiniz. Yazmaya devam edebilir ya da **Esc** ile öneriyi gizleyebilirsiniz. Enter yalnız sizin yazdığınızı gönderir. Büyük / küçük harf duyarsızdır; genel komut çubuğunda da çalışır.
+- **Ctrl+R** ya da komut alanının içindeki **saat simgesi** komut geçmişi penceresini açar (aşağıya bakın).
 - **Ctrl+C** (metin seçili değilken) karta kesme karakteri (ETX) gönderir.
+
+### Komut geçmişi penceresi ve geriye doğru arama (Ctrl+R)
+
+Komut alanının sağındaki **saat simgesine** tıklayın ya da komut satırındayken **Ctrl+R**'ye basın. Pencerede daha önce yazılmış **tüm** komutlar en yeniden eskiye listelenir.
+
+- Üstteki arama kutusuna yazdıkça yalnız o metni **içeren** komutlar kalır (komutun başında olması gerekmez; büyük / küçük harf duyarsız). Eşleşen kısım sarı zeminle gösterilir ve en yeni eşleşme seçili gelir.
+- Pencereyi Ctrl+R ile açarken komut satırında yazılı bir metin varsa arama o metinle başlar.
+- **↑ / ↓** (ya da Page Up / Down) seçimi taşır; **Ctrl+R** bir sonraki (daha eski) eşleşmeye, **Ctrl+Shift+R** bir öncekine geçer.
+- **Enter**, **çift tık** ya da **Komut satırına al**: seçilen komut komut satırına yazılır, **gönderilmez**; düzenleyip Enter ile gönderirsiniz.
+- **Sil** (listede **Delete**, arama kutusunda **Shift+Delete**) seçili komutu geçmişten çıkarır. **Tümünü sil…** onay sorup tüm geçmişi siler.
+- **Esc** ya da **Kapat** komut satırına dokunmadan kapatır.
+- Kart bağlı değilken kartın geçmiş düğmesi pasiftir (komut satırı yazılamaz).
+
+### Kart ekranında renklendirme
+
+Akan loglar arasında bir kelimeyi (ör. `error`) kolayca görmek için:
+
+1. Terminalde kelimeyi seçin ya da doğrudan **kelimenin üzerine sağ tıklayın** (seçim yoksa tıklanan kelime kendiliğinden seçilir).
+2. **Renklendir: "error"** menüsünden bir renk seçin (Sarı, Turuncu, Kırmızı, Pembe, Mor, Mavi, Camgöbeği, Yeşil) ya da **Diğer renk…** ile istediğiniz rengi belirleyin.
+
+- Ekranda o metnin geçtiği **her yer** seçilen renkli zeminle gösterilir; sonradan gelen satırlarda da kendiliğinden boyanır. Eşleşme büyük / küçük harf duyarsızdır (`error`, `Error`, `ERROR`).
+- Aynı metni başka renge boyamak rengini değiştirir. Birden çok metin farklı renklerle boyanabilir (en fazla 30).
+- Kaldırmak için metnin üzerinde sağ tık → **Renklendirmeyi kaldır**, ya da **Renklendirmeler** alt menüsünden tek tek / **Tüm renklendirmeleri kaldır**.
+- Renklendirmeler **o karta** aittir ve yalnız ekrandaki görünümü değiştirir (karta bir şey gönderilmez, kayıt dosyalarına renk yazılmaz). Kart penceresi kapatılıp yeniden açılsa da korunur; uygulama kapanınca silinir.
+- Seçim tek satırda olmalıdır (en fazla 200 karakter); baştaki ve sondaki boşluklar yok sayılır.
 
 ### Bağlı olmayan kart
 
@@ -243,7 +273,7 @@ Telnet sekmesinin altındaki **TÜM AÇIK KARTLARA** çubuğu, yazılan komutu e
 - Her kart komutu **tam bir kez** alır.
 - Bağlı olmayan açık kartlar atlanır ve sonuçta raporlanır: `⚠ 3/4 karta gönderildi · gönderilemedi: 192.168.1.12 (bağlı değil)`.
 - Bir kartın hatası diğer kartlara gönderimi durdurmaz.
-- Kendi komut geçmişi vardır (↑ / ↓). Bu çubuk Kart Dosya Gezgini sekmesinde görünmez.
+- Komut geçmişi kartlarla ortaktır ve kalıcıdır (↑ / ↓, otomatik tamamlama, saat simgesi ya da Ctrl+R ile geçmiş penceresi). Bu çubuk Kart Dosya Gezgini sekmesinde görünmez.
 
 Gönder düğmesinin yanında, kart penceresindekilerin genel karşılıkları vardır:
 
@@ -346,6 +376,7 @@ Bir klasörün içindeyken araç çubuğu, sağ tık menüsü ve klavye kısayol
 | Sil | Sağ tık → Sil / Delete | dosya: `rm` · boş klasör: `rmdir` · içindekilerle: `xdelete` |
 
 - Öğeleri yol çubuğundaki (breadcrumb) bir bölümün üzerine bırakarak üst klasörlere de taşıyabilirsiniz.
+- **`EFI` korumalıdır:** Adı `EFI` olan dosya ya da klasör (büyük / küçük harf fark etmez) kartın çalışması (açılışı) için gereklidir; **silinemez, taşınamaz, yeniden adlandırılamaz**. İçindeki öğeler de korunur. İçinde `EFI` bulunan bir klasör de içindekilerle birlikte silinemez ve taşınamaz (Vision silmeden / taşımadan önce klasörün içini tarar). Menüde bu işlemler pasif görünür; Delete ya da F2'ye basılırsa karta hiçbir komut gönderilmez, uyarı şeritte gösterilir. Kopyalamak serbesttir.
 - Silme her zaman onay ister. Klasörlerde **Yalnız boşsa sil** (`rmdir`, klasör doluysa hiçbir şey silmez) ve **İçindekilerle birlikte sil** (`xdelete`) seçenekleri vardır.
 - Her işlemden sonra dönüş değeri kontrol edilir: **0** başarılıdır ve liste yenilenir; **0 dışı** değerde kırmızı hata şeridi çıkar.
 - Görüntüleyicide satır kaydırma ve **Bilgisayara kaydet…** vardır. 1 MB'tan büyük dosyalar ve metin olmayan (ikili) dosyalar için önce onay istenir. Telnet bağlantısı ASCII karakterleri taşıdığı için Türkçe karakterler `?` olarak görünebilir.
@@ -367,7 +398,7 @@ Kart dosyasını bilgisayarınızdaki bir uygulamayla (Notepad++, XML düzenleyi
 
 | FTP ayarları | Yöntem | Hangi dosyalar |
 |---|---|---|
-| Girilmiş | Kartta `copy "dosya", "<kartın FTP yolu>/_tkt_<rastgele>_dosya"` ile FTP konumuna geçici bir kopya alınır, FTP'den bilgisayara indirilir, geçici kopya **her zaman** silinir. | Her tür dosya, bayt bayt aynı (ikili dosyalar dahil). |
+| Girilmiş | Kartta `copy "dosya", "<kartın FTP yolu>/Vision/_tkt_<rastgele>_dosya"` ile FTP'deki Vision klasörüne geçici bir kopya alınır, FTP'den bilgisayara indirilir, geçici kopya **her zaman** silinir. | Her tür dosya, bayt bayt aynı (ikili dosyalar dahil). |
 | Girilmemiş | Sorulur: **FTP ayarları…** ya da **Metin olarak aç** (içerik `copy "dosya"` ile telnet üzerinden okunur). | Yalnız metin dosyaları (.txt, .xml, .cfg…). İkili dosyalar bu yolla bozulur. |
 
 - Kopyalar `%TEMP%\TelnetCards\SaltOkunur\<oturum>\<kart IP>\<n>\<özgün dosya adı>` içinde tutulur; dosya adı değişmez (uygulama uzantıya göre seçilir). Aynı dosyayı tekrar açmak yeni bir kopya oluşturur, öncekini değiştirmez.
@@ -379,8 +410,8 @@ Kart dosyasını bilgisayarınızdaki bir uygulamayla (Notepad++, XML düzenleyi
 
 Yükleme, kartlara dosya atarken elle izlediğiniz yolun aynısını otomatik yapar:
 
-1. Dosya (ya da klasör) **kartın erişebildiği FTP sunucusuna** gönderilir — sunucu, kullanıcı ve parola **o kartın kendisinden** alınır (aşağıya bakın).
-2. Kartta `copy "FTP-konumu/dosya", "hedef/dosya"` çalıştırılır. Klasörlerde `xcopy` **kullanılmaz** (FTP üzerinden `xcopy` kartın telnet bağlantısını düşürebiliyordu): kartta önce klasör ve alt klasörler `mkdir` ile açılır, sonra her dosya ayrı `copy` ile kopyalanır. İlerleme "dosya 3/12" gibi gösterilir; bir dosya kopyalanamazsa diğerleri devam eder ve sonunda hangilerinin kopyalanamadığı yazılır. Klasörün içindeki öğelerden birinin adında Türkçe / özel karakter varsa yükleme başlamadan bildirilir.
+1. Dosya (ya da klasör) **kartın erişebildiği FTP sunucusuna**, FTP klasörünün içindeki **`Vision`** çalışma klasörüne gönderilir — sunucu, kullanıcı ve parola **o kartın kendisinden** alınır (aşağıya bakın). `Vision` klasörü yoksa ilk aktarımda otomatik oluşturulur.
+2. Kartta `copy "FTP-konumu/Vision/dosya", "hedef/dosya"` çalıştırılır. Klasörlerde `xcopy` **kullanılmaz** (FTP üzerinden `xcopy` kartın telnet bağlantısını düşürebiliyordu): kartta önce klasör ve alt klasörler `mkdir` ile açılır, sonra her dosya ayrı `copy` ile kopyalanır. İlerleme "dosya 3/12" gibi gösterilir; bir dosya kopyalanamazsa diğerleri devam eder ve sonunda hangilerinin kopyalanamadığı yazılır. Klasörün içindeki öğelerden birinin adında Türkçe / özel karakter varsa yükleme başlamadan bildirilir.
 3. Dönüş değeri kontrol edilir.
 
 Yüklemek için: Windows Gezgini'nden dosyaları listeye **sürükleyip bırakın** (bir klasörün üzerine bırakırsanız o klasöre; boş bir klasöre de bırakılabilir) ya da **Yükle** (yukarı ok simgesi) düğmesini kullanın. Hedefte aynı adlı öğe varsa üzerine yazmadan önce sorulur.
@@ -391,7 +422,7 @@ Yüklemek için: Windows Gezgini'nden dosyaları listeye **sürükleyip bırakı
 
 ### FTP kopyalarını sil
 
-Yüklenen her dosya önce FTP sunucusuna kopyalanır. Bu kopyalar kendiliğinden silinmez (FTP ayarlarında "kopyalama sonrası hemen sil" açılmadıkça).
+Yüklenen her dosya önce FTP sunucusundaki **`Vision`** klasörüne kopyalanır. Kopyalama başarılı olunca FTP kopyası silinir ("kopyalama sonrası hemen sil" açıksa — varsayılan); aktarım **başarısız olursa** kopya FTP'de kalır. Bu kopyalar her zaman `Vision` klasöründe durduğu için FTP sunucusunda zaten bulunan dosya ve klasörlerle **karışmaz**; isterseniz FTP'de `Vision` klasörünü tümüyle silebilirsiniz (bir sonraki aktarımda yeniden oluşturulur).
 
 - Bir karta yükleme **başlar başlamaz** Dosya Gezgini'ndeki **FTP kopyalarını sil** düğmesi (çöp kutusu) etkinleşir; yükleme başarılı da olsa başarısız da olsa (yarım dosya kalmış olabilir) etkin kalır.
 - Tıklayınca onay istenir ve **yalnız bu kartın** FTP'de bıraktığı kopyalar silinir; karttaki dosyalara dokunulmaz. Silinince düğme pasifleşir. Zaten silinmiş kopyalar sorun çıkarmaz.
@@ -424,15 +455,15 @@ fei(0,0)host:/vxWorks e=192.168.1.10:ffffff00 h=192.168.1.100 u=ftpuser pw=parol
 |---|---|
 | Bu kartın FTP bilgisi | Karttan alınan sunucu, kullanıcı, kartın FTP yolu (`/host.…`) ve aygıtı (parola gösterilmez). **Karttan yeniden al** ile tazelenir. |
 | FTP klasörü | Dosyaların gönderileceği klasör, FTP oturumunun açıldığı klasöre göre (ör. `upload`; boş = kök). Tüm kartlar için ortak. |
-| Kartın aynı klasörü gördüğü yol | Boş bırakın (önerilen): **otomatik** = `/host.` + kartın aygıt adı + FTP klasörü (ör. `/host.host`, FTP klasörü `upload` ise `/host.host/upload`). İsterseniz başka bir yol yazabilirsiniz (yalnız `host:` yazılırsa eski biçim `host:upload` kullanılır). Pencerede eşleme açıkça yazar. |
+| Kartın aynı klasörü gördüğü yol | Boş bırakın (önerilen): **otomatik** = `/host.` + kartın aygıt adı + FTP klasörü (ör. `/host.host`, FTP klasörü `upload` ise `/host.host/upload`). İsterseniz başka bir yol yazabilirsiniz (yalnız `host:` yazılırsa eski biçim `host:upload` kullanılır). Pencerede eşleme (FTP'deki `…/Vision` klasörü ↔ kartın gördüğü `…/Vision` yolu) açıkça yazar. |
 | Port, Pasif kip | Tüm kartlar için ortak. |
 | Kopyalama sonrası hemen sil | Açıksa kartta kopyalama başarılı olunca FTP kopyası hemen silinir (varsayılan: **açık**; önceki sürümden gelen ayarlarda da ilk açılışta bir kez açılır, sonra seçiminiz korunur). |
 
 **Bağlantıyı sına** yalnız bağlanmayı değil, yüklemenin gerçekten çalışacağını **aşama aşama** sınar:
 
-1. FTP oturumu ve klasör listeleme
-2. FTP'ye yazma (küçük bir deneme dosyası)
-3. **Kartın** aynı dosyayı görmesi (kart, FTP klasörünü listeler)
+1. FTP oturumu, `Vision` çalışma klasörünün oluşturulması (varsa dokunulmaz) ve listelenmesi
+2. `Vision` klasörüne yazma (küçük bir deneme dosyası)
+3. **Kartın** aynı dosyayı görmesi (kart, `…/Vision` klasörünü listeler)
 4. Deneme dosyasının silinmesi
 
 Bağlantı başarılı olsa da yazma izni yoksa ya da kartın gördüğü yol FTP klasörüyle aynı yer değilse hangi aşamada ve neden başarısız olduğu yazılır.
@@ -441,76 +472,75 @@ Bağlantı başarılı olsa da yazma izni yoksa ya da kartın gördüğü yol FT
 
 ## Komut Kütüphanesi
 
-**Komut Kütüphanesi** sekmesi (**Ctrl+3**), kart komutlarının açıklamalarını, yazılışlarını ve örnek çıktılarını tek yerde toplar. Komutlar **modüllerde** gruplanır: ör. **Task komutları** modülünde `i`, `rtpi`, `tt`, `tr`, `ts`, `td`, `sp`, `taskSpawn`; **Memory ve network** modülünde `adrSpaceShow`, `netstat`, `checkStack`. İçerik exe'nin yanındaki **`Komutlar\Komutlar.xml`** dosyasında tutulur.
+**Komut Kütüphanesi** sekmesi (**Ctrl+3**), VxWorks 6.4 kart komutlarının açıklamalarını, yazılışlarını ve örnek çıktılarını tek yerde toplar. Kütüphane **Vision'a gömülüdür ve salt okunurdur**: uygulamadan komut ya da modül eklenemez, düzenlenemez, silinemez, taşınamaz; exe'nin yanında ayrı bir komut dosyası da yoktur. Yeni komutlar ve düzeltmeler Vision'ın sonraki sürümleriyle gelir.
+
+### Komutlar
+
+Vision, VxWorks 6.4 kabuğunun (C yorumlayıcısı, `->` istemi) sık kullanılan **113 komutuyla** birlikte gelir. Her komutta ne işe yaradığı, yazılışı / örnek kullanımı ve varsa kartın verdiği örnek çıktı vardır. Komutlar 12 modülde toplanmıştır:
+
+| Modül | Komutlar |
+|---|---|
+| Kabuk kullanımı | `help`, `h`, `printf`, değişken tanımlama, `lkup`, `lkAddr`, `cmd`, `logout`, `dbgHelp`, `ioHelp`, `netHelp`, `spyHelp`, `rtpHelp`, `timexHelp`, `<`, `>` |
+| Sistem bilgisi | `version`, `sysModel`, `sysClkRateGet`, `sysClkRateSet`, `tickGet`, `spy`, `spyStop` |
+| Görevler (task) | `i`, `ti`, `sp`, `taskSpawn`, `td`, `ts`, `tr`, `tt`, `taskPrioritySet`, `checkStack`, `period`, `repeat`, `taskShow`, `w` |
+| Bellek | `memShow`, `d`, `m`, `l`, `memPartShow`, `adrSpaceShow`, `vmContextShow` |
+| Modüller ve semboller | `moduleShow`, `ld`, `unld`, `printErrno`, `unldByModuleId` |
+| Boot / BSP ayarları | `bspBootChange`, `bootChange`, `reboot`, `reboot 2`, `bootParamsShow`, `FPGAGiveBoardReset` |
+| Dosya sistemi | `devs`, `ls`, `ll`, `cd`, `pwd`, `copy`, `xcopy`, `mv`, `rm`, `mkdir`, `rmdir`, `xdelete`, `iosFdShow`, `llr`, `rename`, `cp`, `dosFsShow` |
+| Ağ | `ifShow`, `inetstatShow`, `ping`, `routeShow`, `routeAdd`, `arpShow`, `hostShow`, `hostAdd`, `tcpstatShow`, `netStackSysPoolShow`, `ifconfig`, `netstat`, `netstat "-a"`, `sockShow`, `ipcom_socketclose`, `sysvar list`, `syslog list` |
+| Senkronizasyon nesneleri | `semShow`, `msgQShow`, `show` |
+| Hata ayıklama | `b`, `bd`, `c`, `s`, `edrShow`, `debugAgentStart` |
+| Süreçler (RTP) | `rtpShow`, `rtpi`, `rtpSp`, `rtpSpawn` |
+| Zamanlayıcılar ve watchdog | `timer_create`, `timer_connect`, `timer_settime`, `timer_gettime`, `timer_cancel`, `timer_delete`, `wdCreate`, `wdStart`, `wdCancel`, `wdDelete`, `wdShow` |
+
+- Örnek çıktılar temsilîdir: adresler, görev kimlikleri ve satırlar kartın BSP'sine ve imajına göre değişir. Bir komut kartın imajında yoksa kart `undefined symbol` der; `lkup "ad"` ile kartta olup olmadığına bakabilirsiniz.
+- `FPGAGiveBoardReset` ve `debugAgentStart` standart VxWorks komutu değildir (karta / BSP'ye özel); açıklamaları sonraki sürümlerde netleştirilecektir. `sysvar list` ve `syslog list` IPCOM komutlarıdır ve `cmd` ile geçilen komut yorumlayıcısında yazılır.
+
+### Karta aktar
+
+Bir komutu kütüphaneden alıp doğrudan bir kartta denemek için:
+
+1. Komutu seçin; **YAZILIŞ / ÖRNEK KULLANIM** başlığının sağındaki **Karta aktar**'a tıklayın (ya da soldaki listede komuta sağ tık → **Karta aktar**).
+2. Açılan listeden kartı seçin. Kartlar gruplarıyla ve bağlantı durumlarını gösteren renkli noktayla listelenir; en altta **Ekrandaki tüm kartlar** seçeneği komutu genel komut çubuğuna yazar.
+3. Vision Telnet sekmesine geçer, kartı açar (açıksa öne getirir) ve komutu kartın komut satırına **yazar — göndermez**. Argümanları (ör. dosya yolu, görev adı) düzenleyip **Enter** ile gönderin.
+
+- Yazılış birden çok satırsa (birden çok örnek), aktarmadan önce yazılış kutusunda istediğiniz satırı **seçin**; seçmezseniz ilk satır aktarılır. Satır sonundaki ` // açıklama` kısmı aktarılmaz.
+- Kart bağlı değilse önce bağlanılır; bağlantı kurulunca komut yazılır. Bağlanılamazsa kartta uyarı çıkar ve komut yazılmaz.
 
 ### Ekran
 
 | Bölüm | Ne gösterir |
 |---|---|
-| Üst çubuk | Toplam komut / modül sayısı; **Yeni modül** (Ctrl+Shift+M), **Yeni komut** (Ctrl+Shift+N) ve klasör simgesi (Komutlar klasörünü açar). |
-| Sol liste | Arama kutusu ve modül ağacı. Her modül başlığında komut sayısı yazar; başlığın solundaki ok ile modül daraltılır / genişletilir. Modüle atanmamış komutlar en altta **Modülsüz** grubunda durur. Alttaki iki simge tüm modülleri genişletir / daraltır. |
-| Komut sayfası | Komutun adı, bulunduğu modül (tıklayınca modülün sayfasına gider), son değişiklik zamanı, açıklama, yazılış (**Kopyala** ile panoya) ve örnek çıktı. |
-| Modül sayfası | Bir modül başlığı seçilince açılır: modülün adı, açıklaması, komut sayısı ve komutlarının listesi (ad, yazılış, özet). Listeden bir komuta tıklamak o komutu açar. **Komut ekle**, **Düzenle**, **Sil** düğmeleri buradadır. |
+| Üst çubuk | Toplam komut ve modül sayısı. |
+| Sol liste | Arama kutusu ve modül ağacı. Her modül başlığında komut sayısı yazar; başlığın solundaki ok ile modül daraltılır / genişletilir. Alttaki iki simge tüm modülleri genişletir / daraltır. |
+| Komut sayfası | Komutun adı, bulunduğu modül (tıklayınca modülün sayfasına gider), açıklama, yazılış (**Karta aktar** ile bir kartın komut satırına, **Kopyala** ile panoya) ve örnek çıktı. |
+| Modül sayfası | Bir modül başlığı seçilince açılır: modülün açıklaması, komut sayısı ve komutlarının listesi (ad, yazılış, özet). Listeden bir komuta tıklamak o komutu açar. |
 
-### Modüller
+### Arama ve gezinme
 
-- **Oluşturma:** **Yeni modül** → ad ve isteğe bağlı açıklama → **Oluştur**. Modül adı benzersizdir (büyük / küçük harf duyarsız); "Modülsüz" adı ayrılmıştır.
-- **Düzenleme:** Modül sayfasında **Düzenle** ya da başlıkta F2 / sağ tık → **Modülü düzenle…**. Ad değişirse içindeki komutlar yeni adla gelir.
-- **Silme:** Modül sayfasında **Sil** ya da başlıkta Delete. Modülde komut varsa iki seçenek sunulur: **Modülü sil, komutları koru** (komutlar Modülsüz grubuna geçer) ya da **Komutlarla birlikte sil**.
-- Daraltılmış modüller oturum boyunca öyle kalır; aramada tüm eşleşen modüller açık gösterilir.
-
-### Komutları modüle yerleştirme
-
-| Yol | Nasıl |
-|---|---|
-| Yeni komut eklerken | Bir modül (ya da o modüldeki bir komut) seçiliyken **Yeni komut** komutu o modüle ekler. Modül sayfasındaki **Komut ekle** de aynıdır. Düzenleme ekranındaki **MODÜL** listesinden değiştirilebilir. |
-| Sürükle-bırak | Soldaki listede komutu sürükleyip hedef modülün başlığının (ya da o modüldeki herhangi bir komutun) üzerine bırakın. Hedef modül mavi çerçeveyle vurgulanır. |
-| Sağ tık | Komuta sağ tık → **Modüle taşı** → modül adı. **Modülsüz (modülden çıkar)** komutu modülden çıkarır; **Yeni modül…** yeni bir modül oluşturup komutu oraya taşır. |
-| Düzenleme | Komutu **Düzenle** → **MODÜL** listesinden seçin → **Kaydet**. |
-
-Bir komut tek bir modülde bulunur; komut adları kütüphane genelinde benzersizdir. Aynı adla ikinci bir komut eklenmek istenirse hangi modülde olduğu söylenir.
-
-### Komut alanları
-
-| Alan | Açıklama | Zorunlu |
-|---|---|---|
-| Komut adı | Ör. `taskSpawn`. Kütüphanede benzersizdir (büyük / küçük harf duyarsız). | Evet |
-| Modül | Komutun bulunduğu modül ya da Modülsüz. | Hayır |
-| Açıklama | Komutun ne yaptığı. İlk satırı listede özet olarak görünür. | Hayır |
-| Yazılış / örnek kullanım | Ör. `ll "/ata0a"`. **Kopyala** ile panoya alınıp terminale yapıştırılabilir. | Hayır |
-| Örnek çıktı | Kartın bu komuta verdiği örnek cevap. | Hayır |
-
-- **Ekleme:** **Yeni komut** (Ctrl+Shift+N) → alanları doldurun → **Kaydet** (Ctrl+S).
-- **Düzenleme:** Komutu seçip **Düzenle** (ya da listede çift tık / Enter / F2) → değiştirin → **Kaydet**. **İptal** (Esc) değişiklikleri geri alır.
-- **Silme:** **Sil** (ya da listede Delete); onay istenir.
-- **Arama:** Sol üstteki kutu (Ctrl+F) ad, açıklama, yazılış, örnek çıktı **ve modül adında** arar; Türkçe büyük / küçük harf duyarsızdır. Sonuçlar modüllerine göre gruplanır; adı aramayla başlayan komutlar önce gelir. Modül adını yazmak (ör. `task`) o modülün tüm komutlarını getirir. Esc aramayı temizler.
+- **Arama:** Sol üstteki kutu (Ctrl+F) ad, açıklama, yazılış, örnek çıktı **ve modül adında** arar; Türkçe büyük / küçük harf duyarsızdır. Sonuçlar modüllerine göre gruplanır; adı aramayla başlayan komutlar önce gelir. Modül adını yazmak (ör. `ağ`) o modülün tüm komutlarını getirir. Esc aramayı temizler.
 - **Klavye:** ↑ / ↓ listede gezinir; modül başlığında ← / → daraltır / genişletir, Enter açıp kapatır; komut üzerinde ← modül başlığına çıkar.
-- Kaydedilmemiş değişiklik varken başka komuta / modüle, sekmeye geçmek ya da uygulamayı kapatmak istenirse **Kaydet / Kaydetme / İptal** sorulur.
-- Her değişiklik dosyaya hemen yazılır; bir önceki sürüm `Komutlar.xml.yedek` olarak saklanır.
-- Dosyayı bir metin düzenleyiciyle de düzenleyebilirsiniz (klasör simgesi). Sekmeye dönüldüğünde değişiklik algılanır ve kütüphane yeniden yüklenir.
-- Yeniden derleme, `bin` klasöründeki `Komutlar.xml` dosyasının **üzerine yazmaz**; projedeki dosya yalnız hedefte dosya yoksa kopyalanır. Eklediğiniz komutlar ve modüller böylece korunur.
-- Önceki sürümün (modülsüz) `Komutlar.xml` dosyası olduğu gibi açılır; tüm komutlar Modülsüz grubunda görünür, sonra istediğiniz modüllere taşıyabilirsiniz. İlk kayıtta dosya yeni biçime (Sürüm 2) geçer.
+- **Sağ tık:** komutta **Yazılışı kopyala** ve **Karta aktar**; modül başlığında **Tümünü genişlet / daralt**.
 
-Elle düzenleme biçimi:
+### Kütüphaneyi güncelleme (geliştirici için)
+
+Komutlar projedeki `Komutlar\Komutlar.xml` dosyasındadır ve derlemede exe'ye gömülür. Komut eklemek ya da düzeltmek için bu dosya düzenlenip yeni sürüm derlenir. Biçim:
 
 ```
 <KomutKutuphanesi Surum="2">
-  <Modul Ad="Task komutları" Degistirilme="2026-11-05 13:10">
-    <Aciklama>Görevleri listeleme, izleme ve başlatma.</Aciklama>
+  <Modul Ad="Görevler (task)">
+    <Aciklama>Görevleri listeleme, durdurma ve başlatma.</Aciklama>
     <Komut Ad="i">
       <Aciklama>Sistemdeki görevleri özetler.</Aciklama>
-      <Yazilis>i</Yazilis>
-    </Komut>
-    <Komut Ad="taskSpawn">
-      <Aciklama>Yeni bir görev başlatır.</Aciklama>
+      <Yazilis>i
+i "tShell0"</Yazilis>
+      <OrnekCikti>  NAME   ENTRY   TID ...</OrnekCikti>
     </Komut>
   </Modul>
-  <Komut Ad="devs">
-    <Aciklama>Karttaki cihazları listeler (modülsüz komut).</Aciklama>
-    <Yazilis>devs</Yazilis>
-  </Komut>
 </KomutKutuphanesi>
 ```
+
+Yazılışta her satır ayrı bir örnektir; satır sonundaki ` // açıklama` kısmı karta aktarılmaz.
 
 ## Bağlantı izleme ve otomatik yeniden bağlanma
 
@@ -549,17 +579,18 @@ Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındak
 | Esc | Komut satırında öneriyi gizle |
 | F2 | Kart Gezgini'nde kartın adını değiştir |
 | Ctrl+W | Seçili kart penceresini kapat |
-| F1 | Yardım (ayrıca menü çubuğundaki **Yardım** menüsü) |
+| F1 | Kullanım Kılavuzu (ayrıca sekme şeridinin sağındaki **Yardım** düğmesi) |
+| Ctrl+Shift+L | Koyu ↔ açık tema |
 | Ctrl+S / Esc | Komut Kütüphanesi'nde kaydet / iptal |
 | Ctrl+F | Komut Kütüphanesi'nde ara |
 | Enter | Komut gönder · Kart Gezgini'nde seçili kartı göster · Dosya Gezgini'nde aç |
 | ↑ / ↓ | Komut geçmişi |
+| Ctrl+R | Komut satırında: komut geçmişi penceresi ve geriye doğru arama · pencerede: sonraki eşleşme |
 | Ctrl+C | Karta kesme (ETX) gönder (metin seçili değilken) |
 | Delete | Kart Gezgini'nde seçili kartı / grubu sil |
 | Backspace / F5 | Dosya Gezgini'nde Geri / Yenile |
 | F2 / Delete | Dosya Gezgini'nde yeniden adlandır / sil |
-| Ctrl+Shift+N | Dosya Gezgini'nde yeni klasör · Komut Kütüphanesi'nde yeni komut |
-| Ctrl+Shift+M | Komut Kütüphanesi'nde yeni modül |
+| Ctrl+Shift+N | Dosya Gezgini'nde yeni klasör |
 | Ctrl + sürükle | Dosya Gezgini'nde taşımak yerine kopyala |
 | Ctrl+Enter / Ctrl+Shift+Enter | Dosya Gezgini'nde varsayılan uygulamayla / "Birlikte aç" ile aç (salt okunur kopya) |
 | Ctrl + + / Ctrl + − / Ctrl + 0 | Tüm kart terminallerinde yazıyı büyüt / küçült / %100 (Telnet sekmesi) |
@@ -571,7 +602,7 @@ Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındak
 | Konum | İçerik |
 |---|---|
 | `%APPDATA%\TelnetCards\config.xml` | Gruplar, kartlar (adları, hızlı komutları, reboot seçimleri), terminal, yakınlaştırma, izleme ve ortak FTP ayarları (otomatik kaydedilir; FTP parolası dosyada tutulmaz). |
-| `Komutlar\Komutlar.xml` | Komut Kütüphanesi: modüller ve komutlar (önceki sürüm: `Komutlar.xml.yedek`). |
+| `%APPDATA%\TelnetCards\KomutGecmisi.txt` | Komut geçmişi: yazılan tüm komutlar, satır başına bir komut, eskiden yeniye (en fazla 5.000; tüm kartlar ve genel çubuk ortak; otomatik kaydedilir). Silinirse geçmiş boş başlar. |
 | `logs\GrupAdı_IP_anlik_tarih_saat.log` | "Dosyaya kaydet" ile alınan anlık terminal görüntüleri (her tıklama ayrı dosya). |
 | `logs\hatalar.log` | Bağlantı hatalarının teknik ayrıntıları (hata kodu, özgün İngilizce mesaj). Her zaman açıktır. |
 | `Yardim\` | Bu kılavuz ve gereksinimler belgesi. |

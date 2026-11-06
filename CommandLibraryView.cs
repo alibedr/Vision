@@ -61,6 +61,12 @@ namespace Vision
         private bool _suppressSelect;
         private int _lastIndex = -1;
 
+        /// <summary>
+        /// Kütüphane exe'ye gömülü ve salt okunur mu? Öyleyse ekleme, düzenleme, silme, modüle taşıma ve sürükle-bırak
+        /// kapalıdır; komutlar yalnız okunur, aranır, kopyalanır ve karta aktarılır. İçerik Vision'ın yeni sürümleriyle değişir.
+        /// </summary>
+        private bool ReadOnlyLibrary { get { return _library.IsReadOnly; } }
+
         public CommandLibraryView(CommandLibrary library)
         {
             _library = library;
@@ -71,6 +77,7 @@ namespace Vision
             BuildModulePage();
             WireEvents();
             ReloadFromDisk(null, null);
+            SeedBundledIfEmpty();     // ilk açılış: boş kütüphane hazır VxWorks 6.4 komutlarıyla dolar
         }
 
         // =====================================================================
@@ -88,11 +95,18 @@ namespace Vision
             _newModuleBtn.Size = new Size(122, 34);
             _folderBtn.Size = new Size(34, 34);
             top.Controls.AddRange(new Control[] { title, _stats, _newBtn, _newModuleBtn, _folderBtn });
+            BuildBundledButton(top);
+            if (ReadOnlyLibrary)
+            {
+                // Gömülü kütüphane: ekleme / düzenleme düğmeleri yok
+                _newBtn.Visible = _newModuleBtn.Visible = _folderBtn.Visible = _bundledBtn.Visible = false;
+            }
             top.Resize += (s, e) =>
             {
                 _newBtn.Location = new Point(top.Width - 20 - _newBtn.Width, 17);
                 _newModuleBtn.Location = new Point(_newBtn.Left - 8 - _newModuleBtn.Width, 17);
                 _folderBtn.Location = new Point(_newModuleBtn.Left - 8 - _folderBtn.Width, 17);
+                _bundledBtn.Location = new Point(_folderBtn.Left - 8 - _bundledBtn.Width, 17);
             };
             top.Paint += (s, e) => { using (var p = new Pen(Theme.Border)) e.Graphics.DrawLine(p, 0, top.Height - 1, top.Width, top.Height - 1); };
             _newBtn.SetTip(_tips, "Yeni komut — seçili modüle eklenir  ·  Ctrl+Shift+N");
@@ -145,7 +159,7 @@ namespace Vision
             _list.Dock = DockStyle.Fill;
             _list.BackColor = Theme.Sidebar;
             _list.ForeColor = Theme.Text;
-            _list.AllowDrop = true;
+            _list.AllowDrop = !ReadOnlyLibrary;
             _list.ContextMenuStrip = _menu;
             _menu.Renderer = new DarkMenuRenderer();
             Theme.ApplyDarkScrollBars(_list);
@@ -211,7 +225,7 @@ namespace Vision
             {
                 LibRow r = SelectedRow;
                 if (r == null || _editing) return;
-                if (r.Kind == LibRowKind.Command) StartEdit();
+                if (r.Kind == LibRowKind.Command) { if (!ReadOnlyLibrary) StartEdit(); }
                 else ToggleModule(r.ModuleKey);
             };
             _list.KeyDown += List_KeyDown;
@@ -229,8 +243,8 @@ namespace Vision
         {
             if (keyData == (Keys.Control | Keys.S) && _editing) { SaveEdit(); return true; }
             if (keyData == Keys.Escape && _editing) { CancelEdit(); return true; }
-            if (keyData == (Keys.Control | Keys.Shift | Keys.N)) { StartNew(SelectedModuleKey()); return true; }
-            if (keyData == (Keys.Control | Keys.Shift | Keys.M)) { NewModule(); return true; }
+            if (keyData == (Keys.Control | Keys.Shift | Keys.N) && !ReadOnlyLibrary) { StartNew(SelectedModuleKey()); return true; }
+            if (keyData == (Keys.Control | Keys.Shift | Keys.M) && !ReadOnlyLibrary) { NewModule(); return true; }
             if (keyData == (Keys.Control | Keys.F)) { _search.Focus(); _search.SelectAll(); return true; }
             return base.ProcessCmdKey(ref msg, keyData);
         }
@@ -358,7 +372,8 @@ namespace Vision
             _hoverIndex = -1;
 
             int totalCmds = _library.Items.Count, totalMods = _library.Modules.Count;
-            _stats.Text = totalCmds + " komut  ·  " + totalMods + " modül  ·  Komutlar\\Komutlar.xml";
+            _stats.Text = totalCmds + " komut  ·  " + totalMods + " modül  ·  " +
+                          (ReadOnlyLibrary ? "VxWorks 6.4 · Vision'a gömülü (salt okunur)" : "Komutlar\\Komutlar.xml");
             _count.Text = searching ? hits.Count + " / " + totalCmds + " komut eşleşti" : totalCmds + " komut  ·  " + totalMods + " modül";
             _expandAllBtn.Enabled = _collapseAllBtn.Enabled = !searching && _rows.Any(r => r.Kind == LibRowKind.Module);
             if (!_editing && _current == null && _currentModuleKey == null) UpdateEmpty();
@@ -562,7 +577,7 @@ namespace Vision
                 return;
             }
             if (e.Button != MouseButtons.Left) return;
-            if (r.Kind == LibRowKind.Command && !_editing) { _dragCandidate = r.Doc; _dragStart = e.Location; }
+            if (r.Kind == LibRowKind.Command && !_editing && !ReadOnlyLibrary) { _dragCandidate = r.Doc; _dragStart = e.Location; }
         }
 
         private void List_MouseMove(object sender, MouseEventArgs e)
@@ -651,11 +666,28 @@ namespace Vision
             Point p = _list.PointToClient(Cursor.Position);
             LibRow r = RowAt(p) >= 0 ? SelectedRow : null;
 
+            if (ReadOnlyLibrary)
+            {
+                // Gömülü kütüphane: yalnız okuma işlemleri
+                if (r != null && r.Kind == LibRowKind.Command)
+                {
+                    if (!string.IsNullOrEmpty(r.Doc.Usage)) AddMenu(_menu.Items, "Yazılışı kopyala", CopyUsage, null);
+                    AddTransferSubmenu(_menu.Items, r.Doc);
+                }
+                else
+                {
+                    AddMenu(_menu.Items, "Tümünü genişlet", () => SetAllCollapsed(false), null);
+                    AddMenu(_menu.Items, "Tümünü daralt", () => SetAllCollapsed(true), null);
+                }
+                return;
+            }
+
             if (r != null && r.Kind == LibRowKind.Command)
             {
                 CommandDoc d = r.Doc;
                 AddMenu(_menu.Items, "Düzenle", StartEdit, "F2");
                 if (!string.IsNullOrEmpty(d.Usage)) AddMenu(_menu.Items, "Yazılışı kopyala", CopyUsage, null);
+                AddTransferSubmenu(_menu.Items, d);
                 var move = new ToolStripMenuItem("Modüle taşı") { ForeColor = Theme.Text };
                 foreach (CommandModule m in _library.Modules)
                 {
@@ -755,6 +787,7 @@ namespace Vision
 
         private void OpenFolder()
         {
+            if (ReadOnlyLibrary) return;   // gömülü kütüphane değiştirilemez
             string dir = Path.GetDirectoryName(_library.Path);
             try
             {

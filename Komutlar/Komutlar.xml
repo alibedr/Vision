@@ -1,24 +1,1054 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Komut Kütüphanesi
-  Bu dosya uygulamadaki "Komut Kütüphanesi" sekmesinden düzenlenir (modül / komut ekle, düzenle, taşı, sil).
-  Elle düzenlemek isterseniz biçim şöyledir:
+  Komut Kütüphanesi — VxWorks 6.4 kabuk (C yorumlayıcısı) komutları
+  Bu dosya derlemede Vision.exe'ye GÖMÜLÜR; uygulamadan eklenemez, düzenlenemez, silinemez. Komut eklemek ya da
+  düzeltmek için bu dosya düzenlenir ve Vision'ın yeni sürümü derlenir. Seçilen komut "Karta aktar" ile istenen
+  kartın komut satırına yazılır.
+  Örnek çıktılar temsilîdir; adresler, görev kimlikleri ve satırlar kartın BSP'sine ve imajına göre değişir.
 
-  <Modul Ad="Task komutları">
+  Biçim:
+
+  <Modul Ad="Görevler (task)">
     <Aciklama>Görevleri listeleme, durdurma ve başlatma.</Aciklama>
     <Komut Ad="i">
       <Aciklama>Sistemdeki görevleri özetler.</Aciklama>
       <Yazilis>i</Yazilis>
+      <OrnekCikti>  NAME   ENTRY   TID ...</OrnekCikti>
     </Komut>
   </Modul>
 
-  Bir modüle ait olmayan komutlar <Modul> dışında, doğrudan kökte durur:
-
-  <Komut Ad="devs">
-    <Aciklama>Karttaki cihazları listeler.</Aciklama>
-    <Yazilis>devs</Yazilis>
-    <OrnekCikti>drv refs name
-  0 [ 2] /null</OrnekCikti>
-  </Komut>
+  Yazılış alanında her satır ayrı bir örnektir; satır sonundaki " // açıklama" kısmı karta aktarılmaz.
+  Bir modüle ait olmayan komutlar <Modul> dışında, doğrudan kökte durur.
 -->
-<KomutKutuphanesi Surum="2" />
+<KomutKutuphanesi Surum="2">
+  <Modul Ad="Kabuk kullanımı" Degistirilme="2026-11-06 12:00">
+    <Aciklama>VxWorks 6.4 çekirdek kabuğunun (C yorumlayıcısı, istem: -&gt;) temel kullanımı.
+Kabukta yazılan her şey bir C fonksiyon çağrısıdır: argümanlar virgülle ayrılır, metinler çift tırnak içinde yazılır (ör. ls "/ata0a"). Parantez isteğe bağlıdır: ls("/ata0a") ile aynıdır. Her komuttan sonra kabuk, fonksiyonun dönüş değerini "value = …" satırıyla basar.
+Not: Örnek çıktılar temsilîdir; adresler, görev kimlikleri ve satırlar kartın BSP'sine ve imajına göre değişir.</Aciklama>
+    <Komut Ad="help" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Kabukta kullanılabilen temel komutları kısa açıklamalarıyla listeler. Alt konular için ayrı yardım komutları vardır: netHelp (ağ), ioHelp (dosya / G/Ç), dbgHelp (hata ayıklama), spyHelp (CPU kullanımı), rtpHelp (süreçler).
+Listede olmayan bir komut kartın imajında tanımlı olmayabilir; yazınca "undefined symbol" hatası alınır.</Aciklama>
+      <Yazilis>help
+netHelp
+ioHelp
+dbgHelp</Yazilis>
+      <OrnekCikti>help                           Print this list
+dbgHelp                        Print debugger help info
+edrHelp                        Print ED&amp;R help info
+ioHelp                         Print I/O utilities help info
+netHelp                        Print network help info
+rtpHelp                        Print process help info
+spyHelp                        Print task histogrammer help info
+timexHelp                      Print execution timer help info
+h         [n]                  Print (or set) shell history
+i         [task]               Summary of tasks' TCBs
+ti        task                 Complete info on TCB for task
+sp        adr,args...          Spawn a task, pri=100, opt=0x19, stk=20000
+td        task                 Delete a task
+ts        task                 Suspend a task
+tr        task                 Resume a task
+d         [adr[,nunits[,width]]] Display memory
+m         adr[,width]          Modify memory
+...
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="h" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Kabuğun komut geçmişini (son yazılan komutları numaralarıyla) gösterir. h 50 gibi bir sayı verilirse saklanacak geçmiş uzunluğu değiştirilir. Bu, kartın kendi geçmişidir; Vision'ın komut geçmişi (Ctrl+R) ayrıdır.</Aciklama>
+      <Yazilis>h
+h 50          // geçmiş uzunluğunu 50 yap</Yazilis>
+      <OrnekCikti>  1  i
+  2  devs
+  3  version
+  4  h
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="printf" Degistirilme="2026-11-06 12:00">
+      <Aciklama>C'deki printf gibi kartın konsoluna biçimlendirilmiş metin yazar. Kabukta hızlı deneme ve değişken / bellek değeri göstermek için kullanılır. Dönüş değeri yazılan karakter sayısıdır.</Aciklama>
+      <Yazilis>printf "Merhaba %d\n", 5
+printf "%s\n", sysModel()</Yazilis>
+      <OrnekCikti>Merhaba 5
+value = 9 = 0x9</OrnekCikti>
+    </Komut>
+    <Komut Ad="Değişken tanımlama (x = …)" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Kabukta yeni bir değişken oluşturur ya da var olan bir global değişkene değer atar. Yeni ad ilk kullanımda kartın sembol tablosuna eklenir ve sonraki komutlarda kullanılabilir (ör. task kimliğini saklamak için). Var olan bir global değişkene atama yapmak çalışan yazılımın davranışını değiştirir; dikkatli kullanın.</Aciklama>
+      <Yazilis>x = 5
+tid = sp(myTask)
+x</Yazilis>
+      <OrnekCikti>new symbol "x" added to kernel symbol table.
+x = 0x1d7b2a0: value = 5 = 0x5</OrnekCikti>
+    </Komut>
+    <Komut Ad="lkup" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Kartın sembol tablosunda adı verilen metni içeren fonksiyon ve değişkenleri adresleriyle listeler. Bir komutun kartın imajında olup olmadığını anlamak için idealdir (ör. lkup "bootChange" hiçbir şey döndürmüyorsa o kartta bootChange yoktur). Argüman verilmezse tüm sembol tablosunu basar (çok uzun olabilir).</Aciklama>
+      <Yazilis>lkup "bootChange"
+lkup "Show"        // adında Show geçen tüm komutlar</Yazilis>
+      <OrnekCikti>bootChange                0x0020f3a0 text
+bspBootChange             0x0020f6c4 text
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="lkAddr" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Verilen adrese en yakın sembolleri (o adresin hangi fonksiyonun içinde olduğunu) listeler. Bir hata ya da istisna mesajındaki PC adresinin hangi fonksiyona ait olduğunu bulmak için kullanılır.</Aciklama>
+      <Yazilis>lkAddr 0x2e0f58</Yazilis>
+      <OrnekCikti>0x002e0e80 shellTask                 text
+0x002e0f58 shellTask+0xd8             text
+0x002e1100 shellInit                 text
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="cmd" Degistirilme="2026-11-06 12:00">
+      <Aciklama>VxWorks 6.x kabuğunu C yorumlayıcısından komut yorumlayıcısına (Unix benzeri, istem: [vxWorks *]#) geçirir. Bu kipte komutlar boşlukla ayrılır ve tırnak gerekmez (ör. ls /ata0a). C yorumlayıcısına dönmek için C yazılır.
+Dikkat: Vision'ın dönüş değeri ayırma ve Dosya Gezgini özellikleri C yorumlayıcısının -&gt; istemine göre çalışır; işiniz bitince C ile geri dönün.</Aciklama>
+      <Yazilis>cmd
+C          // C yorumlayıcısına dön</Yazilis>
+      <OrnekCikti>[vxWorks *]# </OrnekCikti>
+    </Komut>
+    <Komut Ad="logout" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Telnet oturumunu kapatır; kart bağlantıyı sonlandırır. Vision'da kart "bağlı değil" durumuna geçer, yeniden bağlanmak için Bağlantı Kur kullanılır. Kartın çalışmasını etkilemez.</Aciklama>
+      <Yazilis>logout</Yazilis>
+    </Komut>
+    <Komut Ad="dbgHelp" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Yalnız hata ayıklama komutlarını (b, bd, c, s, tt, l, …) kısa açıklamalarıyla listeler. help'in alt yardım konusudur. Listede görünen bir komut yine de kartın imajında olmayabilir (lkup ile bakılabilir).</Aciklama>
+      <Yazilis>dbgHelp</Yazilis>
+      <OrnekCikti>b         [adr[,task[,count]]]  Set or display breakpoints
+bd        adr[,task]           Delete a breakpoint
+c         [task[,adr[,adr1]]]  Continue from breakpoint
+s         [task[,adr[,adr1]]]  Single step
+...
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="ioHelp" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Yalnız dosya ve G/Ç komutlarını (cd, pwd, ls, ll, copy, rm, mkdir, …) kısa açıklamalarıyla listeler. help'in alt yardım konusudur. Listede görünen bir komut yine de kartın imajında olmayabilir (lkup ile bakılabilir).</Aciklama>
+      <Yazilis>ioHelp</Yazilis>
+      <OrnekCikti>cd        "path"             Set current working path
+pwd                            Print working path
+ls        ["wpat"[,long]]   List contents of directory
+ll        ["wpat"]           List contents of directory - long format
+...
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="netHelp" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Yalnız ağ komutlarını (ifconfig, netstat, ping, route, host…) kısa açıklamalarıyla listeler. help'in alt yardım konusudur. Listede görünen bir komut yine de kartın imajında olmayabilir (lkup ile bakılabilir).</Aciklama>
+      <Yazilis>netHelp</Yazilis>
+      <OrnekCikti>ifconfig  "args"             Configure network interface
+netstat   "args"             Show network status
+ping      "host"[,count]     Send ICMP ECHO_REQUEST packets
+...
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="spyHelp" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Yalnız CPU kullanım ölçümü komutlarını (spy, spyStop, spyReport, …) kısa açıklamalarıyla listeler. help'in alt yardım konusudur. Listede görünen bir komut yine de kartın imajında olmayabilir (lkup ile bakılabilir).</Aciklama>
+      <Yazilis>spyHelp</Yazilis>
+      <OrnekCikti>spy       [ticks,[ticksPerSec]]  Start task activity monitor
+spyStop                          Stop collecting data
+spyReport                        Prints display of task activity
+...
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="rtpHelp" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Yalnız süreç (RTP) komutlarını (rtpSp, rtpShow, rtpi, rtpTaskShow, …) kısa açıklamalarıyla listeler. help'in alt yardım konusudur. Listede görünen bir komut yine de kartın imajında olmayabilir (lkup ile bakılabilir).</Aciklama>
+      <Yazilis>rtpHelp</Yazilis>
+      <OrnekCikti>rtpSp     "filename args"   Spawn a process with default params
+rtpShow   [rtp[,level]]      Display process information
+rtpi      [rtp]              Summary of processes
+...
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="timexHelp" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Yalnız fonksiyonların çalışma süresini ölçen timex komutlarını kısa açıklamalarıyla listeler. help'in alt yardım konusudur. Listede görünen bir komut yine de kartın imajında olmayabilir (lkup ile bakılabilir).</Aciklama>
+      <Yazilis>timexHelp</Yazilis>
+      <OrnekCikti>timex     [func,[args...]]     Time a single execution
+timexN    [func,[args...]]     Time repeated executions
+timexClear                     Clear all functions
+...
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="&lt;" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Girdi yönlendirme: komutun girdisini (stdin) klavye yerine bir dosyadan okur. En sık kullanımı modül yüklemedir: ld &lt; dosya, nesne modülünü dosyadan okuyup karta yükler. Dosya adı tırnaksız yazılır.</Aciklama>
+      <Yazilis>ld &lt; /ata0a/app.out
+ld &lt; host:/upload/app.out</Yazilis>
+      <OrnekCikti>value = 30772752 = 0x1d58e10</OrnekCikti>
+    </Komut>
+    <Komut Ad="&gt;" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Çıktı yönlendirme: komutun konsola basacağı çıktıyı dosyaya yazar (dosya yoksa oluşturulur, varsa üzerine yazılır). Uzun çıktıları (i, memShow, moduleShow…) kayıt altına almak ya da karşılaştırmak için kullanılır. Dosya adı tırnaksız yazılır; çıktı ekranda görünmez, dosyaya gider.</Aciklama>
+      <Yazilis>i &gt; /ata0a/gorevler.txt
+moduleShow &gt; /ata0a/moduller.txt
+copy "/ata0a/gorevler.txt"     // dosyayı ekranda göster</Yazilis>
+      <OrnekCikti>value = 0 = 0x0</OrnekCikti>
+    </Komut>
+  </Modul>
+  <Modul Ad="Sistem bilgisi" Degistirilme="2026-11-06 12:00">
+    <Aciklama>Kartın yazılım sürümü, BSP / işlemci bilgisi, sistem saati ve tik sayacı gibi genel bilgiler.</Aciklama>
+    <Komut Ad="version" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Kartta çalışan VxWorks sürümünü, BSP (kart) adını, imajın derlenme tarihini ve kartın açılış (boot) satırını gösterir. Boot satırında kartın IP adresi (e=), FTP sunucusu (h=), kullanıcı (u=) ve parola (pw=) yer alır.
+Vision, Dosya Gezgini'nde FTP bilgisini kartın bu komutun çıktısındaki boot satırından otomatik alır.</Aciklama>
+      <Yazilis>version</Yazilis>
+      <OrnekCikti>VxWorks (for Freescale MPC8548 CDS) version 6.4.
+Kernel: WIND version 2.10.
+Made on Mar 12 2008, 10:21:33.
+Boot line:
+motetsec(0,0)host:vxWorks e=192.168.1.10:ffffff00 h=192.168.1.1 u=target pw=vxTarget f=0x0 tn=kart1
+value = 41 = 0x29 = ')'</OrnekCikti>
+    </Komut>
+    <Komut Ad="sysModel" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Kartın model / BSP adını metin olarak döndürür. Kabukta tek başına yazıldığında yalnız metnin adresi görünür; metni görmek için printf ile birlikte kullanılır.</Aciklama>
+      <Yazilis>printf "%s\n", sysModel()</Yazilis>
+      <OrnekCikti>Freescale MPC8548 CDS
+value = 22 = 0x16</OrnekCikti>
+    </Komut>
+    <Komut Ad="sysClkRateGet" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Sistem saatinin saniyedeki tik sayısını döndürür (genelde 60, 100 ya da 1000). taskDelay ve zaman aşımı değerleri tik cinsinden olduğu için süre hesabında kullanılır: 1 sn = sysClkRateGet() tik.</Aciklama>
+      <Yazilis>sysClkRateGet</Yazilis>
+      <OrnekCikti>value = 60 = 0x3c = '&lt;'</OrnekCikti>
+    </Komut>
+    <Komut Ad="sysClkRateSet" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Sistem saatinin saniyedeki tik sayısını değiştirir. Tüm zamanlamaları etkiler (görev gecikmeleri, zaman aşımları); yalnız ne yaptığınızı biliyorsanız kullanın. Kart yeniden başlayınca imajdaki değere döner.</Aciklama>
+      <Yazilis>sysClkRateSet 100</Yazilis>
+      <OrnekCikti>value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="tickGet" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Kart açıldığından bu yana geçen tik sayısını döndürür. sysClkRateGet ile bölünerek kartın ne kadar süredir açık olduğu (saniye) bulunur.</Aciklama>
+      <Yazilis>tickGet
+tickGet() / sysClkRateGet()     // açık kalma süresi (sn)</Yazilis>
+      <OrnekCikti>value = 1234567 = 0x12d687</OrnekCikti>
+    </Komut>
+    <Komut Ad="spy" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Görevlerin CPU kullanımını belirli aralıklarla (varsayılan 10 sn) konsola raporlar. Hangi görevin işlemciyi meşgul ettiğini bulmak için kullanılır. Durdurmak için spyStop yazılır. Kartın imajında spyLib bulunmalıdır.</Aciklama>
+      <Yazilis>spy
+spy 5            // 5 saniyede bir raporla
+spyStop</Yazilis>
+      <OrnekCikti>NAME          ENTRY         TID      PRI   total % (ticks)  delta % (ticks)
+------------ ------------ --------  ---   ---------------  ---------------
+tExcTask     excTask       1c4c1b0    0     0% (       0)    0% (       0)
+tLogTask     logTask       1c5e2d0    0     0% (       0)    0% (       0)
+tShell0      shellTask     1d4f410    1     0% (       2)    0% (       2)
+tNetTask     netTask       1cc9f20   50     1% (       6)    1% (       6)
+KERNEL                                      0% (       1)    0% (       1)
+INTERRUPT                                   0% (       0)    0% (       0)
+IDLE                                       98% (     591)   98% (     591)
+TOTAL                                      99% (     600)   99% (     600)</OrnekCikti>
+    </Komut>
+    <Komut Ad="spyStop" Degistirilme="2026-11-06 12:00">
+      <Aciklama>spy ile başlatılan periyodik CPU kullanım raporunu durdurur.</Aciklama>
+      <Yazilis>spyStop</Yazilis>
+      <OrnekCikti>value = 0 = 0x0</OrnekCikti>
+    </Komut>
+  </Modul>
+  <Modul Ad="Görevler (task)" Degistirilme="2026-11-06 12:00">
+    <Aciklama>Görevleri (task) listeleme, ayrıntısını görme, başlatma, durdurma ve silme. Görev kimliği (TID) i komutunun çıktısından alınır; çoğu komutta TID yerine görevin adı da tırnak içinde yazılabilir (ör. ti "tShell0").</Aciklama>
+    <Komut Ad="i" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Sistemdeki tüm görevleri özet olarak listeler: ad, giriş fonksiyonu, görev kimliği (TID), öncelik (PRI), durum (READY, PEND, DELAY, SUSPEND…), program sayacı, yığın işaretçisi, son hata kodu ve bekleme süresi. Kartta ne çalıştığını görmek için ilk bakılan komuttur. TID verilirse yalnız o görevi gösterir.</Aciklama>
+      <Yazilis>i
+i "tShell0"</Yazilis>
+      <OrnekCikti>  NAME        ENTRY       TID    PRI   STATUS      PC       SP     ERRNO  DELAY
+----------  ------------ -------- --- ---------- -------- -------- ------- -----
+tJobTask    jobTask       1c5d6a0   0 PEND         2dc5e4  1c5d5a0       0     0
+tExcTask    excTask       1c4c1b0   0 PEND         2dc5e4  1c4c0d0       0     0
+tLogTask    logTask       1c5e2d0   0 PEND         2db2c0  1c5e1e0       0     0
+tShell0     shellTask     1d4f410   1 READY        2e0f58  1d4ed30       0     0
+tWdbTask    wdbTask       1d07a30   3 PEND         2dc5e4  1d07960       0     0
+tNetTask    netTask       1cc9f20  50 PEND         2dc5e4  1cc9e50       0     0
+tTelnetd    telnetd       1d2b8c0  55 PEND         2dc5e4  1d2b7b0       0     0
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="ti" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Tek bir görevin ayrıntılı bilgisini verir: i satırına ek olarak yığın boyutu ve en yüksek kullanım, görev seçenekleri ve işlemci yazmaçları. Bir görevin neden takıldığını ya da yığınının dolup dolmadığını incelemek için kullanılır.</Aciklama>
+      <Yazilis>ti "tShell0"
+ti 0x1d4f410</Yazilis>
+      <OrnekCikti>  NAME        ENTRY       TID    PRI   STATUS      PC       SP     ERRNO  DELAY
+----------  ------------ -------- --- ---------- -------- -------- ------- -----
+tShell0     shellTask     1d4f410   1 READY        2e0f58  1d4ed30       0     0
+
+stack: base 0x1d4f410  end 0x1d47410  size 32768  high 6704   margin 26064
+options: 0x1c
+VX_UNBREAKABLE      VX_DEALLOC_STACK
+
+r0     =   2e0f40   sp     =  1d4ed30   r2     =        0   r3     =        0
+...
+pc     =   2e0f58   lr     =   2e0f40   ctr    =        0   msr    =     b030
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="sp" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Bir fonksiyonu yeni bir görev olarak başlatır (varsayılan öncelik 100, yığın 20000 bayt). İlk argüman fonksiyonun adı, ardından en fazla 9 argüman verilebilir. Görevin adı otomatik verilir (t1, t2…). Ayrıntılı ayar (ad, öncelik, yığın) gerekiyorsa taskSpawn kullanılır.</Aciklama>
+      <Yazilis>sp myTask
+sp myTask, 10, 20      // myTask(10, 20) görev olarak çalışır</Yazilis>
+      <OrnekCikti>task spawned: id = 0x1d4a5e0, name = t1
+value = 30713312 = 0x1d4a5e0</OrnekCikti>
+    </Komut>
+    <Komut Ad="taskSpawn" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Görevi ad, öncelik, seçenek ve yığın boyutu belirterek başlatır: taskSpawn "ad", öncelik, seçenekler, yığın, fonksiyon, argümanlar… Öncelik 0 (en yüksek) ile 255 arasındadır; kullanıcı görevleri genelde 100–200 arası verilir. Dönüş değeri yeni görevin kimliğidir (TID).</Aciklama>
+      <Yazilis>taskSpawn "tTest", 100, 0, 20000, myTask, 1, 2</Yazilis>
+      <OrnekCikti>value = 30713312 = 0x1d4a5e0</OrnekCikti>
+    </Komut>
+    <Komut Ad="td" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Görevi siler (sonlandırır). Görev o anda bir kaynağı (semafor, bellek) tutuyorsa kaynak serbest kalmayabilir; sistem görevlerini (tShell0, tNetTask, tExcTask…) silmeyin.</Aciklama>
+      <Yazilis>td "t1"
+td 0x1d4a5e0</Yazilis>
+      <OrnekCikti>value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="ts" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Görevi askıya alır (SUSPEND). Görev silinmez; tr ile kaldığı yerden devam ettirilebilir. Bir görevi geçici olarak durdurup sistem davranışını gözlemek için kullanılır.</Aciklama>
+      <Yazilis>ts "t1"</Yazilis>
+      <OrnekCikti>value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="tr" Degistirilme="2026-11-06 12:00">
+      <Aciklama>ts ile askıya alınmış görevi kaldığı yerden devam ettirir.</Aciklama>
+      <Yazilis>tr "t1"</Yazilis>
+      <OrnekCikti>value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="tt" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Görevin çağrı yığınını (stack trace) gösterir: görev şu an hangi fonksiyonların içinde. Takılan ya da PEND durumunda bekleyen bir görevin nerede beklediğini bulmak için kullanılır.</Aciklama>
+      <Yazilis>tt "tNetTask"</Yazilis>
+      <OrnekCikti>2e1a3c   vxTaskEntry  +68 : netTask ()
+2cd014   netTask      +7c : semTake ()
+2dc5e4   semTake      +1e4: semBTake ()
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="taskPrioritySet" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Çalışan bir görevin önceliğini değiştirir (0 en yüksek, 255 en düşük). Yanlış öncelik diğer görevlerin hiç çalışamamasına yol açabilir.</Aciklama>
+      <Yazilis>taskPrioritySet "t1", 150</Yazilis>
+      <OrnekCikti>value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="checkStack" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Görevlerin yığın kullanımını gösterir: toplam boyut, şu anki ve en yüksek kullanım, kalan pay (MARGIN). MARGIN çok küçükse ya da 0'a yakınsa görevin yığını taşıyor olabilir (rastgele çökmelerin sık nedeni). TID verilirse yalnız o görev gösterilir.</Aciklama>
+      <Yazilis>checkStack
+checkStack "tShell0"</Yazilis>
+      <OrnekCikti>  NAME        ENTRY        TID     SIZE   CUR  HIGH  MARGIN
+------------ ------------ -------- ----- ----- ----- ------
+tJobTask     jobTask       1c5d6a0  8192   240   752   7440
+tExcTask     excTask       1c4c1b0  8192   240   632   7560
+tShell0      shellTask     1d4f410 32768  1680  6704  26064
+tNetTask     netTask       1cc9f20 10000   208  1520   8480
+INTERRUPT                          20000     0  1024  18976
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="period" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Bir fonksiyonu belirtilen saniye aralığıyla sürekli çalıştıran bir görev başlatır (ör. bir değeri periyodik izlemek için). Durdurmak için oluşan görev td ile silinir (i ile adı görülür: tPeriod…).</Aciklama>
+      <Yazilis>period 5, i          // her 5 sn'de bir i çalışır</Yazilis>
+      <OrnekCikti>value = 30713312 = 0x1d4a5e0</OrnekCikti>
+    </Komut>
+    <Komut Ad="repeat" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Bir fonksiyonu belirtilen sayıda art arda çalıştıran bir görev başlatır. Sayı 0 verilirse sonsuza kadar tekrarlar (td ile durdurulur).</Aciklama>
+      <Yazilis>repeat 3, printf, "deneme\n"</Yazilis>
+      <OrnekCikti>deneme
+deneme
+deneme
+value = 30713312 = 0x1d4a5e0</OrnekCikti>
+    </Komut>
+    <Komut Ad="taskShow" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Görev bilgisini istenen ayrıntı düzeyinde gösterir: taskShow TID, düzey. Düzey 0: i satırıyla aynı özet; 1: ayrıntı (yığın, seçenekler, yazmaçlar — ti ile aynı); 2: tüm görevlerin özeti (TID 0 ile). Görev adı tırnak içinde de verilebilir.</Aciklama>
+      <Yazilis>taskShow "tShell0", 0
+taskShow "tShell0", 1
+taskShow 0, 2          // tüm görevler</Yazilis>
+      <OrnekCikti>  NAME        ENTRY       TID    PRI   STATUS      PC       SP     ERRNO  DELAY
+----------  ------------ -------- --- ---------- -------- -------- ------- -----
+tShell0     shellTask     1d4f410   1 READY        2e0f58  1d4ed30       0     0
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="w" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Görevlerin neyi beklediğini özetler: her görev için durumu, beklediği nesnenin türü (semafor, mesaj kuyruğu…), kimliği ve adı. PEND durumundaki bir görevin hangi nesnede takıldığını i'den daha doğrudan gösterir. TID verilirse yalnız o görev gösterilir.</Aciklama>
+      <Yazilis>w
+w "tNetTask"</Yazilis>
+      <OrnekCikti>  NAME        ENTRY       TID    STATUS   DELAY  OBJ_TYPE    OBJ_ID   OBJ_NAME
+----------  ------------ -------- -------- ----- ---------- -------- ------------
+tJobTask    jobTask       1c5d6a0 PEND         0 SEM_B       1c5d790 N/A
+tExcTask    excTask       1c4c1b0 PEND         0 MSG_Q(R)    1c4c0e0 N/A
+tLogTask    logTask       1c5e2d0 PEND         0 MSG_Q(R)    1c5e3c0 N/A
+tNetTask    netTask       1cc9f20 PEND         0 SEM_B       1cca010 N/A
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+  </Modul>
+  <Modul Ad="Bellek" Degistirilme="2026-11-06 12:00">
+    <Aciklama>Bellek kullanımını görme ve bellek içeriğini okuma / değiştirme. Adresler onaltılık (0x…) yazılır. Bellek değiştiren komutlar (m, fill) çalışan yazılımı bozabilir; yalnız ne yaptığınızı biliyorsanız kullanın.</Aciklama>
+    <Komut Ad="memShow" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Sistem belleğinin (heap) durumunu gösterir: boş ve kullanılan bayt, blok sayısı, en büyük boş blok. "max block" küçülüyorsa bellek parçalanıyordur; "free" sürekli azalıyorsa bellek sızıntısı olabilir. memShow 1 boş blokların listesini de basar.</Aciklama>
+      <Yazilis>memShow
+memShow 1</Yazilis>
+      <OrnekCikti> status    bytes     blocks   avg block  max block
+ ------ ---------- --------- ---------- ----------
+current
+   free   45312768        17    2665457   45201024
+  alloc    5843968       642       9102          -
+cumulative
+  alloc    6224384       751       8288          -
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="d" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Bellek içeriğini onaltılık ve ASCII olarak gösterir: d adres, adet, genişlik. Genişlik 1, 2, 4 ya da 8 bayttır. Argümansız d, bir önceki gösterimin devamını basar. Sembol adı da adres olarak verilebilir.</Aciklama>
+      <Yazilis>d 0x100000, 32, 4
+d &amp;x, 1, 4          // x değişkeninin değeri</Yazilis>
+      <OrnekCikti>NOTE: memory values are displayed in hexadecimal.
+0x00100000:  48000005 7c0802a6 9421fff0 90010014  *H...|....!......*
+0x00100010:  3c600010 38630120 4bfffd2d 80010014  *&lt;`..8c. K..-....*
+0x00100020:  38210010 7c0803a6 4e800020 00000000  *8!..|...N.. ....*
+0x00100030:  00000000 00000000 00000000 00000000  *................*
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="m" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Belleği etkileşimli olarak değiştirir: m adres, genişlik. Kabuk o adresteki değeri gösterip yeni değeri bekler; yeni değer yazıp Enter değiştirir, yalnız Enter değiştirmeden sonraki adrese geçer, nokta (.) çıkar. Çalışan yazılımı bozabilir; dikkatli kullanın.</Aciklama>
+      <Yazilis>m 0x1d7b2a0, 4</Yazilis>
+      <OrnekCikti>0x01d7b2a0:  00000005-0000000a
+0x01d7b2a4:  00000000-.
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="l" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Verilen adresten (ya da fonksiyondan) başlayarak makine kodunu çözüp (disassemble) komut komut gösterir. Hata ayıklamada bir fonksiyonun ne yaptığını ya da bir adreste hangi komutun olduğunu görmek için kullanılır.</Aciklama>
+      <Yazilis>l myTask, 5</Yazilis>
+      <OrnekCikti>myTask:
+0x01d78a20  9421ffe0       stwu        r1,-32(r1)
+0x01d78a24  7c0802a6       mfspr       r0,LR
+0x01d78a28  93e1001c       stw         r31,28(r1)
+0x01d78a2c  90010024       stw         r0,36(r1)
+0x01d78a30  7c7f1b78       or          r31,r3,r3
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="memPartShow" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Belirli bir bellek bölümünün (memory partition) durumunu gösterir. Argüman olarak bölüm kimliği verilir; sistem belleği için memSysPartId kullanılır. Ayrıntı düzeyi 1 verilirse boş blok listesi de basılır.</Aciklama>
+      <Yazilis>memPartShow memSysPartId, 0</Yazilis>
+      <OrnekCikti> status    bytes     blocks   avg block  max block
+ ------ ---------- --------- ---------- ----------
+current
+   free   45312768        17    2665457   45201024
+  alloc    5843968       642       9102          -
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="adrSpaceShow" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Adres alanının (fiziksel RAM ve sanal adres alanı) nasıl paylaşıldığını gösterir: toplam / ayrılmış / boş RAM, çekirdek ve süreçler (RTP) için ayrılan bölgeler. 1 argümanıyla ayrıntılı bölge listesi basılır. Kartın imajında RTP / adres alanı desteği bulunmalıdır.</Aciklama>
+      <Yazilis>adrSpaceShow
+adrSpaceShow 1</Yazilis>
+    </Komut>
+    <Komut Ad="vmContextShow" Degistirilme="2026-11-06 12:00">
+      <Aciklama>MMU (sanal bellek) çeviri tablosunu gösterir: sanal adres aralıkları, karşılık geldikleri fiziksel adresler ve erişim özellikleri (okunur / yazılır / çalıştırılabilir, önbellek). 0 ya da argümansız çekirdek bağlamını gösterir. Bellek erişim (koruma) hatalarını incelerken kullanılır.</Aciklama>
+      <Yazilis>vmContextShow
+vmContextShow 0</Yazilis>
+    </Komut>
+  </Modul>
+  <Modul Ad="Modüller ve semboller" Degistirilme="2026-11-06 12:00">
+    <Aciklama>Kartta yüklü yazılım modülleri ve çalışma anında modül yükleme / kaldırma.</Aciklama>
+    <Komut Ad="moduleShow" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Kart içerisinde yer alan (yüklü) modülleri gösterir: modül adı, kimliği, grubu ve kod / veri / bss bölümlerinin başlangıç adresleri. Hangi uygulama modüllerinin karta yüklendiğini ve hangi sürümün çalıştığını kontrol etmek için kullanılır. Ad verilirse yalnız o modül gösterilir.</Aciklama>
+      <Yazilis>moduleShow
+moduleShow "app.out"</Yazilis>
+      <OrnekCikti>MODULE NAME     MODULE ID  GROUP #    TEXT START DATA START  BSS START
+--------------- ---------- ---------- ---------- ---------- ----------
+app.out          0x1d58e10          2  0x1d70000  0x1d7a000  0x1d7a400
+haberlesme.out   0x1d61a20          3  0x1d90000  0x1d98000  0x1d98200
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="ld" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Nesne modülünü (.out / .o) dosyadan kartın belleğine yükler; modüldeki fonksiyonlar sembol tablosuna eklenir ve kabuktan çağrılabilir hale gelir. Dönüş değeri modül kimliğidir. Dosya yolu kartın gördüğü yoldur (ör. host: ya da /ata0a).</Aciklama>
+      <Yazilis>ld &lt; /ata0a/app.out
+ld 1, 0, "/ata0a/app.out"</Yazilis>
+      <OrnekCikti>value = 30772752 = 0x1d58e10</OrnekCikti>
+    </Komut>
+    <Komut Ad="unld" Degistirilme="2026-11-06 12:00">
+      <Aciklama>ld ile yüklenmiş bir modülü kart belleğinden kaldırır. Modülün başlattığı görevler hâlâ çalışıyorsa önce onlar durdurulmalıdır; aksi halde kart çökebilir.</Aciklama>
+      <Yazilis>unld "app.out"</Yazilis>
+      <OrnekCikti>value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="printErrno" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Bir hata kodunun (errno) sembolik adını yazar. i ya da ti çıktısındaki ERRNO sütunundaki değeri ya da bir fonksiyonun bıraktığı hata kodunu anlamlandırmak için kullanılır. 0 verilirse kabuğun son hata kodu yazılır.</Aciklama>
+      <Yazilis>printErrno 0x3d0001
+printErrno 0</Yazilis>
+      <OrnekCikti>S_objLib_OBJ_ID_ERROR
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="unldByModuleId" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Modülü adı yerine kimliğiyle karttan kaldırır: unldByModuleId modülKimliği, seçenekler. Kimlik moduleShow çıktısındaki MODULE ID sütunundan ya da ld'nin dönüş değerinden alınır. Aynı adla birden çok modül yüklüyse doğru olanı kaldırmak için kullanılır. Seçenek genelde 0'dır.</Aciklama>
+      <Yazilis>unldByModuleId 0x1d58e10, 0</Yazilis>
+      <OrnekCikti>value = 0 = 0x0</OrnekCikti>
+    </Komut>
+  </Modul>
+  <Modul Ad="Boot / BSP ayarları" Degistirilme="2026-11-06 12:00">
+    <Aciklama>Kartın açılış (boot) ayarları ve yeniden başlatma. Boot ayarları kartın kalıcı belleğinde (NVRAM / flash) tutulur ve değişiklikler kart yeniden başlatılınca geçerli olur.</Aciklama>
+    <Komut Ad="bspBootChange" Degistirilme="2026-11-06 12:00">
+      <Aciklama>BSP ayarları kartın ayarlarıdır (boot cihazı, IP adresi, FTP sunucusu, kullanıcı / parola, açılış dosyası, kart adı vb.). Bu komutla kart ayarlarının değiştirilmesi sağlanır; genel olarak kullanılan bspBootChange komutudur.
+PowerPC kartlarında bspBootChange komutu tanımlı olmadığı için bu kartlarda bootChange komutu kullanılır.
+Komut alanları sırayla tek tek sorar: yeni değeri yazıp Enter ile kaydedin, yalnız Enter değeri değiştirmeden sonraki alana geçer, nokta (.) alanı boşaltır, eksi (-) önceki alana döner, Ctrl+D çıkar. Değişiklikler kart yeniden başlatılınca (reboot) geçerli olur. Yanlış IP / boot cihazı kartın açılmamasına ya da ağa çıkamamasına yol açabilir; değiştirmeden önce version çıktısını not alın.</Aciklama>
+      <Yazilis>bspBootChange</Yazilis>
+      <OrnekCikti>'.' = clear field;  '-' = go to previous field;  ^D = quit
+
+boot device          : motetsec
+unit number          : 0
+processor number     : 0
+host name            : host
+file name            : vxWorks
+inet on ethernet (e) : 192.168.1.10:ffffff00
+inet on backplane (b):
+host inet (h)        : 192.168.1.1
+gateway inet (g)     :
+user (u)             : target
+ftp password (pw) (blank = use rsh): vxTarget
+flags (f)            : 0x0
+target name (tn)     : kart1
+startup script (s)   :
+other (o)            :
+
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="bootChange" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Kartın boot (BSP) ayarlarını değiştirir; bspBootChange ile aynı işi yapar. PowerPC kartlarında bspBootChange tanımlı olmadığı için bu kartlarda bootChange kullanılır. Hangi komutun kartta olduğunu lkup "ootChange" ile görebilirsiniz.
+Kullanım bspBootChange ile aynıdır: alanlar sırayla sorulur; değer yazıp Enter kaydeder, yalnız Enter atlar, nokta (.) boşaltır, eksi (-) geri gider, Ctrl+D çıkar. Değişiklik reboot sonrası geçerli olur.</Aciklama>
+      <Yazilis>bootChange</Yazilis>
+      <OrnekCikti>'.' = clear field;  '-' = go to previous field;  ^D = quit
+
+boot device          : motfcc
+processor number     : 0
+host name            : host
+file name            : vxWorks
+inet on ethernet (e) : 192.168.1.20:ffffff00
+inet on backplane (b):
+host inet (h)        : 192.168.1.1
+gateway inet (g)     :
+user (u)             : target
+ftp password (pw) (blank = use rsh): vxTarget
+flags (f)            : 0x0
+target name (tn)     : kart2
+startup script (s)   :
+other (o)            :
+
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="reboot" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Kartı yeniden başlatır. Telnet bağlantısı hemen kopar; Vision kart ulaşılabilir olunca (otomatik yeniden bağlanma açıksa) kendiliğinden yeniden bağlanır.
+Argümanla açılış biçimi seçilir: reboot (0) normal açılış; reboot 2 belleği temizleyerek (soğuk) açılış; reboot 1 otomatik açılışı durdurur (kart boot isteminde bekler, uzaktan erişimde dikkat!). Kart komut satırındaki ve genel komut çubuğundaki reboot ⇄ düğmesi reboot / reboot 2 gönderir.</Aciklama>
+      <Yazilis>reboot
+reboot 2          // belleği temizleyerek yeniden başlat</Yazilis>
+      <OrnekCikti>(çıktı yok — kart yeniden başlar, telnet bağlantısı kopar)</OrnekCikti>
+    </Komut>
+    <Komut Ad="reboot 2" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Kartı belleğini temizleyerek (soğuk açılış) yeniden başlatır; reboot'un 2 argümanlı biçimidir. Normal reboot sonrası düzelmeyen, bellekte kalan bozuk veriden şüphelenilen durumlarda kullanılır. Telnet bağlantısı hemen kopar; Vision kart ulaşılabilir olunca yeniden bağlanır. Kart penceresindeki reboot ⇄ düğmesiyle de gönderilebilir.</Aciklama>
+      <Yazilis>reboot 2</Yazilis>
+      <OrnekCikti>(çıktı yok — kart yeniden başlar, telnet bağlantısı kopar)</OrnekCikti>
+    </Komut>
+    <Komut Ad="bootParamsShow" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Kartın boot (BSP) ayarlarını değiştirmeden, salt okunur olarak gösterir: boot cihazı, dosya adı, IP adresi (e), sunucu (h), kullanıcı (u), parola (pw), bayraklar (f), kart adı (tn). bspBootChange / bootChange'e girmeden önce mevcut değerleri görmek için güvenli yoldur. Komut kartın imajında yoksa version çıktısındaki boot satırına bakılır.</Aciklama>
+      <Yazilis>bootParamsShow</Yazilis>
+      <OrnekCikti>boot device          : motetsec
+unit number          : 0
+processor number     : 0
+host name            : host
+file name            : vxWorks
+inet on ethernet (e) : 192.168.1.10:ffffff00
+host inet (h)        : 192.168.1.1
+user (u)             : target
+ftp password (pw)    : vxTarget
+flags (f)            : 0x0
+target name (tn)     : kart1
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="FPGAGiveBoardReset" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Karta / projeye özel bir fonksiyondur (standart VxWorks komutu değildir; BSP ya da uygulama tarafından eklenir). Adından anlaşıldığı kadarıyla kartın FPGA'sı üzerinden kartın donanımına reset verir; etkisi reboot gibi kartın yeniden başlaması ve telnet bağlantısının kopması olabilir.
+Not: Bu açıklama komutun adına göre yazılmıştır — kendi kartınızdaki tam davranışı (argüman alıp almadığı, hangi birimleri resetlediği) doğrulayıp bu açıklamayı güncelleyin. Kartta olup olmadığını lkup "FPGA" ile görebilirsiniz.</Aciklama>
+      <Yazilis>FPGAGiveBoardReset</Yazilis>
+    </Komut>
+  </Modul>
+  <Modul Ad="Dosya sistemi" Degistirilme="2026-11-06 12:00">
+    <Aciklama>Kartın cihazları, klasörleri ve dosyaları. Yollar kartın gördüğü biçimde ve çift tırnak içinde yazılır (ör. "/ata0a/config", "host:/upload"). Vision'ın Kart Dosya Gezgini sekmesi bu komutları kullanır.</Aciklama>
+    <Komut Ad="devs" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Karttaki tüm G/Ç cihazlarını listeler: diskler / flash (/ata0a, /tffs0…), seri portlar (/tyCo/0), ağ dosya cihazı (host:) ve diğerleri. Dosya işlemlerinde hangi yolun kullanılacağını bulmak için ilk bakılan komuttur.</Aciklama>
+      <Yazilis>devs</Yazilis>
+      <OrnekCikti>drv refs name
+  0 [ 2] /null
+  1 [ 3] /tyCo/0
+  1 [ 1] /tyCo/1
+  6 [ 1] host:
+  8 [ 1] /vio
+  9 [ 2] /ata0a
+value = 25 = 0x19</OrnekCikti>
+    </Komut>
+    <Komut Ad="ls" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Klasördeki dosya ve klasörlerin adlarını listeler. Yol verilmezse kabuğun bulunduğu klasör listelenir. ls "yol", 1 ayrıntılı (boyut, tarih) listeler.</Aciklama>
+      <Yazilis>ls "/ata0a"
+ls "/ata0a", 1</Yazilis>
+      <OrnekCikti>vxWorks
+config
+log.txt
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="ll" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Klasörü ayrıntılı listeler: izinler, boyut, tarih ve ad. Klasör adlarının sonunda / bulunur. Vision'ın Kart Dosya Gezgini listelemede önce ll kullanır.</Aciklama>
+      <Yazilis>ll "/ata0a"</Yazilis>
+      <OrnekCikti>Listing Directory /ata0a:
+-rwxrwxrwx  1 0       0         1874304 Mar 12 2008  vxWorks
+drwxrwxrwx  1 0       0            4096 Jan  1 1980  config/
+-rwxrwxrwx  1 0       0             512 Jan  1 1980  log.txt
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="cd" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Kabuğun çalışma klasörünü değiştirir; sonraki komutlarda göreli yollar bu klasöre göre yorumlanır.</Aciklama>
+      <Yazilis>cd "/ata0a/config"</Yazilis>
+      <OrnekCikti>value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="pwd" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Kabuğun bulunduğu (çalışma) klasörü yazar.</Aciklama>
+      <Yazilis>pwd</Yazilis>
+      <OrnekCikti>/ata0a/config
+value = 14 = 0xe</OrnekCikti>
+    </Komut>
+    <Komut Ad="copy" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Dosya kopyalar: copy "kaynak", "hedef". Yalnız kaynak verilirse dosyanın içeriği konsola basılır (kartta metin dosyasını okumanın en kolay yolu). Dönüş 0 ise başarılı, -1 ise hata vardır.</Aciklama>
+      <Yazilis>copy "/ata0a/log.txt"
+copy "/ata0a/config/ayar.xml", "/ata0a/config/ayar.yedek"
+copy "host:/upload/app.out", "/ata0a/app.out"</Yazilis>
+      <OrnekCikti>[log.txt dosyasının içeriği]
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="xcopy" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Klasörü alt klasörleri ve dosyalarıyla birlikte kopyalar. Not: ağ (FTP / host:) cihazı üzerinde büyük klasörlerde xcopy bazı kartlarda telnet oturumunu düşürebilir; Vision klasör yüklemede bu yüzden dosya başına copy kullanır.</Aciklama>
+      <Yazilis>xcopy "/ata0a/config", "/ata0a/config.yedek"</Yazilis>
+      <OrnekCikti>value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="mv" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Dosya ya da klasörü taşır veya yeniden adlandırır: mv "eski", "yeni". Aynı cihaz içinde çalışır.</Aciklama>
+      <Yazilis>mv "/ata0a/log.txt", "/ata0a/log.eski"</Yazilis>
+      <OrnekCikti>value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="rm" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Dosyayı siler. Geri alınamaz. Klasör silmek için rmdir (boş klasör) ya da xdelete (içiyle birlikte) kullanılır.</Aciklama>
+      <Yazilis>rm "/ata0a/log.eski"</Yazilis>
+      <OrnekCikti>value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="mkdir" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Yeni klasör oluşturur.</Aciklama>
+      <Yazilis>mkdir "/ata0a/yeni"</Yazilis>
+      <OrnekCikti>value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="rmdir" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Boş klasörü siler. Klasör boş değilse hata verir (value = -1).</Aciklama>
+      <Yazilis>rmdir "/ata0a/yeni"</Yazilis>
+      <OrnekCikti>value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="xdelete" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Klasörü içindeki tüm dosya ve alt klasörlerle birlikte siler. Geri alınamaz; yolu iki kez kontrol edin.</Aciklama>
+      <Yazilis>xdelete "/ata0a/eski"</Yazilis>
+      <OrnekCikti>value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="iosFdShow" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Açık dosya tanımlayıcılarını (dosyalar, soketler, seri port) listeler. Açık kalan dosya sayısı sürekli artıyorsa bir görev dosyaları kapatmıyor olabilir.</Aciklama>
+      <Yazilis>iosFdShow</Yazilis>
+      <OrnekCikti> fd name                     drv
+  3 /tyCo/0                    1
+  4 /ata0a/log.txt             9
+  5 (socket)                   3
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="llr" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Klasörü alt klasörleriyle birlikte (özyinelemeli) ayrıntılı listeler: ll'nin tüm alt klasörlere inen biçimi. Büyük klasörlerde çıktı uzun olabilir.</Aciklama>
+      <Yazilis>llr "/ata0a/config"</Yazilis>
+      <OrnekCikti>Listing Directory /ata0a/config:
+-rwxrwxrwx  1 0       0            2048 Jan  1 1980  ayar.xml
+drwxrwxrwx  1 0       0            4096 Jan  1 1980  eski/
+
+Listing Directory /ata0a/config/eski:
+-rwxrwxrwx  1 0       0            1980 Jan  1 1980  ayar.xml
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="rename" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Dosyayı yeniden adlandırır: rename "eski", "yeni" (C standart kütüphanesi). İki ad aynı cihazda olmalıdır. Başarılıysa 0, hata ise -1 döner.</Aciklama>
+      <Yazilis>rename "/ata0a/log.txt", "/ata0a/log.eski"</Yazilis>
+      <OrnekCikti>value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="cp" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Dosya kopyalar: cp "kaynak", "hedef". copy ile aynı işi yapar; hedef bir klasörse dosya aynı adla o klasöre kopyalanır.</Aciklama>
+      <Yazilis>cp "/ata0a/config/ayar.xml", "/ata0a/yedek/"</Yazilis>
+      <OrnekCikti>value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="dosFsShow" Degistirilme="2026-11-06 12:00">
+      <Aciklama>DOS (FAT) dosya sistemli bir diskin / flash'ın bilgisini gösterir: birim adı, FAT türü, küme (cluster) boyutu, toplam ve boş alan. Diskte yer kalıp kalmadığını görmek için kullanılır. Argüman cihazın adıdır (devs çıktısından).</Aciklama>
+      <Yazilis>dosFsShow "/ata0a"</Yazilis>
+    </Komut>
+  </Modul>
+  <Modul Ad="Ağ" Degistirilme="2026-11-06 12:00">
+    <Aciklama>Ağ arayüzleri, bağlantılar, yönlendirme ve erişim testleri (VxWorks 6.4 ağ yığını).</Aciklama>
+    <Komut Ad="ifShow" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Ağ arayüzlerini gösterir: IP adresi, alt ağ maskesi, MAC adresi, MTU, durum bayrakları ve paket sayaçları. Kartın IP'sini ve kablonun bağlı olup olmadığını (RUNNING bayrağı) kontrol etmek için kullanılır. Arayüz adı verilirse yalnız o arayüz gösterilir.</Aciklama>
+      <Yazilis>ifShow
+ifShow "motetsec0"</Yazilis>
+      <OrnekCikti>motetsec (unit number 0):
+     Flags: (0x8063) UP BROADCAST MULTICAST ARP RUNNING
+     Type: ETHERNET_CSMACD
+     Internet address: 192.168.1.10
+     Broadcast address: 192.168.1.255
+     Netmask 0xffffff00 Subnetmask 0xffffff00
+     Ethernet address is 00:a0:1e:11:22:33
+     Metric is 0
+     Maximum Transfer Unit size is 1500
+     152340 octets received
+     98211 octets sent
+     1204 unicast packets received
+     980 unicast packets sent
+     0 input discards
+     0 input errors
+     0 output errors
+     0 collisions; 0 dropped
+lo (unit number 0):
+     Flags: (0x8069) UP LOOPBACK MULTICAST ARP RUNNING
+     Type: SOFTWARE_LOOPBACK
+     Internet address: 127.0.0.1
+     ...
+value = 29 = 0x1d</OrnekCikti>
+    </Komut>
+    <Komut Ad="inetstatShow" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Açık TCP ve UDP bağlantılarını / dinlenen portları listeler (netstat benzeri). Telnet (23), FTP gibi bağlantıların kurulu olup olmadığını görmek için kullanılır.</Aciklama>
+      <Yazilis>inetstatShow</Yazilis>
+      <OrnekCikti>Active Internet connections (including servers)
+PCB      Proto Recv-Q Send-Q  Local Address         Foreign Address       (state)
+-------- ----- ------ ------  --------------------- --------------------- -------
+1d3a2c0  TCP        0      0  192.168.1.10.23       192.168.1.50.51234    ESTABLISHED
+1d3a1f0  TCP        0      0  0.0.0.0.23            0.0.0.0.0             LISTEN
+1d3a0a0  UDP        0      0  0.0.0.0.17185         0.0.0.0.0
+value = 1 = 0x1</OrnekCikti>
+    </Komut>
+    <Komut Ad="ping" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Bir IP adresine ICMP yankı isteği göndererek erişilebilirliği sınar: ping "adres", adet. Adet verilmezse durdurulana kadar sürer (Ctrl+C). Kartın sunucuya / başka karta ulaşıp ulaşamadığını görmek için kullanılır. Kartın imajında ping desteği (pingLib) bulunmalıdır.</Aciklama>
+      <Yazilis>ping "192.168.1.1", 3</Yazilis>
+      <OrnekCikti>PING 192.168.1.1: 56 data bytes
+64 bytes from 192.168.1.1: icmp_seq=0. time=0. ms
+64 bytes from 192.168.1.1: icmp_seq=1. time=0. ms
+64 bytes from 192.168.1.1: icmp_seq=2. time=0. ms
+----192.168.1.1 PING Statistics----
+3 packets transmitted, 3 packets received, 0% packet loss
+round-trip (ms)  min/avg/max = 0/0/0
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="routeShow" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Yönlendirme tablosunu gösterir: hedef ağlar / adresler ve hangi ağ geçidi ile arayüzden gidildiği. Kart başka bir ağdaki sunucuya ulaşamıyorsa varsayılan yolun (0.0.0.0) olup olmadığına bakılır.</Aciklama>
+      <Yazilis>routeShow</Yazilis>
+      <OrnekCikti>ROUTE NET TABLE
+destination      gateway          flags  Refcnt Use        Interface
+--------------------------------------------------------------------
+0.0.0.0          192.168.1.1      0x3    1      120        motetsec0
+192.168.1.0      192.168.1.10     0x101  1      0          motetsec0
+--------------------------------------------------------------------
+ROUTE HOST TABLE
+destination      gateway          flags  Refcnt Use        Interface
+--------------------------------------------------------------------
+127.0.0.1        127.0.0.1        0x5    0      0          lo0
+--------------------------------------------------------------------
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="routeAdd" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Yönlendirme tablosuna yol ekler: routeAdd "hedef", "ağ geçidi". Varsayılan yol için hedef "0.0.0.0" yazılır. Eklenen yol kart yeniden başlayınca silinir (kalıcı yapmak için boot ayarlarında g= alanı kullanılır).</Aciklama>
+      <Yazilis>routeAdd "0.0.0.0", "192.168.1.1"
+routeAdd "10.0.0.0", "192.168.1.254"</Yazilis>
+      <OrnekCikti>value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="arpShow" Degistirilme="2026-11-06 12:00">
+      <Aciklama>ARP tablosunu gösterir: kartın konuştuğu IP adresleri ve MAC adresleri. Aynı ağdaki bir cihaza ulaşılamıyorsa kaydın oluşup oluşmadığına bakılır.</Aciklama>
+      <Yazilis>arpShow</Yazilis>
+      <OrnekCikti>LINK LEVEL ARP TABLE
+destination      gateway             flags  Refcnt  Use     Interface
+--------------------------------------------------------------------------
+192.168.1.1      00:11:22:33:44:55   0x405    1        12   motetsec0
+192.168.1.50     00:1b:21:aa:bb:cc   0x405    1        87   motetsec0
+--------------------------------------------------------------------------
+value = 75 = 0x4b = 'K'</OrnekCikti>
+    </Komut>
+    <Komut Ad="hostShow" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Kartın bildiği ana bilgisayar adlarını ve IP adreslerini (host tablosu) listeler.</Aciklama>
+      <Yazilis>hostShow</Yazilis>
+      <OrnekCikti>hostname         inet address       aliases
+--------         ------------       -------
+localhost        127.0.0.1
+kart1            192.168.1.10
+host             192.168.1.1
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="hostAdd" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Host tablosuna ad–IP eşlemesi ekler; böylece komutlarda IP yerine ad kullanılabilir. Kart yeniden başlayınca silinir.</Aciklama>
+      <Yazilis>hostAdd "sunucu", "192.168.1.5"</Yazilis>
+      <OrnekCikti>value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="tcpstatShow" Degistirilme="2026-11-06 12:00">
+      <Aciklama>TCP istatistiklerini gösterir (gönderilen / alınan paketler, yeniden gönderimler, kopan bağlantılar). Bağlantı kopmalarını ve ağ sorunlarını incelerken kullanılır. Benzerleri: udpstatShow, ipstatShow, icmpstatShow.</Aciklama>
+      <Yazilis>tcpstatShow</Yazilis>
+      <OrnekCikti>TCP:
+	1824 packets sent
+		1290 data packets (98211 bytes)
+		3 data packets (512 bytes) retransmitted
+		...
+	2104 packets received
+		...
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="netStackSysPoolShow" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Ağ yığınının sistem ara bellek havuzunun (mbuf / cluster) kullanımını gösterir. "no buffers" ya da ağın zamanla tıkanması gibi sorunlarda havuzun tükenip tükenmediğine bakılır. Veri havuzu için netStackDataPoolShow.</Aciklama>
+      <Yazilis>netStackSysPoolShow
+netStackDataPoolShow</Yazilis>
+      <OrnekCikti>type        number
+---------   ------
+FREE    :    1180
+DATA    :       0
+HEADER  :       0
+SOCKET  :      12
+PCB     :       9
+...
+number of mbufs: 1200
+number of times failed to find space: 0
+number of times waited for space: 0
+number of times drained protocols for space: 0
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="ifconfig" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Ağ arayüzlerini gösterir ve ayarlar (IPNet ağ yığını). Argümanlar Unix ifconfig'teki gibi tek bir metin içinde verilir. Argümansız ya da "-a" ile tüm arayüzleri gösterir; IP adresi, maske, MAC, MTU, UP / RUNNING durumu ve sayaçlar görünür. Adres değiştirmek kartla bağlantıyı koparabilir; kalıcı değişiklik için boot ayarları kullanılır.</Aciklama>
+      <Yazilis>ifconfig "-a"
+ifconfig "gei0"
+ifconfig "gei0 inet 192.168.1.20 netmask 255.255.255.0"</Yazilis>
+      <OrnekCikti>gei0    Link type:Ethernet  HWaddr 00:a0:1e:11:22:33
+        inet 192.168.1.10  mask 255.255.255.0  broadcast 192.168.1.255
+        UP RUNNING SIMPLEX BROADCAST MULTICAST  MTU:1500  metric:1  VR:0  ifindex:2
+        RX packets:1204 mcast:0 errors:0 dropped:0
+        TX packets:980 mcast:0 errors:0
+        collisions:0 unsupported proto:0
+        RX bytes:152340  TX bytes:98211
+
+lo0     Link type:Local loopback
+        inet 127.0.0.1  mask 255.0.0.0
+        UP RUNNING LOOPBACK MULTICAST  MTU:1536  metric:1  VR:0  ifindex:1
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="netstat" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Ağ durumunu gösterir (IPNet). Seçenek tek bir metin olarak verilir: "-a" tüm soketler (dinleyenler dahil), "-r" yönlendirme tablosu, "-i" arayüz sayaçları, "-s" protokol istatistikleri. Argümansız kurulu bağlantıları gösterir.</Aciklama>
+      <Yazilis>netstat
+netstat "-a"
+netstat "-r"
+netstat "-s"</Yazilis>
+      <OrnekCikti>INET sockets
+Prot Recv-Q Send-Q Local Address                 Foreign Address               State
+TCP       0      0 192.168.1.10:23               192.168.1.50:51234            ESTABLISHED
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="netstat &quot;-a&quot;" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Dinlenen portlar (LISTEN) dahil tüm TCP / UDP soketlerini listeler. Kartta hangi servislerin (telnet 23, FTP 21, uygulama portları) açık olduğunu ve kimlerin bağlı olduğunu görmek için kullanılır. Diğer seçenekler için netstat'a bakın.</Aciklama>
+      <Yazilis>netstat "-a"</Yazilis>
+      <OrnekCikti>INET sockets
+Prot Recv-Q Send-Q Local Address                 Foreign Address               State
+TCP       0      0 0.0.0.0:21                    0.0.0.0:*                     LISTEN
+TCP       0      0 0.0.0.0:23                    0.0.0.0:*                     LISTEN
+TCP       0      0 192.168.1.10:23               192.168.1.50:51234            ESTABLISHED
+UDP       0      0 0.0.0.0:17185                 0.0.0.0:*
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="sockShow" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Karttaki açık soketleri (türü, durumu, yerel / uzak adresi ve sahibi) listeler. Soket sızıntısını (sürekli artan açık soket) bulmak için kullanılır. Kartın imajına ve ağ yığınına göre çıktı biçimi değişir; komut yoksa netstat "-a" kullanılır.</Aciklama>
+      <Yazilis>sockShow</Yazilis>
+    </Komut>
+    <Komut Ad="ipcom_socketclose" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Açık bir soketi tanımlayıcısıyla (fd) zorla kapatır (IPNet / IPCOM). Takılı kalmış bir bağlantıyı ya da portu tutan soketi serbest bırakmak için kullanılır. fd, iosFdShow çıktısından alınır. Yanlış soketi kapatmak (ör. kendi telnet oturumunuz) bağlantınızı koparır.</Aciklama>
+      <Yazilis>ipcom_socketclose 5</Yazilis>
+      <OrnekCikti>value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="sysvar list" Degistirilme="2026-11-06 12:00">
+      <Aciklama>IPCOM sistem değişkenlerini (ağ yığını ve servis ayarları, ör. ipnet.inet.*, ipcom.* anahtarları) ve değerlerini listeler. Bu bir IPCOM komut kabuğu komutudur: C yorumlayıcısında (-&gt;) değil, cmd ile geçilen komut yorumlayıcısında ([vxWorks *]#) yazılır; sonra C ile geri dönülür. Değer değiştirmek için sysvar set ad değer.</Aciklama>
+      <Yazilis>sysvar list
+cmd          // önce komut yorumlayıcısına geçin
+C            // işiniz bitince C yorumlayıcısına dönün</Yazilis>
+      <OrnekCikti>ipcom.shell.prompt=[vxWorks *]#
+ipnet.inet.AutoConf=1
+ipnet.sock.AsyncSignal=1
+...</OrnekCikti>
+    </Komut>
+    <Komut Ad="syslog list" Degistirilme="2026-11-06 12:00">
+      <Aciklama>IPCOM sistem günlüğü (syslog) ayarlarını listeler: hangi bileşenin (facility) hangi seviyeye kadar (emerg … debug) log ürettiği. Bileşen loglarını açıp kapatmadan önce mevcut seviyeleri görmek için kullanılır. sysvar gibi komut yorumlayıcısında (cmd) yazılır.</Aciklama>
+      <Yazilis>syslog list
+cmd          // önce komut yorumlayıcısına geçin
+C            // C yorumlayıcısına dönün</Yazilis>
+    </Komut>
+  </Modul>
+  <Modul Ad="Senkronizasyon nesneleri" Degistirilme="2026-11-06 12:00">
+    <Aciklama>Semafor, mesaj kuyruğu ve watchdog gibi çekirdek nesnelerinin durumunu görme. Nesne kimliği, ti / tt çıktısında görevin beklediği nesneden ya da uygulamanın global değişkeninden alınır.</Aciklama>
+    <Komut Ad="semShow" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Semaforun türünü, sahibini (mutex için), bekleyen görevleri ve seçeneklerini gösterir. Bir görevin PEND durumunda neden beklediğini (hangi semaforu kimin tuttuğunu) bulmak için kullanılır. İkinci argüman 1 ise bekleyen görevler de listelenir.</Aciklama>
+      <Yazilis>semShow semId, 1</Yazilis>
+      <OrnekCikti>Semaphore Id        : 0x1d3b2a0
+Semaphore Type      : MUTEX
+Task Queuing        : PRIORITY
+Pended Tasks        : 0
+Owner               : 0x1d4f410 (tShell0)
+Options             : 0xd     SEM_Q_PRIORITY
+                              SEM_DELETE_SAFE
+                              SEM_INVERSION_SAFE
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="msgQShow" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Mesaj kuyruğunun durumunu gösterir: kapasite, kuyruktaki mesaj sayısı, bekleyen alıcı / gönderici görevler. Kuyruk dolu kalıyorsa okuyan görev takılmış olabilir.</Aciklama>
+      <Yazilis>msgQShow msgQId, 1</Yazilis>
+      <OrnekCikti>Message Queue Id    : 0x1d3c010
+Task Queuing        : FIFO
+Message Byte Len    : 64
+Messages Max        : 10
+Messages Queued     : 2
+Receivers Blocked   : 0
+Send Timeouts       : 0
+Receive Timeouts    : 0
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="show" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Kimliği verilen herhangi bir çekirdek nesnesini (görev, semafor, mesaj kuyruğu, watchdog…) türüne uygun biçimde gösterir; nesnenin türünü bilmeden incelemek için kullanılır.</Aciklama>
+      <Yazilis>show 0x1d3b2a0</Yazilis>
+      <OrnekCikti>Semaphore Id        : 0x1d3b2a0
+Semaphore Type      : BINARY
+Task Queuing        : FIFO
+Pended Tasks        : 1
+State               : EMPTY
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+  </Modul>
+  <Modul Ad="Hata ayıklama" Degistirilme="2026-11-06 12:00">
+    <Aciklama>Kesme noktası (breakpoint), adım adım çalıştırma ve hata ayıklama komutları. Kesme noktası konan görev durur; canlı sistemde dikkatli kullanın.</Aciklama>
+    <Komut Ad="b" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Kesme noktası koyar: b adres / fonksiyon. Görev o noktaya gelince durur ve kabuk bilgisini basar. Argümansız b konmuş kesme noktalarını listeler. Belirli bir görev için b fonksiyon, TID.</Aciklama>
+      <Yazilis>b myTask
+b</Yazilis>
+      <OrnekCikti>value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="bd" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Kesme noktasını kaldırır: bd adres. Tümünü kaldırmak için bdall.</Aciklama>
+      <Yazilis>bd myTask
+bdall</Yazilis>
+      <OrnekCikti>value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="c" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Kesme noktasında duran görevi kaldığı yerden devam ettirir: c TID.</Aciklama>
+      <Yazilis>c "t1"</Yazilis>
+      <OrnekCikti>value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="s" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Kesme noktasında duran görevi tek makine komutu ilerletir (adım adım çalıştırma) ve yazmaçları gösterir.</Aciklama>
+      <Yazilis>s "t1"</Yazilis>
+      <OrnekCikti>r0     =  1d78a24   sp     =  1d4a3e0   r2     =        0   r3     =        a
+...
+pc     =  1d78a28   lr     =  1d78a24
+0x01d78a28  93e1001c       stw         r31,28(r1)
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="edrShow" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Hata tespit ve raporlama (ED&amp;R) kayıtlarını gösterir: kartta oluşan istisnalar (exception), çekirdek / görev / süreç hataları ve önemli olaylar; her kayıtta zaman, önem derecesi, ilgili görev, PC adresi ve yığın izi. Kayıtlar kalıcı bellekte tutulduğundan kart yeniden başlasa da korunur — kartın neden çöktüğünü / resetlendiğini bulmak için ilk bakılan komuttur. Kartın imajında ED&amp;R bulunmalıdır.</Aciklama>
+      <Yazilis>edrShow
+edrClear          // kayıtları temizle</Yazilis>
+      <OrnekCikti>ERROR LOG
+=========
+Log Size:         524288 bytes (128 pages)
+Record Size:      4096 bytes
+Max Records:      123
+CPU Type:         0x5a
+Errors Missed:    0 (old) + 0 (recent)
+Error count:      1
+Boot count:       5
+Generation count: 7
+
+==[1/1]==============================================================
+Severity/Facility:       FATAL/RTP
+Boot Cycle:              4
+OS Version:              6.4.0
+Time:                    THU JAN 01 00:02:14 1970 (ticks = 8040)
+Task:                    "iapp" (0x01d9c2a0)
+RTP:                     "/ata0a/app.vxe" (0x01d9b220)
+
+data access
+Exception current instruction address: 0x10000a4c
+...
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="debugAgentStart" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Hata ayıklama ajanını (Workbench gibi bir hata ayıklayıcının karta bağlanmasını sağlayan hedef ajanı) başlatır. Kartta standart olarak kapalı tutulan ajanı gerektiğinde açmak için kullanılır.
+Not: Standart VxWorks adlarından biri değildir (karta / BSP'ye özel olabilir); kendi kartınızdaki davranışını doğrulayıp bu açıklamayı güncelleyin. Kartta olup olmadığını lkup "Agent" ile görebilirsiniz.</Aciklama>
+      <Yazilis>debugAgentStart</Yazilis>
+    </Komut>
+  </Modul>
+  <Modul Ad="Süreçler (RTP)" Degistirilme="2026-11-06 12:00">
+    <Aciklama>Gerçek zamanlı süreçler (RTP): kullanıcı alanında, kendi bellek alanında çalışan uygulamalar (.vxe). Bu komutlar yalnız kartın imajında RTP desteği varsa çalışır.</Aciklama>
+    <Komut Ad="rtpShow" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Çalışan süreçleri (RTP) listeler: ad, kimlik, durum, giriş adresi ve görev sayısı. Kimlik ya da ad ile tek bir süreç, ikinci argüman 1 ile ayrıntılı (görevleri ve bellek alanı) gösterilir.</Aciklama>
+      <Yazilis>rtpShow
+rtpShow "/ata0a/app.vxe", 1</Yazilis>
+      <OrnekCikti>  NAME                 ID      STATE    ENTRY ADDR  OPTIONS  TASK CNT
+-------------------- -------- -------- ---------- -------- --------
+/ata0a/app.vxe       1d9b220  STATE_NORMAL 10000400      0x0        3
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="rtpi" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Süreçlerin (RTP) ve her sürecin görevlerinin özetini verir (i komutunun süreç karşılığı). Kimlik verilirse yalnız o süreç.</Aciklama>
+      <Yazilis>rtpi
+rtpi 0x1d9b220</Yazilis>
+    </Komut>
+    <Komut Ad="rtpSp" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Bir uygulamayı (.vxe) varsayılan ayarlarla yeni bir süreç (RTP) olarak başlatır. Dosya yolu ve argümanlar tek bir metin içinde, boşlukla ayrılarak verilir. Dönüş değeri sürecin kimliğidir. Ayrıntılı ayar (öncelik, yığın, seçenek) gerekiyorsa rtpSpawn kullanılır.</Aciklama>
+      <Yazilis>rtpSp "/ata0a/app.vxe"
+rtpSp "/ata0a/app.vxe arg1 arg2"</Yazilis>
+      <OrnekCikti>value = 31044128 = 0x1d9b220</OrnekCikti>
+    </Komut>
+    <Komut Ad="rtpSpawn" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Süreci (RTP) ayrıntılı ayarla başlatır: rtpSpawn "yol", argv, envp, öncelik, yığın boyutu, süreç seçenekleri, görev seçenekleri. argv / envp metin dizisi adresleridir (argüman yoksa 0); öncelik ilk görevin önceliğidir. Kabuktan argümanlı başlatmak için rtpSp daha kolaydır. Dönüş değeri süreç kimliği, hata durumunda -1'dir.</Aciklama>
+      <Yazilis>rtpSpawn "/ata0a/app.vxe", 0, 0, 100, 0x10000, 0, 0</Yazilis>
+      <OrnekCikti>value = 31044128 = 0x1d9b220</OrnekCikti>
+    </Komut>
+  </Modul>
+  <Modul Ad="Zamanlayıcılar ve watchdog" Degistirilme="2026-11-06 12:00">
+    <Aciklama>POSIX zamanlayıcıları (timer_*) ve VxWorks watchdog'ları (wd*): belirli bir süre sonra (ya da periyodik) bir fonksiyonun çağrılmasını sağlar. Bu fonksiyonlar çoğunlukla uygulama kodunda kullanılır; kabuktan deneme ve durum inceleme için de çağrılabilir. Süreler tik cinsindendir (1 sn = sysClkRateGet tik).</Aciklama>
+    <Komut Ad="timer_create" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Yeni bir POSIX zamanlayıcısı oluşturur: timer_create saat, sigevent, &amp;zamanlayıcı. Saat olarak CLOCK_REALTIME (0) kullanılır; sigevent 0 verilirse süre dolunca varsayılan sinyal üretilir. Oluşan zamanlayıcının kimliği üçüncü argümandaki değişkene yazılır. Başarılıysa 0, hata ise -1 döner. Ardından timer_connect ve timer_settime ile kurulur.</Aciklama>
+      <Yazilis>tmr = 0
+timer_create 0, 0, &amp;tmr
+tmr</Yazilis>
+      <OrnekCikti>new symbol "tmr" added to kernel symbol table.
+tmr = 0x1d7b2b0: value = 0 = 0x0
+value = 0 = 0x0
+tmr = 0x1d7b2b0: value = 31044592 = 0x1d9b3f0</OrnekCikti>
+    </Komut>
+    <Komut Ad="timer_connect" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Zamanlayıcının süresi dolunca çağrılacak fonksiyonu bağlar (VxWorks'e özgü, POSIX dışı kolaylık): timer_connect zamanlayıcı, fonksiyon, argüman. Fonksiyon, zamanlayıcı kimliği ve verilen argümanla çağrılır. Başarılıysa 0 döner.</Aciklama>
+      <Yazilis>timer_connect tmr, myTimerHandler, 0</Yazilis>
+      <OrnekCikti>value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="timer_settime" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Zamanlayıcıyı başlatır / yeniden kurar: timer_settime zamanlayıcı, bayrak, &amp;yeniDeğer, &amp;eskiDeğer. Değerler itimerspec yapısıdır: it_value ilk süre, it_interval periyot (0 ise tek seferlik). Bayrak 0 göreli, TIMER_ABSTIME mutlak zaman demektir. Kabuktan yapıyı doldurmak zor olduğundan genelde kodda kullanılır; it_value 0 verilirse zamanlayıcı durur.</Aciklama>
+      <Yazilis>timer_settime tmr, 0, &amp;yeniDeger, 0</Yazilis>
+      <OrnekCikti>value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="timer_gettime" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Zamanlayıcının bir sonraki süre dolumuna kalan zamanı ve periyodunu itimerspec yapısına yazar: timer_gettime zamanlayıcı, &amp;değer. Zamanlayıcının çalışıp çalışmadığını kontrol etmek için kullanılır.</Aciklama>
+      <Yazilis>timer_gettime tmr, &amp;kalan</Yazilis>
+      <OrnekCikti>value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="timer_cancel" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Çalışan zamanlayıcıyı durdurur ama silmez (VxWorks'e özgü); timer_settime ile yeniden kurulabilir.</Aciklama>
+      <Yazilis>timer_cancel tmr</Yazilis>
+      <OrnekCikti>value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="timer_delete" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Zamanlayıcıyı durdurur ve siler; kimliği bir daha kullanılamaz. Oluşturulan her zamanlayıcı iş bitince silinmelidir.</Aciklama>
+      <Yazilis>timer_delete tmr</Yazilis>
+      <OrnekCikti>value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="wdCreate" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Yeni bir watchdog zamanlayıcısı oluşturur ve kimliğini döndürür. Watchdog, wdStart ile verilen tik sayısı sonra bir fonksiyonu kesme bağlamında bir kez çağırır. Kimliği bir değişkende saklayın.</Aciklama>
+      <Yazilis>wd = wdCreate()</Yazilis>
+      <OrnekCikti>new symbol "wd" added to kernel symbol table.
+wd = 0x1d7b2c0: value = 30922928 = 0x1d7d4b0</OrnekCikti>
+    </Komut>
+    <Komut Ad="wdStart" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Watchdog'u başlatır: wdStart watchdog, tik, fonksiyon, argüman. Verilen tik sayısı sonra fonksiyon argümanla bir kez çağrılır (kesme bağlamında: fonksiyon beklememeli, uzun sürmemeli). Çalışan watchdog'a tekrar wdStart verilirse süre baştan başlar. Başarılıysa 0 döner.</Aciklama>
+      <Yazilis>wdStart wd, sysClkRateGet() * 5, logMsg, "watchdog doldu\n"     // 5 sn sonra</Yazilis>
+      <OrnekCikti>value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="wdCancel" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Çalışan watchdog'u durdurur (fonksiyon çağrılmaz); watchdog silinmez, wdStart ile yeniden başlatılabilir.</Aciklama>
+      <Yazilis>wdCancel wd</Yazilis>
+      <OrnekCikti>value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="wdDelete" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Watchdog'u durdurur ve siler; kimliği bir daha kullanılamaz.</Aciklama>
+      <Yazilis>wdDelete wd</Yazilis>
+      <OrnekCikti>value = 0 = 0x0</OrnekCikti>
+    </Komut>
+    <Komut Ad="wdShow" Degistirilme="2026-11-06 12:00">
+      <Aciklama>Watchdog zamanlayıcısının durumunu gösterir: çalışıyor mu, kalan tik ve çağıracağı fonksiyon.</Aciklama>
+      <Yazilis>wdShow wdId</Yazilis>
+      <OrnekCikti>Watchdog Id         : 0x1d3d4b0
+State               : IN_Q
+Ticks Remaining     : 42
+Routine             : 0x1d78c10 (myTimeout)
+Parameter           : 0x0
+value = 0 = 0x0</OrnekCikti>
+    </Komut>
+  </Modul>
+</KomutKutuphanesi>

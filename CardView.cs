@@ -65,6 +65,7 @@ namespace Vision
         private readonly Label _prompt = Theme.MakeLabel("›", Theme.UiBold, Theme.Accent);
         private readonly TextBox _input = new TextBox { BorderStyle = BorderStyle.None, Font = Theme.Mono };
         private readonly IconButton _sendBtn = new IconButton(IconKind.Send, IconTone.Primary);
+        private readonly IconButton _historyBtn = new IconButton(IconKind.History, IconTone.Ghost) { IconSize = 14, TabStop = false };
         private readonly Panel _quickGap = new Panel { Dock = DockStyle.Right, Width = 6, BackColor = Color.Transparent };
         private readonly Panel _rebootGap = new Panel { Dock = DockStyle.Right, Width = 6, BackColor = Color.Transparent };
 
@@ -86,6 +87,7 @@ namespace Vision
             BuildInput();
             BuildOutput();
             BuildActions();
+            BuildHighlightMenu();
             ((TerminalBox)_output).ZoomWheel = OnTerminalZoomWheel;
 
             // Alttan yukarı: komut satırı, dönüş değerleri çubuğu, (açıksa) dönüş listesi, terminal
@@ -99,7 +101,7 @@ namespace Vision
             // Geçmişi yükle (görünüm kapalıyken gelen veriler dahil)
             _output.Text = Session.AttachView();       // oturum geçmişi zaten satır sınırına kırpılmış
             _appliedMaxLines = Session.MaxLines;
-            _output.HandleCreated += (s, e) => ColorizeAlerts(0, null);
+            _output.HandleCreated += (s, e) => { ColorizeAlerts(0, null); ApplyHighlights(0, null); };
             ScrollToEnd();
             RefreshState();
             RefreshUptime();
@@ -246,8 +248,14 @@ namespace Vision
             _input.Dock = DockStyle.Fill;
             _input.BackColor = Theme.Input;
             _input.ForeColor = Theme.Text;
+            // Komut alanının sağında geçmiş düğmesi: yazılmış tüm komutlar + geriye doğru arama (Ctrl+R)
+            _historyBtn.Dock = DockStyle.Right;
+            _historyBtn.Width = 24;
+            _historyBtn.SetTip(_tips, "Komut geçmişi (Ctrl+R) — daha önce yazılan tüm komutları listeler ve içinde arar;\nseçilen komut komut satırına yazılır (gönderilmez)");
+            _historyBtn.Click += (s, e) => ShowHistory();
             field.Controls.Add(_input);
             field.Controls.Add(_prompt);
+            field.Controls.Add(_historyBtn);
 
             _sendBtn.Dock = DockStyle.Right;
             _sendBtn.Width = 36;
@@ -269,7 +277,7 @@ namespace Vision
             // Enter tuşu YALNIZCA burada işlenir (tek işleyici). SuppressKeyPress, TextBox'ın
             // kendi Enter işlemesini ve uyarı sesini engeller; formda AcceptButton yoktur.
             _input.KeyDown += Input_KeyDown;
-            // Kartın kendi komut geçmişinden otomatik tamamlama (Tab / ↓ / → ile kabul; çalıştırmaz)
+            // Ortak, kalıcı komut geçmişinden otomatik tamamlama (Tab / ↓ / → ile kabul; çalıştırmaz)
             _autoComplete = new InputAutoComplete(_input, () => Session.CommandHistory);
             _sendBtn.Click += async (s, e) => await SendCurrentAsync();
             field.Click += (s, e) => _input.Focus();
@@ -357,6 +365,7 @@ namespace Vision
             _connectBtn.Tone = live ? IconTone.Danger : IconTone.Success;
             _connectBtn.SetTip(_tips, live ? ConnectionAction.DisconnectLabel + " (yalnız bu kart)" : ConnectionAction.ConnectLabel + " (yalnız bu kart)");
             _sendBtn.Enabled = st == CardState.Connected;
+            _historyBtn.Enabled = st == CardState.Connected;   // bağlı değilken komut satırı yazılamaz
             RefreshActionButtons();
             _prompt.ForeColor = st == CardState.Connected ? Theme.Accent : Theme.TextFaint;
 
@@ -393,6 +402,7 @@ namespace Vision
                 _stateStrip.ForeColor = Color.White;
             }
             ApplyLook(st == CardState.Connected, drop);
+            ApplyPendingInput(st);
             _header.Invalidate();
             Invalidate();   // kenarlık rengi
         }
@@ -468,6 +478,7 @@ namespace Vision
                 int start = PrepareAppend();
                 _output.AppendText(text);
                 ColorizeAlerts(start, text);
+                ApplyHighlights(start, text);                  // kullanıcının renklendirdiği metinler (sağ tık → Renklendir)
                 int removed = TrimToLimit(!follow, ref pos);   // en eski satırlar silinir, en yeniler kalır
 
                 if (follow)
@@ -685,6 +696,7 @@ namespace Vision
                 _output.BackColor = outBack;
                 _output.ForeColor = outText;           // tüm metni yeniden renklendirir…
                 ColorizeAlerts(0, null);               // …kırmızı uyarı satırlarını geri boya
+                ApplyHighlights(0, null);              // …renklendirilen metinleri geri boya
                 _output.ResumeLayout();
                 _outputHost.BackColor = outBack;
 
@@ -700,7 +712,7 @@ namespace Vision
                 _field.BackColor = inBack;
                 _inputBar.BackColor = connected ? Theme.SurfaceHigh : OffHeaderBack;
                 _input.Cursor = connected ? Cursors.IBeam : Cursors.No;
-                Theme.SetCueBanner(_input, connected ? "Komut yazıp Enter'a basın  (↑/↓ geçmiş)" : "Kart bağlı değil — komut yazılamaz");
+                Theme.SetCueBanner(_input, connected ? "Komut yazıp Enter'a basın  (↑/↓ geçmiş · Ctrl+R ara)" : "Kart bağlı değil — komut yazılamaz");
             }
 
             if (_shownDrop != drop)
@@ -725,7 +737,8 @@ namespace Vision
             int start = _output.TextLength;
             _output.SelectionStart = start;
             _output.SelectionLength = 0;
-            _output.SelectionColor = _output.ForeColor;   // önceki satır kırmızıysa rengi devralmasın
+            // Önceki satır kırmızıysa ya da metin renklendirilmiş bir kelimeyle bitiyorsa yeni metin o rengi / zemini devralmasın
+            SetCharColors(false, _output.ForeColor, Color.Empty);
             return start;
         }
 
@@ -822,12 +835,79 @@ namespace Vision
                 string next = Session.CommandHistory.Next();
                 if (next != null) SetInput(next);   // en yeninin ötesinde yazılan taslak geri gelir
             }
+            else if (e.KeyCode == Keys.R && e.Control && !e.Alt)
+            {
+                // Ctrl+R: geriye doğru arama — yazılan metinle başlar
+                e.SuppressKeyPress = true;
+                e.Handled = true;
+                ShowHistory();
+            }
             else if (e.KeyCode == Keys.C && e.Control && _input.SelectionLength == 0 && Session.State == CardState.Connected)
             {
                 // Ctrl+C: karta kesme (ETX) gönder
                 e.SuppressKeyPress = true;
                 try { await Session.SendRawAsync("\x03"); } catch { }
             }
+        }
+
+        private string _pendingInput;   // kart bağlanınca komut satırına yazılacak komut (kütüphaneden aktarma)
+
+        /// <summary>
+        /// Komutu komut satırına yazar (GÖNDERMEZ) ve odaklanır — Komut Kütüphanesi'nden "Karta aktar".
+        /// Kart bağlı değilse bağlanmayı başlatır; komut bağlantı kurulunca yazılır (kurulamazsa vazgeçilir).
+        /// </summary>
+        public void InsertCommand(string command)
+        {
+            if (string.IsNullOrEmpty(command)) return;
+            if (Session.State == CardState.Connected)
+            {
+                _pendingInput = null;
+                Session.CommandHistory.ResetNavigation();
+                SetInput(command);
+                _input.Focus();
+                ShowToast("✓  Kütüphaneden alındı — düzenleyip Enter ile gönderin.", true, null);
+                return;
+            }
+            _pendingInput = command;
+            ShowToast("ℹ  Kart bağlı değil — bağlanılıyor; bağlanınca komut satırına yazılacak.", true, null);
+            if (!SelectionLogic.IsLive(Session.State)) ConnectForPending();
+        }
+
+        private async void ConnectForPending()
+        {
+            try { await Session.ConnectAsync(); }
+            catch (Exception ex) { ErrorText.LogTechnical(Session.Card.DisplayName + " bağlantı", ex); }
+        }
+
+        /// <summary>Durum değişince bekleyen (kütüphaneden aktarılan) komutu yazar ya da bağlantı kurulamadıysa bırakır.</summary>
+        private void ApplyPendingInput(CardState st)
+        {
+            if (_pendingInput == null) return;
+            if (st == CardState.Connected)
+            {
+                string cmd = _pendingInput;
+                _pendingInput = null;
+                Session.CommandHistory.ResetNavigation();
+                SetInput(cmd);
+                _input.Focus();
+                ShowToast("✓  Bağlandı — komut yazıldı; düzenleyip Enter ile gönderin.", true, null);
+            }
+            else if (st == CardState.Error || st == CardState.Disconnected)
+            {
+                _pendingInput = null;
+                ShowToast("⚠  Karta bağlanılamadı — komut yazılmadı.", false, null);
+            }
+        }
+
+        /// <summary>Komut geçmişi penceresini açar; seçilen komut komut satırına yazılır (gönderilmez).</summary>
+        private void ShowHistory()
+        {
+            string query = _input.SelectionLength > 0 ? _input.SelectedText : _input.Text;
+            string chosen = CommandHistoryDialog.Pick(FindForm(), Session.CommandHistory, query, Session.Card.Label);
+            if (chosen == null || Session.State != CardState.Connected) return;
+            Session.CommandHistory.ResetNavigation();
+            SetInput(chosen);
+            _input.Focus();
         }
 
         private void SetInput(string text)
@@ -851,6 +931,7 @@ namespace Vision
                 _rebootCooldown.Dispose();
                 _quickMenu.Dispose();
                 if (_alertFont != null) _alertFont.Dispose();
+                DisposeHighlightResources();
             }
             base.Dispose(disposing);
         }

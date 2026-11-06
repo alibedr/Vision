@@ -90,7 +90,7 @@ namespace Vision
             _copyUsageBtn.Font = Theme.UiSmall;
             _copyUsageBtn.Size = new Size(100, 26);
             _copyUsageBtn.SetTip(_tips, "Yazılışı panoya kopyala (terminale yapıştırmak için)");
-            _form.Controls.Add(SectionCaption("YAZILIŞ / ÖRNEK KULLANIM", _copyUsageBtn), 0, 4);
+            _form.Controls.Add(SectionCaption("YAZILIŞ / ÖRNEK KULLANIM", UsageActions()), 0, 4);
             _form.Controls.Add(Framed(_usage), 0, 5);
             _form.Controls.Add(SectionCaption("ÖRNEK ÇIKTI", null), 0, 6);
             _form.Controls.Add(Framed(_output), 0, 7);
@@ -257,9 +257,11 @@ namespace Vision
             _moduleCaption.Visible = _moduleCombo.Visible = edit;
             LayoutMetaRow();
 
-            _editBtn.Visible = _deleteBtn.Visible = !edit && _current != null;
+            _editBtn.Visible = _deleteBtn.Visible = !edit && _current != null && !ReadOnlyLibrary;
             _saveBtn.Visible = _cancelBtn.Visible = _keysHint.Visible = edit;
             _copyUsageBtn.Visible = !edit && _current != null && !string.IsNullOrEmpty(_current.Usage);
+            _transferBtn.Visible = !edit && _current != null && CanTransfer;
+            _bundledBtn.Enabled = !edit;
             LayoutButtons();
             UpdateButtons();
             _newBtn.Enabled = !_isNew;
@@ -388,8 +390,9 @@ namespace Vision
             if (_modDeleteBtn.Visible) { _modDeleteBtn.Location = new Point(right - _modDeleteBtn.Width, y); right = _modDeleteBtn.Left - 8; }
             if (_modEditBtn.Visible) { _modEditBtn.Location = new Point(right - _modEditBtn.Width, y); right = _modEditBtn.Left - 8; }
             _modAddBtn.Location = new Point(right - _modAddBtn.Width, y);
-            _modTitle.SetBounds(58, 0, Math.Max(80, _modAddBtn.Left - 16 - 58), 32);
-            _modStats.MaximumSize = new Size(Math.Max(80, _modAddBtn.Left - 16 - 60), 0);
+            int titleRight = _modAddBtn.Visible ? _modAddBtn.Left : right;   // salt okunur kütüphanede düğme yok
+            _modTitle.SetBounds(58, 0, Math.Max(80, titleRight - 16 - 58), 32);
+            _modStats.MaximumSize = new Size(Math.Max(80, titleRight - 16 - 60), 0);
         }
 
         private void SizeModuleDescription()
@@ -435,7 +438,8 @@ namespace Vision
                 _modDesc.Text = mod.Description;
                 _modDesc.ForeColor = Theme.Text;
             }
-            _modEditBtn.Visible = _modDeleteBtn.Visible = !none;
+            _modEditBtn.Visible = _modDeleteBtn.Visible = !none && !ReadOnlyLibrary;
+            _modAddBtn.Visible = !ReadOnlyLibrary;
             LayoutModuleHeader();
             SizeModuleDescription();
             _modHeader.Invalidate();
@@ -509,6 +513,7 @@ namespace Vision
 
         private void StartNew(string moduleKey)
         {
+            if (ReadOnlyLibrary) return;   // gömülü kütüphane değiştirilemez
             if (!ConfirmLeave()) return;
             if (!string.IsNullOrEmpty(moduleKey) && _library.FindModule(moduleKey) == null) moduleKey = "";
             _newFromModuleKey = _current == null ? _currentModuleKey : null;
@@ -527,6 +532,7 @@ namespace Vision
 
         private void StartEdit()
         {
+            if (ReadOnlyLibrary) return;   // gömülü kütüphane değiştirilemez
             if (_current == null) return;
             _editing = true;
             _isNew = false;
@@ -588,6 +594,7 @@ namespace Vision
 
         private void DeleteCurrent()
         {
+            if (ReadOnlyLibrary) return;   // gömülü kütüphane değiştirilemez
             if (_current == null || _editing) return;
             string where = string.IsNullOrEmpty(_current.Module) ? "" : " (\"" + _current.Module + "\" modülü)";
             int c = ChoiceDialog.Ask(FindForm(), "Komutu sil", "\"" + _current.Name + "\"" + where + " kütüphaneden silinsin mi?",
@@ -637,6 +644,7 @@ namespace Vision
         /// <summary>Komutu başka modüle taşır (key "": modülsüz). Sürükle-bırak ve sağ tık menüsü kullanır.</summary>
         private void MoveTo(CommandDoc doc, string key)
         {
+            if (ReadOnlyLibrary) return;   // gömülü kütüphane değiştirilemez
             if (doc == null || CommandLibrary.SameName(doc.Module ?? "", key ?? "")) return;
             if (!ConfirmLeave()) return;
             string error;
@@ -657,6 +665,7 @@ namespace Vision
         /// <param name="thenMove">Modül oluşturulunca bu komut yeni modüle taşınır (sağ tık → Modüle taşı → Yeni modül).</param>
         private void NewModule(CommandDoc thenMove = null)
         {
+            if (ReadOnlyLibrary) return;   // gömülü kütüphane değiştirilemez
             if (!ConfirmLeave()) return;
             string name, description;
             if (!ModuleDialog.Ask(FindForm(), _library, null, out name, out description)) return;
@@ -677,6 +686,7 @@ namespace Vision
 
         private void EditModule(string key)
         {
+            if (ReadOnlyLibrary) return;   // gömülü kütüphane değiştirilemez
             CommandModule m = _library.FindModule(key);
             if (m == null) return;
             if (!ConfirmLeave()) return;
@@ -704,6 +714,7 @@ namespace Vision
 
         private void DeleteModule(string key)
         {
+            if (ReadOnlyLibrary) return;   // gömülü kütüphane değiştirilemez
             CommandModule m = _library.FindModule(key);
             if (m == null || _editing) return;
             int count = _library.CommandsIn(m.Name).Count;

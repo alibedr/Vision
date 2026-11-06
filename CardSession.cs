@@ -98,8 +98,18 @@ namespace Vision
         }
         private DateTime? _droppedAtUtc;
 
-        /// <summary>Bu kartın kendi komut geçmişi (kartlar arasında paylaşılmaz).</summary>
+        /// <summary>
+        /// Komut geçmişi: liste tüm kartlar ve genel komut çubuğuyla ortak ve kalıcıdır (CommandHistoryStore);
+        /// ↑/↓ gezinme konumu bu karta aittir.
+        /// </summary>
         public CommandHistory CommandHistory { get { return _commandHistory; } }
+
+        /// <summary>
+        /// Bu kartın terminal ekranındaki renklendirme kuralları (sağ tık → Renklendir). Kart penceresi kapatılıp yeniden
+        /// açılsa da korunur; yalnız bu kartı etkiler. Arayüz iş parçacığından kullanılır.
+        /// </summary>
+        public HighlightRules Highlights { get { return _highlights; } }
+        private readonly HighlightRules _highlights = new HighlightRules();
 
         /// <summary>Komut / dönüş değeri listesinin sürümü (değişince artar).</summary>
         public int ResponsesVersion { get { lock (_lock) return _responses.Version; } }

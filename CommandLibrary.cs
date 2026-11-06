@@ -128,6 +128,18 @@ namespace Vision
             Path = path;
         }
 
+        /// <summary>
+        /// Exe'ye gömülü, SALT OKUNUR kütüphane: içerik yalnız Vision'ın yeni sürümleriyle değişir; uygulamadan
+        /// ekleme / düzenleme / silme / taşıma yapılamaz ve diskteki bir dosya okunmaz ya da yazılmaz.
+        /// </summary>
+        public static CommandLibrary Embedded()
+        {
+            return new CommandLibrary(null) { IsReadOnly = true };
+        }
+
+        /// <summary>Gömülü, değiştirilemez kütüphane mi?</summary>
+        public bool IsReadOnly { get; private set; }
+
         public static string DefaultPath
         {
             get { return System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, FolderName, FileName); }
@@ -150,6 +162,28 @@ namespace Vision
             _items = new List<CommandDoc>();
             _modules = new List<CommandModule>();
             LoadedWriteTimeUtc = DateTime.MinValue;
+            if (IsReadOnly)
+            {
+                CommandLibraryFile embedded = LoadBundled();
+                if (embedded == null) { LoadError = "Gömülü komut kütüphanesi okunamadı."; return; }
+                foreach (CommandModule m in embedded.Modules ?? new List<CommandModule>())
+                {
+                    string mn = (m.Name ?? "").Trim();
+                    if (mn.Length == 0 || SameName(mn, NoModuleName)) mn = "";
+                    CommandModule target = mn.Length == 0 ? null : _modules.FirstOrDefault(x => SameName(x.Name, mn));
+                    if (mn.Length > 0 && target == null)
+                    {
+                        target = new CommandModule { Name = mn, Description = NormalizeText(m.Description), Modified = m.Modified };
+                        _modules.Add(target);
+                    }
+                    foreach (CommandDoc d in m.Commands ?? new List<CommandDoc>()) AddLoaded(d, target != null ? target.Name : "");
+                }
+                foreach (CommandDoc d in embedded.Commands ?? new List<CommandDoc>()) AddLoaded(d, "");
+                foreach (CommandModule m in _modules) m.Commands = new List<CommandDoc>();
+                Sort(_items);
+                SortModules(_modules);
+                return;
+            }
             if (!File.Exists(Path)) return;
             try
             {
@@ -199,6 +233,7 @@ namespace Vision
         /// <summary>Dosya, yüklendikten sonra dışarıdan (metin düzenleyiciyle) değiştirildi mi?</summary>
         public bool ChangedOnDisk()
         {
+            if (IsReadOnly) return false;
             try
             {
                 return File.Exists(Path) && File.GetLastWriteTimeUtc(Path) != LoadedWriteTimeUtc;
@@ -412,6 +447,11 @@ namespace Vision
         private bool TrySave(List<CommandDoc> next, List<CommandModule> modules, out string error)
         {
             error = null;
+            if (IsReadOnly)
+            {
+                error = "Komut kütüphanesi Vision'a gömülüdür ve değiştirilemez; yeni komutlar sonraki sürümlerle gelir.";
+                return false;
+            }
             try
             {
                 Save(next, modules);
@@ -423,6 +463,132 @@ namespace Vision
                 error = "Komut dosyası kaydedilemedi (" + Path + "). Klasöre yazma izni olduğundan emin olun.";
                 return false;
             }
+        }
+
+        // ---------- Hazır komutlar ----------
+
+        /// <summary>Exe'ye gömülü hazır komut kütüphanesinin (VxWorks 6.4 komutları) kaynak adı.</summary>
+        public const string BundledResourceName = "Komutlar.Varsayilan.xml";
+
+        /// <summary>Kütüphanede hiç komut ve modül yok mu (ilk açılışta hazır komutlarla doldurmak için)?</summary>
+        public bool IsEmpty { get { return _items.Count == 0 && _modules.Count == 0; } }
+
+        /// <summary>Exe'ye gömülü hazır kütüphaneyi okur; okunamazsa null.</summary>
+        public static CommandLibraryFile LoadBundled()
+        {
+            try
+            {
+                using (Stream st = typeof(CommandLibrary).Assembly.GetManifestResourceStream(BundledResourceName))
+                {
+                    if (st == null) return null;
+                    return (CommandLibraryFile)new XmlSerializer(typeof(CommandLibraryFile)).Deserialize(st);
+                }
+            }
+            catch (Exception ex)
+            {
+                ErrorText.LogTechnical("hazır komut kütüphanesi", ex);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Verilen kütüphanedeki EKSİK modülleri ve komutları ekler; aynı adlı mevcut komut / modül hiç değiştirilmez
+        /// (kullanıcının düzenlemeleri korunur). Komut, kaynağındaki modüle eklenir (modül yoksa oluşturulur).
+        /// Eklenen komut sayısını döndürür; kayıt hatasında -1 döner ve hiçbir şey değişmez.
+        /// </summary>
+        public int ImportMissing(CommandLibraryFile source, out string error)
+        {
+            error = null;
+            if (source == null) { error = "Hazır komutlar okunamadı."; return -1; }
+            var modules = new List<CommandModule>(_modules);
+            var items = new List<CommandDoc>(_items);
+            int added = 0;
+            bool modulesChanged = false;
+
+            Action<CommandDoc, string> addDoc = (d, module) =>
+            {
+                if (d == null || string.IsNullOrWhiteSpace(d.Name)) return;
+                string name = d.Name.Trim();
+                if (items.Any(x => SameName(x.Name, name))) return;          // mevcut komut korunur
+                items.Add(new CommandDoc
+                {
+                    Name = name,
+                    Description = NormalizeText(d.Description),
+                    Usage = NormalizeText(d.Usage),
+                    ExampleOutput = NormalizeText(d.ExampleOutput),
+                    Modified = d.Modified,
+                    Module = module,
+                });
+                added++;
+            };
+
+            foreach (CommandModule m in source.Modules ?? new List<CommandModule>())
+            {
+                string mn = (m.Name ?? "").Trim();
+                string target = "";
+                if (mn.Length > 0 && !SameName(mn, NoModuleName))
+                {
+                    CommandModule existing = modules.FirstOrDefault(x => SameName(x.Name, mn));
+                    if (existing == null)
+                    {
+                        existing = new CommandModule { Name = mn, Description = NormalizeText(m.Description), Modified = m.Modified };
+                        modules.Add(existing);
+                        modulesChanged = true;
+                    }
+                    target = existing.Name;
+                }
+                foreach (CommandDoc d in m.Commands ?? new List<CommandDoc>()) addDoc(d, target);
+            }
+            foreach (CommandDoc d in source.Commands ?? new List<CommandDoc>()) addDoc(d, "");
+
+            if (added == 0 && !modulesChanged) return 0;
+            Sort(items);
+            SortModules(modules);
+            if (!TrySave(items, modules, out error)) return -1;
+            _items = items;
+            _modules = modules;
+            return added;
+        }
+
+        // ---------- Karta aktarma ----------
+
+        /// <summary>
+        /// Komutun karta aktarılacak tek satırı: seçili metin varsa onun ilk dolu satırı, yoksa yazılışın ilk dolu
+        /// satırı, o da yoksa komutun adı. Satır sonundaki " // açıklama" kısmı atılır.
+        /// </summary>
+        public static string TransferText(CommandDoc doc, string selection)
+        {
+            string line = FirstLine(selection);
+            if (line == null && doc != null) line = FirstLine(doc.Usage);
+            if (line == null && doc != null) line = (doc.Name ?? "").Trim();
+            return line ?? "";
+        }
+
+        private static string FirstLine(string text)
+        {
+            foreach (string raw in NormalizeText(text).Split('\n'))
+            {
+                string l = StripComment(raw).Trim();
+                if (l.Length > 0) return l;
+            }
+            return null;
+        }
+
+        /// <summary>"komut   // açıklama" → "komut". Yalnız boşluktan sonra gelen // açıklama sayılır ("host://" bozulmaz).</summary>
+        public static string StripComment(string line)
+        {
+            if (line == null) return "";
+            for (int i = 1; i + 1 < line.Length; i++)
+                if (line[i] == '/' && line[i + 1] == '/' && char.IsWhiteSpace(line[i - 1]) && !InQuotes(line, i))
+                    return line.Substring(0, i).TrimEnd();
+            return line;
+        }
+
+        private static bool InQuotes(string line, int index)
+        {
+            bool q = false;
+            for (int i = 0; i < index; i++) if (line[i] == '"' && (i == 0 || line[i - 1] != '\\')) q = !q;
+            return q;
         }
 
         // ---------- Arama ----------
