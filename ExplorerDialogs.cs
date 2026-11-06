@@ -426,8 +426,10 @@ namespace Vision
             var tmp = new TransferSettings();
             Apply(tmp);
             CardFtpCredentials c = _session != null ? _session.Ftp : null;
-            string cardDir = tmp.CardFolderFor(c);
-            _mapping.Text = "FTP'de  " + tmp.NormalizedRemoteDir + "  klasörüne gönderilen dosyayı kart  " + cardDir + "  yolundan kopyalayacak.";
+            // Aktarımlar FTP klasörünün içindeki Vision çalışma klasöründen yapılır (ForCard ile aynı hesap; c null olabilir)
+            string remoteDir = tmp.NormalizedRemoteDir.TrimEnd('/') + "/" + TransferSettings.WorkFolderName;
+            string cardDir = FsPath.Join(tmp.CardFolderFor(c), TransferSettings.WorkFolderName);
+            _mapping.Text = "FTP'de  " + remoteDir + "  klasörüne gönderilen dosyayı kart  " + cardDir + "  yolundan kopyalayacak.";
         }
 
         private async Task ObtainAsync(bool force)

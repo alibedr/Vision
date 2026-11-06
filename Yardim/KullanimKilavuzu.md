@@ -398,7 +398,7 @@ Kart dosyasını bilgisayarınızdaki bir uygulamayla (Notepad++, XML düzenleyi
 
 | FTP ayarları | Yöntem | Hangi dosyalar |
 |---|---|---|
-| Girilmiş | Kartta `copy "dosya", "<kartın FTP yolu>/_tkt_<rastgele>_dosya"` ile FTP konumuna geçici bir kopya alınır, FTP'den bilgisayara indirilir, geçici kopya **her zaman** silinir. | Her tür dosya, bayt bayt aynı (ikili dosyalar dahil). |
+| Girilmiş | Kartta `copy "dosya", "<kartın FTP yolu>/Vision/_tkt_<rastgele>_dosya"` ile FTP'deki Vision klasörüne geçici bir kopya alınır, FTP'den bilgisayara indirilir, geçici kopya **her zaman** silinir. | Her tür dosya, bayt bayt aynı (ikili dosyalar dahil). |
 | Girilmemiş | Sorulur: **FTP ayarları…** ya da **Metin olarak aç** (içerik `copy "dosya"` ile telnet üzerinden okunur). | Yalnız metin dosyaları (.txt, .xml, .cfg…). İkili dosyalar bu yolla bozulur. |
 
 - Kopyalar `%TEMP%\TelnetCards\SaltOkunur\<oturum>\<kart IP>\<n>\<özgün dosya adı>` içinde tutulur; dosya adı değişmez (uygulama uzantıya göre seçilir). Aynı dosyayı tekrar açmak yeni bir kopya oluşturur, öncekini değiştirmez.
@@ -410,8 +410,8 @@ Kart dosyasını bilgisayarınızdaki bir uygulamayla (Notepad++, XML düzenleyi
 
 Yükleme, kartlara dosya atarken elle izlediğiniz yolun aynısını otomatik yapar:
 
-1. Dosya (ya da klasör) **kartın erişebildiği FTP sunucusuna** gönderilir — sunucu, kullanıcı ve parola **o kartın kendisinden** alınır (aşağıya bakın).
-2. Kartta `copy "FTP-konumu/dosya", "hedef/dosya"` çalıştırılır. Klasörlerde `xcopy` **kullanılmaz** (FTP üzerinden `xcopy` kartın telnet bağlantısını düşürebiliyordu): kartta önce klasör ve alt klasörler `mkdir` ile açılır, sonra her dosya ayrı `copy` ile kopyalanır. İlerleme "dosya 3/12" gibi gösterilir; bir dosya kopyalanamazsa diğerleri devam eder ve sonunda hangilerinin kopyalanamadığı yazılır. Klasörün içindeki öğelerden birinin adında Türkçe / özel karakter varsa yükleme başlamadan bildirilir.
+1. Dosya (ya da klasör) **kartın erişebildiği FTP sunucusuna**, FTP klasörünün içindeki **`Vision`** çalışma klasörüne gönderilir — sunucu, kullanıcı ve parola **o kartın kendisinden** alınır (aşağıya bakın). `Vision` klasörü yoksa ilk aktarımda otomatik oluşturulur.
+2. Kartta `copy "FTP-konumu/Vision/dosya", "hedef/dosya"` çalıştırılır. Klasörlerde `xcopy` **kullanılmaz** (FTP üzerinden `xcopy` kartın telnet bağlantısını düşürebiliyordu): kartta önce klasör ve alt klasörler `mkdir` ile açılır, sonra her dosya ayrı `copy` ile kopyalanır. İlerleme "dosya 3/12" gibi gösterilir; bir dosya kopyalanamazsa diğerleri devam eder ve sonunda hangilerinin kopyalanamadığı yazılır. Klasörün içindeki öğelerden birinin adında Türkçe / özel karakter varsa yükleme başlamadan bildirilir.
 3. Dönüş değeri kontrol edilir.
 
 Yüklemek için: Windows Gezgini'nden dosyaları listeye **sürükleyip bırakın** (bir klasörün üzerine bırakırsanız o klasöre; boş bir klasöre de bırakılabilir) ya da **Yükle** (yukarı ok simgesi) düğmesini kullanın. Hedefte aynı adlı öğe varsa üzerine yazmadan önce sorulur.
@@ -422,7 +422,7 @@ Yüklemek için: Windows Gezgini'nden dosyaları listeye **sürükleyip bırakı
 
 ### FTP kopyalarını sil
 
-Yüklenen her dosya önce FTP sunucusuna kopyalanır. Bu kopyalar kendiliğinden silinmez (FTP ayarlarında "kopyalama sonrası hemen sil" açılmadıkça).
+Yüklenen her dosya önce FTP sunucusundaki **`Vision`** klasörüne kopyalanır. Kopyalama başarılı olunca FTP kopyası silinir ("kopyalama sonrası hemen sil" açıksa — varsayılan); aktarım **başarısız olursa** kopya FTP'de kalır. Bu kopyalar her zaman `Vision` klasöründe durduğu için FTP sunucusunda zaten bulunan dosya ve klasörlerle **karışmaz**; isterseniz FTP'de `Vision` klasörünü tümüyle silebilirsiniz (bir sonraki aktarımda yeniden oluşturulur).
 
 - Bir karta yükleme **başlar başlamaz** Dosya Gezgini'ndeki **FTP kopyalarını sil** düğmesi (çöp kutusu) etkinleşir; yükleme başarılı da olsa başarısız da olsa (yarım dosya kalmış olabilir) etkin kalır.
 - Tıklayınca onay istenir ve **yalnız bu kartın** FTP'de bıraktığı kopyalar silinir; karttaki dosyalara dokunulmaz. Silinince düğme pasifleşir. Zaten silinmiş kopyalar sorun çıkarmaz.
@@ -455,15 +455,15 @@ fei(0,0)host:/vxWorks e=192.168.1.10:ffffff00 h=192.168.1.100 u=ftpuser pw=parol
 |---|---|
 | Bu kartın FTP bilgisi | Karttan alınan sunucu, kullanıcı, kartın FTP yolu (`/host.…`) ve aygıtı (parola gösterilmez). **Karttan yeniden al** ile tazelenir. |
 | FTP klasörü | Dosyaların gönderileceği klasör, FTP oturumunun açıldığı klasöre göre (ör. `upload`; boş = kök). Tüm kartlar için ortak. |
-| Kartın aynı klasörü gördüğü yol | Boş bırakın (önerilen): **otomatik** = `/host.` + kartın aygıt adı + FTP klasörü (ör. `/host.host`, FTP klasörü `upload` ise `/host.host/upload`). İsterseniz başka bir yol yazabilirsiniz (yalnız `host:` yazılırsa eski biçim `host:upload` kullanılır). Pencerede eşleme açıkça yazar. |
+| Kartın aynı klasörü gördüğü yol | Boş bırakın (önerilen): **otomatik** = `/host.` + kartın aygıt adı + FTP klasörü (ör. `/host.host`, FTP klasörü `upload` ise `/host.host/upload`). İsterseniz başka bir yol yazabilirsiniz (yalnız `host:` yazılırsa eski biçim `host:upload` kullanılır). Pencerede eşleme (FTP'deki `…/Vision` klasörü ↔ kartın gördüğü `…/Vision` yolu) açıkça yazar. |
 | Port, Pasif kip | Tüm kartlar için ortak. |
 | Kopyalama sonrası hemen sil | Açıksa kartta kopyalama başarılı olunca FTP kopyası hemen silinir (varsayılan: **açık**; önceki sürümden gelen ayarlarda da ilk açılışta bir kez açılır, sonra seçiminiz korunur). |
 
 **Bağlantıyı sına** yalnız bağlanmayı değil, yüklemenin gerçekten çalışacağını **aşama aşama** sınar:
 
-1. FTP oturumu ve klasör listeleme
-2. FTP'ye yazma (küçük bir deneme dosyası)
-3. **Kartın** aynı dosyayı görmesi (kart, FTP klasörünü listeler)
+1. FTP oturumu, `Vision` çalışma klasörünün oluşturulması (varsa dokunulmaz) ve listelenmesi
+2. `Vision` klasörüne yazma (küçük bir deneme dosyası)
+3. **Kartın** aynı dosyayı görmesi (kart, `…/Vision` klasörünü listeler)
 4. Deneme dosyasının silinmesi
 
 Bağlantı başarılı olsa da yazma izni yoksa ya da kartın gördüğü yol FTP klasörüyle aynı yer değilse hangi aşamada ve neden başarısız olduğu yazılır.

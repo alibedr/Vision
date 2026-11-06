@@ -118,6 +118,17 @@ namespace Vision
         }
 
         /// <summary>Bu kartın bilgileriyle (yalnız bellekte) çalışan ayar kopyası.</summary>
+        /// <summary>
+        /// Vision'ın FTP'deki çalışma klasörü. Karta yüklenecek dosyalar / klasörler, "Birlikte aç" geçici kopyaları ve
+        /// bağlantı sınaması dosyası FTP klasörünün kendisine değil, onun içindeki bu klasöre gider: bir aktarım yarıda
+        /// kalıp FTP'de kopya bırakırsa sunucudaki diğer dosya ve klasörlerle karışmaz. Klasör yoksa ilk aktarımda oluşturulur.
+        /// </summary>
+        public const string WorkFolderName = "Vision";
+
+        /// <summary>
+        /// Bu kart için geçerli ayarlar: kartın FTP bilgisi + çalışma klasörü. FtpRemoteDir ve CardPathPrefix aynı
+        /// klasörü (…/Vision) gösterir; aktarımlarda kullanılan tüm adlar bu klasöre görelidir.
+        /// </summary>
         public TransferSettings ForCard(CardFtpCredentials c)
         {
             var t = (TransferSettings)MemberwiseClone();
@@ -125,7 +136,8 @@ namespace Vision
             t.FtpUser = c.User;
             t.FtpPasswordProtected = null;
             t.RuntimePassword = c.Password ?? "";
-            t.CardPathPrefix = CardFolderFor(c);
+            t.CardPathPrefix = FsPath.Join(CardFolderFor(c), WorkFolderName);
+            t.FtpRemoteDir = NormalizedRemoteDir.TrimEnd('/') + "/" + WorkFolderName;
             return t;
         }
 
@@ -181,6 +193,8 @@ namespace Vision
     /// <summary>Kartın erişebildiği aktarım konumuna dosya gönderen bileşen (test için değiştirilebilir).</summary>
     public interface IFileUploader
     {
+        /// <summary>FTP'deki çalışma klasörünü (…/Vision) yoksa oluşturur; varsa bir şey yapmaz.</summary>
+        Task EnsureWorkFolderAsync();
         Task UploadFileAsync(string localPath, string remoteName);
         Task UploadDirectoryAsync(string localDir, string remoteName);
         Task DeleteAsync(string remoteName, bool isDirectory);
@@ -243,6 +257,35 @@ namespace Vision
         private static async Task Complete(FtpWebRequest req)
         {
             using (var resp = (FtpWebResponse)await req.GetResponseAsync().ConfigureAwait(false)) { }
+        }
+
+        /// <summary>
+        /// Oturumun klasörünü (ayarlardaki FTP klasörü + /Vision) oluşturur. Sunucu "zaten var" (550 vb.) derse sorun
+        /// sayılmaz; gerçekten oluşturulamadıysa ardından gelen gönderme / kopyalama açık hatayla başarısız olur.
+        /// </summary>
+        public async Task EnsureWorkFolderAsync()
+        {
+            var segs = new List<string>();
+            foreach (string part in _s.NormalizedRemoteDir.Split('/'))
+                if (part.Length > 0) segs.Add(Uri.EscapeDataString(part));
+            if (segs.Count == 0) return;
+            string host = (_s.FtpHost ?? "").Trim();
+            if (host.Contains(":") && !host.StartsWith("[")) host = "[" + host + "]";
+            var req = (FtpWebRequest)WebRequest.Create(new Uri("ftp://" + host + ":" + _s.FtpPort + "/" + string.Join("/", segs)));
+            req.Method = WebRequestMethods.Ftp.MakeDirectory;
+            req.Credentials = new NetworkCredential(string.IsNullOrEmpty(_s.FtpUser) ? "anonymous" : _s.FtpUser, _s.Password);
+            req.UsePassive = _s.UsePassive;
+            req.KeepAlive = false;
+            req.Timeout = 15000;
+            try
+            {
+                await Complete(req).ConfigureAwait(false);
+            }
+            catch (WebException ex)
+            {
+                if (ex.Response is FtpWebResponse) return;   // sunucu cevap verdi: klasör büyük olasılıkla zaten var
+                throw new FtpOperationException("çalışma klasörü (" + TransferSettings.WorkFolderName + ") oluşturma", DisplayUrl(""), null, ex);
+            }
         }
 
         public async Task UploadFileAsync(string localPath, string remoteName)

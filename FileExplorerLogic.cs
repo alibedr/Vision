@@ -874,6 +874,18 @@ namespace Vision
             try
             {
                 string modeNote = null;
+                // Dosyalar FTP'nin kendisine değil, içindeki Vision çalışma klasörüne gönderilir (yarım kalan kopyalar
+                // sunucudaki diğer dosyalarla karışmasın); klasör yoksa oluşturulur
+                PendingCommand = "FTP'de " + TransferSettings.WorkFolderName + " klasörü hazırlanıyor";
+                Raise();
+                try { await uploader.EnsureWorkFolderAsync(); }
+                catch (Exception ex)
+                {
+                    ErrorText.LogTechnical("FTP çalışma klasörü", ex);
+                    var r = OpResult.Fail("FTP'de \"" + TransferSettings.WorkFolderName + "\" klasörü oluşturulamadı: " + FtpErrorText(ex));
+                    SetError(r);
+                    return r;
+                }
                 for (int i = 0; i < localPaths.Count; i++)
                 {
                     string local = localPaths[i].TrimEnd('\\', '/');
@@ -1001,6 +1013,15 @@ namespace Vision
             bool onFtp = false;
             try
             {
+                // Geçici kopya da FTP'deki Vision klasörüne alınır: kart oraya yazabilsin diye klasör önce oluşturulur
+                try { await ftp.EnsureWorkFolderAsync(); }
+                catch (Exception ex)
+                {
+                    ErrorText.LogTechnical("FTP çalışma klasörü", ex);
+                    var r = OpResult.Fail("FTP'de \"" + TransferSettings.WorkFolderName + "\" klasörü oluşturulamadı: " + FtpErrorText(ex));
+                    SetError(r);
+                    return r;
+                }
                 ShellResponse resp = await Exec(cmd, LongTimeoutSec);
                 OpResult bad = CheckReturn(resp, "\"" + entry.Name + "\" FTP konumuna kopyalanamadı", null);
                 if (bad != null) { SetError(bad); return bad; }
@@ -1258,7 +1279,8 @@ namespace Vision
                 return st.Ok;
             };
 
-            if (!await run("FTP oturumu ve klasör listeleme", async () => { await up.TestAsync(); return "ftp://" + eff.FtpHost + eff.NormalizedRemoteDir; }))
+            if (!await run("FTP oturumu ve " + TransferSettings.WorkFolderName + " çalışma klasörü",
+                    async () => { await up.EnsureWorkFolderAsync(); await up.TestAsync(); return "ftp://" + eff.FtpHost + eff.NormalizedRemoteDir; }))
                 return steps;
             if (!await run("FTP'ye yazma (deneme dosyası)", async () => { await up.UploadBytesAsync(System.Text.Encoding.ASCII.GetBytes("Vision FTP sinamasi\r\n"), probe); return probe; }))
                 return steps;
