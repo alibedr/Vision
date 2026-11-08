@@ -41,6 +41,7 @@ namespace Vision
         /// Kartın AYNI klasörü gördüğü yol. Boş (önerilen): otomatik = kartın FTP aygıtı + FTP klasörü (ör. "host:upload").
         /// Yalnız aygıt adı ("host:") yazılırsa FTP klasörü otomatik eklenir. Tam yol yazılırsa olduğu gibi kullanılır.
         /// </summary>
+        [XmlIgnore]   // kaydedilmez: kartın yolu her bağlantıda karttan alınır (eski ayar dosyalarındaki değer de yok sayılır)
         public string CardPathPrefix { get; set; }
         public bool UsePassive { get; set; }
         /// <summary>Kartta kopyalama başarılı olunca FTP'deki kopyayı sil (varsayılan: açık).</summary>
@@ -104,16 +105,32 @@ namespace Vision
         /// "gei(0,0)host:" → "/host.host" (kök) ya da "/host.host/upload"; "gei(1,0)ali:" → "/host.ali".
         /// Yalnız aygıt adı ("host:") yazılırsa eski biçim ("host:upload") kullanılır; başka bir yol yazılırsa olduğu gibi.
         /// </summary>
-        public string CardFolderFor(CardFtpCredentials c)
+        /// <summary>
+        /// Kartın FTP klasörünü gördüğü yol, karttan otomatik: "/host." + kartın aygıt adı (version boot satırından) +
+        /// FTP klasörü. Ör. "motetsec(0,0)mkozdem:" ve FTP klasörü "upload" → "/host.mkozdem/upload".
+        /// </summary>
+        public string AutoCardFolderFor(CardFtpCredentials c)
         {
             string rel = NormalizedRemoteDir.TrimStart('/');
-            string p = (CardPathPrefix ?? "").Trim();
-            if (p.Length == 0)
-            {
-                string root = c != null ? c.CardFtpRoot : CardRootFor("host");
-                return rel.Length == 0 ? root : root + "/" + rel;
-            }
+            string root = c != null ? c.CardFtpRoot : CardRootFor("host");
+            return rel.Length == 0 ? root : root + "/" + rel;
+        }
+
+        /// <summary>
+        /// Kartın gördüğü yol: kullanıcı bu kart için (bu bağlantıda) elle bir yol yazdıysa o, yazmadıysa karttan otomatik.
+        /// Elle yazılan yol ":" ile bitiyorsa (ör. "host:") eski biçim: aygıt + FTP klasörü ("host:upload").
+        /// </summary>
+        public string CardFolderFor(CardFtpCredentials c)
+        {
+            return CardFolderFor(c, c != null ? c.PathOverride : null);
+        }
+
+        public string CardFolderFor(CardFtpCredentials c, string manualPath)
+        {
+            string p = (manualPath ?? "").Trim();
+            if (p.Length == 0) return AutoCardFolderFor(c);
             if (!p.EndsWith(":")) return p;                   // kullanıcı tam yol yazmış
+            string rel = NormalizedRemoteDir.TrimStart('/');
             return rel.Length == 0 ? p : p + rel;
         }
 

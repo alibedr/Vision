@@ -455,7 +455,7 @@ fei(0,0)host:/vxWorks e=192.168.1.10:ffffff00 h=192.168.1.100 u=ftpuser pw=parol
 |---|---|
 | Bu kartın FTP bilgisi | Karttan alınan sunucu, kullanıcı, kartın FTP yolu (`/host.…`) ve aygıtı (parola gösterilmez). **Karttan yeniden al** ile tazelenir. |
 | FTP klasörü | Dosyaların gönderileceği klasör, FTP oturumunun açıldığı klasöre göre (ör. `upload`; boş = kök). Tüm kartlar için ortak. |
-| Kartın aynı klasörü gördüğü yol | Boş bırakın (önerilen): **otomatik** = `/host.` + kartın aygıt adı + FTP klasörü (ör. `/host.host`, FTP klasörü `upload` ise `/host.host/upload`). İsterseniz başka bir yol yazabilirsiniz (yalnız `host:` yazılırsa eski biçim `host:upload` kullanılır). Pencerede eşleme (FTP'deki `…/Vision` klasörü ↔ kartın gördüğü `…/Vision` yolu) açıkça yazar. |
+| Kartın aynı klasörü gördüğü yol | **Karttan otomatik dolar ve kaydedilmez:** `/host.` + kartın aygıt adı + FTP klasörü. Aygıt adı kartın `version` çıktısındaki boot satırından alınır (parantezden sonra `:` işaretine kadar): `motetsec(0,0)mkozdem:vxWorks` → `/host.mkozdem`; FTP klasörü `upload` ise `/host.mkozdem/upload`. Her kart kendi yolunu kullanır. Gerekirse elle değiştirebilirsiniz; değişiklik **yalnız o kart ve o bağlantı** için geçerlidir (`host:` gibi `:` ile biten bir aygıt yazılırsa eski biçim `host:upload` kullanılır). **Karttan yeniden al**, bağlantının kopması ya da uygulamanın yeniden açılması yolu karttan gelen değere döndürür. Eşleme satırı (FTP'deki `…/Vision` ↔ kartın gördüğü `…/Vision`) sonucu gösterir. |
 | Port, Pasif kip | Tüm kartlar için ortak. |
 | Kopyalama sonrası hemen sil | Açıksa kartta kopyalama başarılı olunca FTP kopyası hemen silinir (varsayılan: **açık**; önceki sürümden gelen ayarlarda da ilk açılışta bir kez açılır, sonra seçiminiz korunur). |
 
@@ -623,7 +623,7 @@ Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındak
 | Listeleme sıfır olmayan değer döndürüyor | Yol yanlış, erişim yok ya da öğe bir klasör değil (ör. `/tyCo/0` gibi seri port cihazları). |
 | Turuncu "komut kartın imajında yok" uyarısı | Kartın imajı bu komutu içermiyor; işlem o kartta yapılamaz. Kartta değişiklik olmaz. |
 | Yükleme: "FTP'ye gönderilemedi … 550" | FTP kullanıcısının o klasöre **yazma** izni yok ya da klasör yok. FTP sunucusunda (ör. FileZilla Server) kullanıcının klasör izinlerine **Write** ekleyin. **Bağlantıyı sına** bunu 2. aşamada gösterir. |
-| Yükleme: "FTP'ye gönderildi ama kartta kopyalanamadı" | Kart dosyayı aynı yerde göremiyor. **Bağlantıyı sına**'nın 3. aşamasına bakın; "Kartın aynı klasörü gördüğü yol" alanını boş (otomatik) bırakın. |
+| Yükleme: "FTP'ye gönderildi ama kartta kopyalanamadı" | Kart dosyayı aynı yerde göremiyor. **Bağlantıyı sına**'nın 3. aşamasına bakın. "Kartın aynı klasörü gördüğü yol" elle değiştirildiyse **Karttan yeniden al** ile karttan gelen yola döndürün; kartta `devs` ile FTP aygıtının adını kontrol edin. |
 | "Kartın FTP bilgisi alınamadı" | Ayrıntı uyarı şeridinde. Kartta `version` yazıp `Boot line:` altındaki satırda `h=`, `u=`, `pw=` değerlerinin olduğunu kontrol edin. |
 | Sürükle-bırak hiç kabul edilmiyor | Vision yönetici olarak, Windows Gezgini normal çalışıyorsa Windows iki program arasında sürüklemeye izin vermez. İkisini de aynı yetkiyle çalıştırın ya da **Yükle** düğmesini kullanın. |
 
