@@ -25,6 +25,13 @@ namespace Vision
         public string HostName { get; set; }
         public DateTime ObtainedAtUtc { get; set; }
 
+        /// <summary>
+        /// Kullanıcının FTP penceresinde bu kart için elle yazdığı "kartın aynı klasörü gördüğü yol" (yoksa null).
+        /// Yalnız bellekte ve yalnız bu bilgiyle birlikte yaşar: hiçbir yere kaydedilmez; bağlantı kopunca, yeniden
+        /// bağlanınca ya da "Karttan yeniden al" ile bilgi yenilenince silinir ve yol yine karttan hesaplanır.
+        /// </summary>
+        public string PathOverride { get; set; }
+
         /// <summary>Kartın aygıtı: "host:" gibi.</summary>
         public string CardDevice { get { return DeviceName + ":"; } }
 

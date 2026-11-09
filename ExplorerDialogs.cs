@@ -364,7 +364,7 @@ namespace Vision
             Controls.Add(Caption("FTP KLASÖRÜ (oturum açılan klasöre göre; boş = kök)", 20, y)); Controls.Add(Caption("PORT", 450, y));
             _dir.SetBounds(20, y + 18, 420, 28); _port.SetBounds(450, y + 18, 110, 28);
             y += 58;
-            Controls.Add(Caption("KARTIN AYNI KLASÖRÜ GÖRDÜĞÜ YOL (boş = otomatik)", 20, y));
+            Controls.Add(Caption("KARTIN AYNI KLASÖRÜ GÖRDÜĞÜ YOL (karttan otomatik · kaydedilmez)", 20, y));
             _prefix.SetBounds(20, y + 18, 540, 28);
             _mapping.Location = new Point(20, y + 50);
             _mapping.MaximumSize = new Size(540, 0);
@@ -386,17 +386,30 @@ namespace Vision
 
             _port.Value = Math.Max(1, Math.Min(65535, settings.FtpPort));
             _dir.Text = settings.FtpRemoteDir ?? "/";
-            _prefix.Text = settings.CardPathPrefix ?? "";
             _passive.Checked = settings.UsePassive;
             _delete.Checked = settings.DeleteAfterCopy;
+            Theme.SetCueBanner(_prefix, "Kart bağlıyken kartın version çıktısından otomatik alınır");
+            new DarkToolTip().SetToolTip(_prefix,
+                "Kartın FTP yolu + FTP klasörü ile otomatik dolar (ör. /host.mkozdem). Elle değiştirebilirsiniz; değişiklik yalnız bu kart\n" +
+                "ve bu bağlantı için geçerlidir, kaydedilmez. \"Karttan yeniden al\" ya da yeniden bağlanma yolu karttan gelen değere döndürür.");
             ShowCredentials(session != null ? session.Ftp : null, null);
-            Theme.SetCueBanner(_prefix, "Otomatik: /host.<kartın aygıtı> + FTP klasörü (ör. /host.host)");
 
-            _dir.TextChanged += (s, e) => UpdateMapping();
-            _prefix.TextChanged += (s, e) => UpdateMapping();
+            _dir.TextChanged += (s, e) =>
+            {
+                // Yol elle değiştirilmediyse FTP klasörüyle birlikte güncellenir (/host.mkozdem → /host.mkozdem/upload)
+                if (!_prefixEdited) SetPrefixQuiet(AutoPath());
+                UpdateMapping();
+            };
+            _prefix.TextChanged += (s, e) =>
+            {
+                if (!_settingPrefix) _prefixEdited = ManualPath() != null;   // boş ya da otomatikle aynı: elle değil
+                UpdateMapping();
+            };
             ok.Click += (s, e) =>
             {
                 Apply(_s);
+                CardFtpCredentials cur = _session != null ? _session.Ftp : null;
+                if (cur != null) cur.PathOverride = ManualPath();   // yalnız bellekte, bu bağlantı için
                 _s.ClearLegacyCredentials();          // eski sürümlerden kalan elle girilmiş parola dosyada kalmasın
                 DialogResult = DialogResult.OK;
                 Close();
@@ -418,7 +431,39 @@ namespace Vision
             else { _cardStatus.ForeColor = Theme.TextMuted; _cardStatus.Text = "Henüz alınmadı — kart bağlıyken ilk FTP işleminde otomatik alınır."; }
             _refreshCard.Text = c != null ? "Karttan yeniden al" : "Karttan al";
             _refreshCard.Enabled = _card != null && _canOperate();
+            // Kutu kartın bilgisiyle dolar: bu bağlantıda elle yazılmış bir yol varsa o, yoksa karttan otomatik.
+            // "Karttan yeniden al" yeni bilgi getirdiği için elle yazılan yol sıfırlanır ve karttan gelen yol yazılır.
+            _prefix.Enabled = c != null;
+            _prefixEdited = c != null && !string.IsNullOrEmpty(c.PathOverride);
+            SetPrefixQuiet(c == null ? "" : _prefixEdited ? c.PathOverride : AutoPath());
             UpdateMapping();
+        }
+
+        private bool _prefixEdited;     // kullanıcı kutuyu elle değiştirdi (otomatik değerden farklı)
+        private bool _settingPrefix;    // kutuya program yazıyor (elle değişiklik sayılmaz)
+
+        private void SetPrefixQuiet(string text)
+        {
+            _settingPrefix = true;
+            try { _prefix.Text = text ?? ""; }
+            finally { _settingPrefix = false; }
+        }
+
+        /// <summary>Pencerede yazan FTP klasörüne göre kartın otomatik yolu (kartın bilgisi yoksa boş).</summary>
+        private string AutoPath()
+        {
+            CardFtpCredentials c = _session != null ? _session.Ftp : null;
+            if (c == null) return "";
+            var tmp = new TransferSettings();
+            Apply(tmp);
+            return tmp.AutoCardFolderFor(c);
+        }
+
+        /// <summary>Kutudaki elle yazılmış yol; boşsa ya da otomatik değerle aynıysa null (otomatik kullanılır).</summary>
+        private string ManualPath()
+        {
+            string t = _prefix.Text.Trim();
+            return t.Length == 0 || t == AutoPath() ? null : t;
         }
 
         private void UpdateMapping()
@@ -426,10 +471,16 @@ namespace Vision
             var tmp = new TransferSettings();
             Apply(tmp);
             CardFtpCredentials c = _session != null ? _session.Ftp : null;
-            // Aktarımlar FTP klasörünün içindeki Vision çalışma klasöründen yapılır (ForCard ile aynı hesap; c null olabilir)
+            if (c == null)
+            {
+                _mapping.Text = "Kartın yolu karttan alınınca (\"Karttan al\") burada gösterilir.";
+                return;
+            }
+            // Aktarımlar FTP klasörünün içindeki Vision çalışma klasöründen yapılır (ForCard ile aynı hesap)
             string remoteDir = tmp.NormalizedRemoteDir.TrimEnd('/') + "/" + TransferSettings.WorkFolderName;
-            string cardDir = FsPath.Join(tmp.CardFolderFor(c), TransferSettings.WorkFolderName);
-            _mapping.Text = "FTP'de  " + remoteDir + "  klasörüne gönderilen dosyayı kart  " + cardDir + "  yolundan kopyalayacak.";
+            string cardDir = FsPath.Join(tmp.CardFolderFor(c, ManualPath()), TransferSettings.WorkFolderName);
+            _mapping.Text = "FTP'de  " + remoteDir + "  klasörüne gönderilen dosyayı kart  " + cardDir + "  yolundan kopyalayacak." +
+                            (ManualPath() != null ? "  (elle değiştirildi — yalnız bu bağlantı için)" : "");
         }
 
         private async Task ObtainAsync(bool force)
@@ -448,7 +499,6 @@ namespace Vision
         {
             t.FtpPort = (int)_port.Value;
             t.FtpRemoteDir = _dir.Text.Trim().Length == 0 ? "/" : _dir.Text.Trim();
-            t.CardPathPrefix = _prefix.Text.Trim();
             t.UsePassive = _passive.Checked;
             t.DeleteAfterCopy = _delete.Checked;
         }
@@ -466,6 +516,8 @@ namespace Vision
                 var tmp = new TransferSettings();
                 Apply(tmp);
                 TransferSettings eff = tmp.ForCard(c);
+                // Sınama pencerede yazan (henüz kaydedilmemiş olabilecek) yolla yapılır
+                eff.CardPathPrefix = FsPath.Join(tmp.CardFolderFor(c, ManualPath()), TransferSettings.WorkFolderName);
                 var progress = new Progress<string>(m => { _testBtn.Text = "Sınanıyor…"; });
                 List<FileBrowser.FtpTestStep> steps = await _test(eff, progress);
                 foreach (var st in steps)
