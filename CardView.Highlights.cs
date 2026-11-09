@@ -298,22 +298,8 @@ namespace Vision
         private void RepaintHighlights()
         {
             if (!_output.IsHandleCreated) return;               // tutamaç oluşunca HandleCreated hepsini boyar
-            IntPtr h = _output.Handle;
-            var pos = new POINT();
-            SendMessage(h, EM_GETSCROLLPOS, IntPtr.Zero, ref pos);
-            SendMessage(h, WM_SETREDRAW, IntPtr.Zero, IntPtr.Zero);
-            try
-            {
-                SetCharColors(true, _output.ForeColor, Color.Empty);   // tüm metin: tema yazı rengi, zemin otomatik
-                ColorizeAlerts(0, null);
-                ApplyHighlights(0, null);
-            }
-            finally
-            {
-                SendMessage(h, EM_SETSCROLLPOS, IntPtr.Zero, ref pos);
-                SendMessage(h, WM_SETREDRAW, (IntPtr)1, IntPtr.Zero);
-                _output.Invalidate();
-            }
+            // Tüm metin: tema yazı rengi, zemin otomatik; ardından uyarı satırları ve renklendirmeler. Ekran oynamaz.
+            RecolorKeepingView(() => SetCharColors(true, _output.ForeColor, Color.Empty));
         }
 
         private void DisposeHighlightResources()

@@ -360,24 +360,14 @@ namespace Vision
             _zoom = zoom;
             bool follow = IsAtBottom();
             var font = new Font(Theme.Mono.FontFamily, Theme.Mono.Size * zoom, Theme.Mono.Style);
-            if (_output.IsHandleCreated) SendMessage(_output.Handle, WM_SETREDRAW, IntPtr.Zero, IntPtr.Zero);
-            try
+            // Yazı boyutu değişir, kalın kırmızı uyarı satırları ve renklendirmeler yeni boyutla yeniden boyanır; ekran oynamaz
+            RecolorKeepingView(() =>
             {
                 Font old = _output.Font;
                 _output.Font = font;                         // RichTextBox: tüm metnin yazı boyutu, renkler korunur
                 if (old != null && !ReferenceEquals(old, Theme.Mono)) old.Dispose();
                 if (_alertFont != null) { _alertFont.Dispose(); _alertFont = null; }
-                ColorizeAlerts(0, null);                     // kalın kırmızı uyarı satırları yeni boyutla
-                ApplyHighlights(0, null);
-            }
-            finally
-            {
-                if (_output.IsHandleCreated)
-                {
-                    SendMessage(_output.Handle, WM_SETREDRAW, (IntPtr)1, IntPtr.Zero);
-                    _output.Invalidate();
-                }
-            }
+            });
             if (follow) ScrollToEnd();
         }
 
