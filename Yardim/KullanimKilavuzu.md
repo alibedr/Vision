@@ -265,7 +265,7 @@ Kart yeniden ulaşılabilir olunca bağlantı otomatik kurulur ve konsola `Bağl
 
 Eski çıktıyı okumak için yukarı kaydırdığınızda ekran yeni veriyle aşağı kaymaz. Bunun yerine çıktının altında **↓ Yeni Satırlar (N)** göstergesi bir kez belirir ve yalnız sayacı artar. Göstergeye tıklamak ya da elle en alta kaydırmak göstergeyi kapatır ve sayacı sıfırlar. En alttayken akış otomatik izlenir.
 
-Akış izlenirken ekran yalnız **dikeyde** en alta iner; **yatay konum değişmez**. Kart penceresinden uzun log satırları ekranı sağa ya da sola kaydırmaz. Uzun bir satırın devamını görmek için alttaki yatay kaydırma çubuğunu kullanın; ekran, yeni satırlar gelse de bıraktığınız konumda kalır. Yatay kaydırma çubuğu belirdiğinde de son satır çubuğun altında kalmaz; ekran en son satırı tam gösterecek şekilde aşağı iner.
+Akış izlenirken ekran yalnız **dikeyde** en alta iner; **yatay konum değişmez**. Kart penceresinden uzun log satırları ekranı sağa ya da sola kaydırmaz. Uzun bir satırın devamını görmek için alttaki yatay kaydırma çubuğunu kullanın; ekran, yeni satırlar gelse de bıraktığınız konumda kalır. Kart ekranının dikey ve yatay kaydırma çubukları her zaman görünür; son satır yatay çubuğun altında kalmaz.
 
 ## Genel komut çubuğu
 

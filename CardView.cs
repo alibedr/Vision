@@ -54,6 +54,9 @@ namespace Vision
             WordWrap = false,
             HideSelection = false,
             DetectUrls = false,
+            // Kaydırma çubukları her zaman görünür: uzun satır gelince yatay çubuk belirip görünür alanı kısaltmaz,
+            // son satır onun altında kalmaz ve alan veriye göre değişmediği için ekran sıçramaz
+            ScrollBars = RichTextBoxScrollBars.ForcedBoth,
         };
         private readonly PillButton _newLinesPill = new PillButton { Visible = false };
         private readonly AlertBanner _dropBanner = new AlertBanner { Visible = false };
@@ -101,7 +104,7 @@ namespace Vision
             // Geçmişi yükle (görünüm kapalıyken gelen veriler dahil)
             _output.Text = Session.AttachView();       // oturum geçmişi zaten satır sınırına kırpılmış
             _appliedMaxLines = Session.MaxLines;
-            _output.HandleCreated += (s, e) => { ColorizeAlerts(0, null); ApplyHighlights(0, null); };
+            _output.HandleCreated += (s, e) => { RecolorKeepingView(); if (_following) ScrollToEnd(); };
             ScrollToEnd();
             RefreshState();
             RefreshUptime();
@@ -233,13 +236,17 @@ namespace Vision
             _output.VScroll += (s, e) => { TrackFollow(); CheckReachedBottom(); };
             _output.KeyUp += (s, e) => { TrackFollow(); CheckReachedBottom(); };
             _output.MouseUp += (s, e) => { TrackFollow(); CheckReachedBottom(); };
-            _output.MouseWheel += (s, e) => TrackFollow();
-            // Görünür alan küçülünce (ör. uzun satır gelince yatay kaydırma çubuğu belirdi ya da pencere küçüldü) akış
-            // izleniyorsa yeniden en alta inilir; yoksa son satır yatay çubuğun altında kalıyordu.
-            _output.ClientSizeChanged += (s, e) =>
+            // Kart penceresi boyut değiştirince (düzen, pencere) akış izleniyorsa en alta inilir. Yalnız dış panelin
+            // boyutu izlenir: kaydırma çubukları kalıcı olduğundan metin kutusunun alanı veriyle değişmez (döngü olmaz).
+            _outputHost.Resize += (s, e) =>
             {
-                if (!_following || _programScroll || !_output.IsHandleCreated || !IsHandleCreated) return;
-                BeginInvoke((Action)(() => { if (!IsDisposed && _output.IsHandleCreated && _following) ScrollToEnd(); }));
+                if (!_following || _resizeScrollQueued || !_output.IsHandleCreated || !IsHandleCreated) return;
+                _resizeScrollQueued = true;
+                BeginInvoke((Action)(() =>
+                {
+                    _resizeScrollQueued = false;
+                    if (!IsDisposed && _output.IsHandleCreated && _following) ScrollToEnd();
+                }));
             };
         }
 
@@ -476,6 +483,38 @@ namespace Vision
 
         private bool _following = true;   // kullanıcı en altta: akış izleniyor (yalnız kullanıcının kaydırması değiştirir)
         private bool _programScroll;      // program ekliyor / kaydırıyor: kaydırma olayları kullanıcıdan gelmiyor
+        private bool _resizeScrollQueued;
+
+        /// <summary>
+        /// Tüm metnin renklerini yeniden uygular (uyarı satırları, renklendirmeler) ama ekranı OYNATMAZ: çizim kapalıyken
+        /// yapılır, kaydırma konumu ve seçim geri alınır. Eskiden satırlar tek tek seçilirken ekran baştan sona kayıyordu
+        /// (ör. bağlantı kesilip kart griye dönerken ekran "akıyor" gibi görünüyordu).
+        /// </summary>
+        private void RecolorKeepingView(Action before = null)
+        {
+            if (!_output.IsHandleCreated) { if (before != null) before(); return; }
+            IntPtr h = _output.Handle;
+            var pos = new POINT();
+            SendMessage(h, EM_GETSCROLLPOS, IntPtr.Zero, ref pos);
+            int selStart = _output.SelectionStart, selLen = _output.SelectionLength;
+            bool wasProgram = _programScroll;
+            _programScroll = true;
+            SendMessage(h, WM_SETREDRAW, IntPtr.Zero, IntPtr.Zero);
+            try
+            {
+                if (before != null) before();
+                ColorizeAlerts(0, null);
+                ApplyHighlights(0, null);
+                _output.Select(selStart, selLen);
+                SendMessage(h, EM_SETSCROLLPOS, IntPtr.Zero, ref pos);
+            }
+            finally
+            {
+                SendMessage(h, WM_SETREDRAW, (IntPtr)1, IntPtr.Zero);
+                _programScroll = wasProgram;
+                _output.Invalidate();
+            }
+        }
 
         /// <summary>Kullanıcı kaydırınca akışı izleyip izlemediği güncellenir (programın kaydırmaları sayılmaz).</summary>
         private void TrackFollow()
@@ -519,9 +558,7 @@ namespace Vision
 
                 if (follow)
                 {
-                    // Yalnız dikeyde en alta inilir; yatay konum kullanıcının bıraktığı yerde kalır. (Eskiden imleç
-                    // gelen uzun satırın sonuna gittiği için kutu sağa kayıyor, satır sonu gelince başa dönüyordu.)
-                    ScrollToEnd(pos.X);
+                    // En alta inme çizim açıldıktan sonra yapılır (aşağıda); burada yalnız seçim sona alınır
                 }
                 else
                 {
@@ -537,8 +574,9 @@ namespace Vision
                 SendMessage(h, WM_SETREDRAW, (IntPtr)1, IntPtr.Zero);
                 _output.Invalidate();
             }
-            // Çizim açıldıktan sonra kaydırma ölçüleri günceldir: bu eklemeyle yatay çubuk belirdiyse son satır onun
-            // altında kalmasın diye en alta bir kez daha inilir
+            // Akış izleniyorsa: çizim açıldıktan sonra (kaydırma ölçüleri güncel) yalnız dikeyde en alta inilir; yatay
+            // konum eklemeden önceki yerinde kalır. (Eskiden imleç gelen uzun satırın sonuna gittiği için kutu sağa
+            // kayıyor, satır sonu gelince başa dönüyordu.)
             if (follow) ScrollToEnd(pos.X);
         }
 
@@ -779,10 +817,12 @@ namespace Vision
                 Color inBack = connected ? Theme.Input : OffInputBack;
 
                 _output.SuspendLayout();
-                _output.BackColor = outBack;
-                _output.ForeColor = outText;           // tüm metni yeniden renklendirir…
-                ColorizeAlerts(0, null);               // …kırmızı uyarı satırlarını geri boya
-                ApplyHighlights(0, null);              // …renklendirilen metinleri geri boya
+                // Tüm metin yeniden renklenir (yazı rengi, kırmızı uyarı satırları, renklendirmeler); ekran kaymaz
+                RecolorKeepingView(() =>
+                {
+                    _output.BackColor = outBack;
+                    _output.ForeColor = outText;
+                });
                 _output.ResumeLayout();
                 _outputHost.BackColor = outBack;
 
