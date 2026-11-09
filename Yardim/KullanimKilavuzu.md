@@ -265,6 +265,8 @@ Kart yeniden ulaşılabilir olunca bağlantı otomatik kurulur ve konsola `Bağl
 
 Eski çıktıyı okumak için yukarı kaydırdığınızda ekran yeni veriyle aşağı kaymaz. Bunun yerine çıktının altında **↓ Yeni Satırlar (N)** göstergesi bir kez belirir ve yalnız sayacı artar. Göstergeye tıklamak ya da elle en alta kaydırmak göstergeyi kapatır ve sayacı sıfırlar. En alttayken akış otomatik izlenir.
 
+Akış izlenirken ekran yalnız **dikeyde** en alta iner; **yatay konum değişmez**. Kart penceresinden uzun log satırları ekranı sağa ya da sola kaydırmaz. Uzun bir satırın devamını görmek için alttaki yatay kaydırma çubuğunu kullanın; ekran, yeni satırlar gelse de bıraktığınız konumda kalır.
+
 ## Genel komut çubuğu
 
 Telnet sekmesinin altındaki **TÜM AÇIK KARTLARA** çubuğu, yazılan komutu ekranda açık olan tüm kartlara aynı anda gönderir (**Ctrl+G** ile odaklanır).

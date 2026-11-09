@@ -469,7 +469,8 @@ namespace Vision
             // Ekleme ve kırpma tek seferde, çizim kapalıyken yapılır (satır sınırı aşıldığında titreme / gereksiz çizim yok)
             IntPtr h = _output.Handle;
             var pos = new POINT();
-            if (!follow) SendMessage(h, EM_GETSCROLLPOS, IntPtr.Zero, ref pos);
+            // Konum her zaman EKLEMEDEN ÖNCE alınır: akış izlenirken de yatay konum (pos.X) korunur
+            SendMessage(h, EM_GETSCROLLPOS, IntPtr.Zero, ref pos);
             int selStart = _output.SelectionStart, selLen = _output.SelectionLength;
 
             SendMessage(h, WM_SETREDRAW, IntPtr.Zero, IntPtr.Zero);
@@ -483,7 +484,9 @@ namespace Vision
 
                 if (follow)
                 {
-                    ScrollToEnd();
+                    // Yalnız dikeyde en alta inilir; yatay konum kullanıcının bıraktığı yerde kalır. (Eskiden imleç
+                    // gelen uzun satırın sonuna gittiği için kutu sağa kayıyor, satır sonu gelince başa dönüyordu.)
+                    ScrollToEnd(pos.X);
                 }
                 else
                 {
@@ -516,7 +519,7 @@ namespace Vision
             try
             {
                 int removed = TrimToLimit(!follow, ref pos);
-                if (follow) ScrollToEnd();
+                if (follow) ScrollToEnd(pos.X);
                 else
                 {
                     _output.Select(Math.Max(0, selStart - removed), removed > 0 && selStart - removed <= 0 ? 0 : selLen);
@@ -590,11 +593,43 @@ namespace Vision
             return si.nPos + si.nPage >= si.nMax - lineHeight; // son satır görünüyorsa "en altta"
         }
 
+        /// <summary>En alta (en yeni satıra) iner; yatay kaydırma konumu değişmez.</summary>
         private void ScrollToEnd()
         {
+            ScrollToEnd(null);
+        }
+
+        /// <summary>
+        /// En alta iner. İmleç metnin sonuna taşınıp görünür yapılır (dikey); bu sırada RichTextBox imleci göstermek
+        /// için yatayda da kayar. Uzun satırlar kutudan genişse kutu her yeni parçada sağa, her satır sonunda sola
+        /// atlıyordu. Bu yüzden yatay konum keepX'e (verilmezse çağrı anındaki konuma) geri alınır: hangi satırın
+        /// sonuna bakılacağına kullanıcı yatay kaydırma çubuğuyla karar verir.
+        /// </summary>
+        private void ScrollToEnd(int? keepX)
+        {
+            if (!_output.IsHandleCreated)
+            {
+                _output.SelectionStart = _output.TextLength;
+                _output.SelectionLength = 0;
+                _output.ScrollToCaret();
+                return;
+            }
+            IntPtr h = _output.Handle;
+            var before = new POINT();
+            SendMessage(h, EM_GETSCROLLPOS, IntPtr.Zero, ref before);
+            int x = keepX ?? before.X;
+
             _output.SelectionStart = _output.TextLength;
             _output.SelectionLength = 0;
             _output.ScrollToCaret();
+
+            var after = new POINT();
+            SendMessage(h, EM_GETSCROLLPOS, IntPtr.Zero, ref after);
+            if (after.X != x)
+            {
+                after.X = x;                                   // dikey konum (en alt) kalır, yatay geri alınır
+                SendMessage(h, EM_SETSCROLLPOS, IntPtr.Zero, ref after);
+            }
         }
 
         private const string PillWidest = "↓  Yeni Satırlar (999+)";
