@@ -230,9 +230,17 @@ namespace Vision
             _newLinesPill.Click += (s, e) => { ScrollToEnd(); _indicator.OnClick(); SyncPill(); _output.Focus(); };
             // Yalnız KULLANICININ kaydırması göstergeyi kapatır. Metin eklerken programın yaptığı geçici kaymalar
             // (AppendText bir anlığına en alta kayar) yok sayılır; yoksa gösterge her satırda kapanıp sayaç sıfırlanıyordu.
-            _output.VScroll += (s, e) => CheckReachedBottom();
-            _output.KeyUp += (s, e) => CheckReachedBottom();
-            _output.MouseUp += (s, e) => CheckReachedBottom();
+            _output.VScroll += (s, e) => { TrackFollow(); CheckReachedBottom(); };
+            _output.KeyUp += (s, e) => { TrackFollow(); CheckReachedBottom(); };
+            _output.MouseUp += (s, e) => { TrackFollow(); CheckReachedBottom(); };
+            _output.MouseWheel += (s, e) => TrackFollow();
+            // Görünür alan küçülünce (ör. uzun satır gelince yatay kaydırma çubuğu belirdi ya da pencere küçüldü) akış
+            // izleniyorsa yeniden en alta inilir; yoksa son satır yatay çubuğun altında kalıyordu.
+            _output.ClientSizeChanged += (s, e) =>
+            {
+                if (!_following || _programScroll || !_output.IsHandleCreated || !IsHandleCreated) return;
+                BeginInvoke((Action)(() => { if (!IsDisposed && _output.IsHandleCreated && _following) ScrollToEnd(); }));
+            };
         }
 
         private void BuildInput()
@@ -423,6 +431,8 @@ namespace Vision
         private const int EM_GETSCROLLPOS = 0x0400 + 221;
         private const int EM_SETSCROLLPOS = 0x0400 + 222;
         private const int SB_VERT = 1;
+        private const int WM_VSCROLL = 0x0115;
+        private const int SB_BOTTOM = 7;
         private const int SIF_ALL = 0x17;
 
         [DllImport("user32.dll")]
@@ -464,7 +474,32 @@ namespace Vision
             }
         }
 
+        private bool _following = true;   // kullanıcı en altta: akış izleniyor (yalnız kullanıcının kaydırması değiştirir)
+        private bool _programScroll;      // program ekliyor / kaydırıyor: kaydırma olayları kullanıcıdan gelmiyor
+
+        /// <summary>Kullanıcı kaydırınca akışı izleyip izlemediği güncellenir (programın kaydırmaları sayılmaz).</summary>
+        private void TrackFollow()
+        {
+            if (_programScroll) return;
+            _following = IsAtBottom();
+        }
+
         private void AppendOutputCore(string text, bool follow)
+        {
+            bool wasProgram = _programScroll;
+            _programScroll = true;
+            try
+            {
+                AppendOutputInner(text, follow);
+            }
+            finally
+            {
+                _programScroll = wasProgram;
+            }
+            _following = follow;
+        }
+
+        private void AppendOutputInner(string text, bool follow)
         {
             // Ekleme ve kırpma tek seferde, çizim kapalıyken yapılır (satır sınırı aşıldığında titreme / gereksiz çizim yok)
             IntPtr h = _output.Handle;
@@ -502,6 +537,9 @@ namespace Vision
                 SendMessage(h, WM_SETREDRAW, (IntPtr)1, IntPtr.Zero);
                 _output.Invalidate();
             }
+            // Çizim açıldıktan sonra kaydırma ölçüleri günceldir: bu eklemeyle yatay çubuk belirdiyse son satır onun
+            // altında kalmasın diye en alta bir kez daha inilir
+            if (follow) ScrollToEnd(pos.X);
         }
 
         /// <summary>Satır sınırı değiştiğinde mevcut çıktıyı hemen yeni sınıra kırpar (konum korunur).</summary>
@@ -615,21 +653,34 @@ namespace Vision
                 return;
             }
             IntPtr h = _output.Handle;
-            var before = new POINT();
-            SendMessage(h, EM_GETSCROLLPOS, IntPtr.Zero, ref before);
-            int x = keepX ?? before.X;
-
-            _output.SelectionStart = _output.TextLength;
-            _output.SelectionLength = 0;
-            _output.ScrollToCaret();
-
-            var after = new POINT();
-            SendMessage(h, EM_GETSCROLLPOS, IntPtr.Zero, ref after);
-            if (after.X != x)
+            bool wasProgram = _programScroll;
+            _programScroll = true;
+            try
             {
-                after.X = x;                                   // dikey konum (en alt) kalır, yatay geri alınır
-                SendMessage(h, EM_SETSCROLLPOS, IntPtr.Zero, ref after);
+                var before = new POINT();
+                SendMessage(h, EM_GETSCROLLPOS, IntPtr.Zero, ref before);
+                int x = keepX ?? before.X;
+
+                _output.SelectionStart = _output.TextLength;
+                _output.SelectionLength = 0;
+                _output.ScrollToCaret();
+                // ScrollToCaret imleç satırını kısmen görünür sayabilir ve yatay kaydırma çubuğunun kapladığı yeri
+                // hesaba katmaz: dikey kaydırma çubuğuyla gerçekten en alta inilir (son satır tam görünür)
+                SendMessage(h, WM_VSCROLL, (IntPtr)SB_BOTTOM, IntPtr.Zero);
+
+                var after = new POINT();
+                SendMessage(h, EM_GETSCROLLPOS, IntPtr.Zero, ref after);
+                if (after.X != x)
+                {
+                    after.X = x;                               // dikey konum (en alt) kalır, yatay geri alınır
+                    SendMessage(h, EM_SETSCROLLPOS, IntPtr.Zero, ref after);
+                }
             }
+            finally
+            {
+                _programScroll = wasProgram;
+            }
+            _following = true;
         }
 
         private const string PillWidest = "↓  Yeni Satırlar (999+)";

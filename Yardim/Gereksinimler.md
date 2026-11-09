@@ -281,6 +281,7 @@ Ana metin (≈ 14:1), terminal metni (≈ 13:1) ve başarı / uyarı renkleri za
 | No | Gereksinim | Durum | Nasıl karşılandı |
 |---|---|---|---|
 | G24.1 | Küçük kart ekranında uzun log satırları gelirken ekran satır sonu ile satır başı arasında yatayda gidip gelmemeli; hangi satırın sonuna bakılacağına kullanıcı karar vermeli | Karşılandı | Neden: akış izlenirken her eklemede imleç metnin sonuna taşınıp `ScrollToCaret` ile görünür yapılıyordu; satır kutudan genişse kutu imleç için sağa, satır sonu gelince (imleç yeni satırın başında) sola kayıyordu. Yazı küçültülünce satırlar sığdığı için görülmüyordu. Çözüm: en alta inme (`ScrollToEnd`) yalnız dikey konumu değiştirir; yatay konum eklemeden önceki değere (`EM_GETSCROLLPOS` / `EM_SETSCROLLPOS`) geri alınır. Satır sınırı değişiminde, komut gönderirken ve "Yeni Satırlar" göstergesinde de aynı davranış. |
+| G24.2 | Enter'a basınca / yeni satır gelince son satır yatay kaydırma çubuğunun altında kalmamalı | Karşılandı | Neden: uzun satır gelince yatay çubuk beliriyor, görünür alan kısalıyor ama kutu yeniden kaydırılmıyordu; `ScrollToCaret` da çubuğun kapladığı yeri hesaba katmıyordu. Çözüm: en alta inerken ayrıca `WM_VSCROLL / SB_BOTTOM` gönderilir; ekleme sonrası çizim açıldığında (kaydırma ölçüleri güncel) bir kez daha en alta inilir; akış izlenirken görünür alan değişirse (`ClientSizeChanged`: yatay çubuk belirdi, pencere küçüldü) yeniden en alta inilir. Akışı izleme durumu yalnız kullanıcının kaydırmasıyla değişir. |
 
 ### G9 — Dosya Gezgini işlemleri (planlanan)
 
