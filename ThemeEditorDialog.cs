@@ -95,13 +95,6 @@ namespace Vision
             }
         }
 
-        private static Label Caption(string text, int x, int y)
-        {
-            var l = Theme.MakeLabel(text, Theme.SectionHeader, Theme.TextMuted);
-            l.Location = new Point(x, y);
-            return l;
-        }
-
         // ---------- Durum ----------
 
         private ThemeDefinition CurrentDef { get { return ThemeCatalog.FindOrDefault(_currentId); } }

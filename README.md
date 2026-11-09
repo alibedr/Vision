@@ -17,7 +17,7 @@ Geliştiren: **Ali Bedir**
 - Periyodik bağlantı izleme ve otomatik yeniden bağlanma
 - Kart Dosya Gezgini: `devs` / `ll`, klasör ve dosya işlemleri, FTP üzerinden karta yükleme, salt okunur "Birlikte aç"
 - Komut Kütüphanesi: exe'ye gömülü, salt okunur 113 VxWorks 6.4 kabuk komutu (açıklama, örnek kullanım, örnek çıktı), modüllerde gruplama ve komutu tek tıkla bir kartın komut satırına aktarma
-- Koyu ve açık tema (sekme şeridinin sağındaki düğme ya da Ctrl+Shift+L; seçim hatırlanır)
+- 6 hazır tema (Koyu, Açık, Solarized, Monokai, Yüksek kontrast, Klasik terminal) ve tema düzenleyici: renk değiştirme, anlık önizleme, kaydetme, varsayılana dönme (sekme şeridindeki Temalar menüsü; Ctrl+Shift+L sonraki tema)
 - Türkçe arayüz ve hata mesajları, uygulama içi yardım (F1)
 
 ## Gereksinimler

@@ -9,20 +9,43 @@ Vision; donanım kartlarına telnet ile bağlanmak, kartlara komut göndermek, b
 | Bölüm | Konum | Ne işe yarar |
 |---|---|---|
 | Kart Gezgini | Sol kenar | Grupları ve kartları listeler; kart ekleme, seçme, bağlanma ve gösterme buradan yapılır. Sekme şeridinin en solundaki kenar çubuğu düğmesi (Ctrl+B) ile gizlenip gösterilir. |
-| Sekmeler | Sağ alanın üstü | **Telnet** (kart terminalleri), **Kart Dosya Gezgini** ve **Komut Kütüphanesi** arasında geçiş (Ctrl+1 / 2 / 3). Aynı şeridin en sağında **Yardım** (Kullanım Kılavuzu, Gereksinimler, Yardım klasörü, Hakkında) ve **tema düğmesi** (koyu ↔ açık; aşağıya bakın) bulunur. |
+| Sekmeler | Sağ alanın üstü | **Telnet** (kart terminalleri), **Kart Dosya Gezgini** ve **Komut Kütüphanesi** arasında geçiş (Ctrl+1 / 2 / 3). Aynı şeridin en sağında **Yardım** (Kullanım Kılavuzu, Gereksinimler, Yardım klasörü, Hakkında) ve **Temalar** menüsü (hazır temalar ve özelleştirme; aşağıya bakın) bulunur. |
 | Telnet sekmesi | Sağ alan | Seçilen kartların terminal pencereleri ızgara düzeninde görünür (en fazla 24 kart). |
 | Terminal ayarları | Telnet sekmesinin üst çubuğu | Satır sonu, yerel eko, zaman damgası, dosyaya kaydet, satır sınırı ve "Tümünü kapat". |
 | Genel komut çubuğu | Telnet sekmesinin altı | Bir komutu ekrandaki tüm kartlara aynı anda gönderir. |
 | Durum çubuğu | Pencerenin en altı | Grup, kart ve bağlı kart sayıları; kısayol ipuçları ve geliştirici imzası. |
 
-### Koyu ve açık tema
+### Temalar
 
-Uygulama koyu ya da açık temayla kullanılabilir. Geçiş için sekme şeridinin en sağındaki düğmeye (Yardım'ın yanında) tıklayın (ya da **Ctrl+Shift+L**):
+Sekme şeridinin en sağındaki **Temalar** düğmesi (Yardım'ın yanında, palet simgesi) hazır temaları listeler. Seçili tema işaretlidir; her temanın yanında küçük bir renk örneği görünür.
 
-- Koyu temadayken düğmede güneş simgesi ve **Açık tema**, açık temadayken ay simgesi ve **Koyu tema** yazar.
+| Tema | Görünüm |
+|---|---|
+| Koyu | Vision'ın varsayılan koyu teması |
+| Açık | Aydınlık ortamlar için açık tema |
+| Solarized | Göz yormayan, düşük parlaklıkta mavi-yeşil tonlar |
+| Monokai | Kod düzenleyicilerden tanıdık sıcak koyu tema |
+| Yüksek kontrast | En yüksek okunabilirlik: siyah zemin, parlak yazı |
+| Klasik terminal | Siyah zemin üzerinde yeşil fosforlu terminal görünümü |
+
 - Geçiş anında olur: açık tüm pencereler (kart terminalleri, Dosya Gezgini, Komut Kütüphanesi, başlık ve kaydırma çubukları) yeni temaya geçer. Bağlantılar kesilmez, terminal içerikleri silinmez.
+- **Ctrl+Shift+L** listedeki sonraki temaya geçer.
 - Seçim ayarlarla birlikte kaydedilir; uygulama bir sonraki açılışta aynı temayla açılır. Her kullanıcının seçimi kendi bilgisayarındadır.
 - Yardım sayfası da açıldığında o anki temanın renkleriyle gösterilir.
+
+### Temayı özelleştirme
+
+**Temalar → Temayı özelleştir…** düzenleyiciyi açar:
+
+1. Üstteki listeden düzenlemek istediğiniz temayı seçin (seçtiğiniz tema hemen uygulanır).
+2. **Renkler** listesinde değiştirmek istediğiniz satıra tıklayın ve renk seçiciden yeni rengi seçin. Her temanın 10 rengi düzenlenebilir: arka plan, paneller, kenarlıklar, yazı, vurgu, başarılı / bağlı, uyarı, hata, terminal zemini, terminal yazısı. İkincil yazı, seçim, şerit ve düğme tonları gibi diğer renkler bunlardan otomatik türetilir.
+3. Değişiklik **anında** tüm uygulamada ve penceredeki önizlemede görünür. Değiştirilmiş renklerin yanında bir nokta ve vurgu renginde `#RRGGBB` değeri görünür.
+4. **Kaydet** seçili temayı ve değişiklikleri kalıcı yapar. **İptal** (ya da pencereyi kapatmak) pencere açılmadan önceki tema ve renklere döner.
+
+- **Varsayılana dön**, görüntülenen temanın tüm renklerini Vision'ın hazır değerlerine döndürür; Kaydet ile kalıcı olur.
+- Yazı ile zemin arasındaki kontrast düşükse (4.5:1'in altı) pencere uyarır; bu durumda yazılar zor okunabilir.
+- Özelleştirilmiş temalar Temalar menüsünde ve düzenleyicide **(özelleştirildi)** olarak işaretlenir. Birden çok temayı ayrı ayrı özelleştirebilirsiniz; her temanın değişiklikleri kendisine aittir.
+- Birincil düğmelerin yazısı beyazdır; seçtiğiniz vurgu rengi çok açıksa düğme zemini okunur kalacak şekilde otomatik koyulaştırılır.
 
 ### Düğme simgeleri
 
@@ -582,7 +605,7 @@ Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındak
 | F2 | Kart Gezgini'nde kartın adını değiştir |
 | Ctrl+W | Seçili kart penceresini kapat |
 | F1 | Kullanım Kılavuzu (ayrıca sekme şeridinin sağındaki **Yardım** düğmesi) |
-| Ctrl+Shift+L | Koyu ↔ açık tema |
+| Ctrl+Shift+L | Sonraki tema |
 | Ctrl+S / Esc | Komut Kütüphanesi'nde kaydet / iptal |
 | Ctrl+F | Komut Kütüphanesi'nde ara |
 | Enter | Komut gönder · Kart Gezgini'nde seçili kartı göster · Dosya Gezgini'nde aç |
