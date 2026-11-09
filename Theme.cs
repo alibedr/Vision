@@ -218,24 +218,53 @@ namespace Vision
         /// <summary>Tema değişti (açık pencereler yeniden renklendirildikten sonra). Durum renklerini kendisi seçen denetimler dinler.</summary>
         public static event Action Changed;
 
+        /// <summary>Geçerli hazır temanın kimliği (ThemeCatalog).</summary>
+        public static string CurrentThemeId { get; private set; } = ThemeCatalog.DarkId;
+
+        /// <summary>Geçerli temanın 10 temel rengi (ThemeColorKey sırasıyla; kopya döner).</summary>
+        public static Color[] CurrentColors { get { return (Color[])_colors.Clone(); } }
+        private static Color[] _colors = ThemeCatalog.All[0].CopyDefaults();
+
         /// <summary>Uygulama açılırken, HİÇBİR denetim oluşturulmadan önce temayı seçer (yeniden renklendirme yapmaz).</summary>
+        public static void Initialize(string themeId, Color[] colors)
+        {
+            ThemeDefinition def = ThemeCatalog.FindOrDefault(themeId);
+            Color[] c = colors != null && colors.Length == ThemeColorInfo.Count ? (Color[])colors.Clone() : def.CopyDefaults();
+            _p = BuildPalette(c);
+            Mode = ModeFor(c);
+            CurrentThemeId = def.Id;
+            _colors = c;
+        }
+
+        /// <summary>Eski çağrı biçimi: koyu / açık hazır tema.</summary>
         public static void Initialize(ThemeMode mode)
         {
-            Mode = Enum.IsDefined(typeof(ThemeMode), mode) ? mode : ThemeMode.Dark;
-            _p = Mode == ThemeMode.Light ? LightPalette : DarkPalette;
+            ThemeDefinition def = ThemeCatalog.FindOrDefault(mode == ThemeMode.Light ? ThemeCatalog.LightId : ThemeCatalog.DarkId);
+            Initialize(def.Id, def.CopyDefaults());
+        }
+
+        /// <summary>Koyu / açık hazır temaya geçer (varsayılan renkleriyle).</summary>
+        public static void SetMode(ThemeMode mode)
+        {
+            ThemeDefinition def = ThemeCatalog.FindOrDefault(mode == ThemeMode.Light ? ThemeCatalog.LightId : ThemeCatalog.DarkId);
+            Apply(def.Id, def.CopyDefaults());
         }
 
         /// <summary>
-        /// Temayı çalışırken değiştirir: açık tüm pencerelerdeki denetimlerin renkleri yeni temaya çevrilir, başlık
-        /// çubukları ve kaydırma çubukları güncellenir, her şey yeniden çizilir. Bağlantılar ve terminal içerikleri etkilenmez.
+        /// Temayı çalışırken değiştirir (hazır tema ya da düzenleyicideki anlık önizleme): 10 temel renkten tüm palet
+        /// türetilir; açık tüm pencerelerdeki denetimlerin renkleri yeni temaya çevrilir, başlık çubukları ve kaydırma
+        /// çubukları güncellenir, her şey yeniden çizilir. Bağlantılar ve terminal içerikleri etkilenmez.
         /// </summary>
-        public static void SetMode(ThemeMode mode)
+        public static void Apply(string themeId, Color[] colors)
         {
-            if (!Enum.IsDefined(typeof(ThemeMode), mode) || mode == Mode) return;
-            Palette from = _p, to = mode == ThemeMode.Light ? LightPalette : DarkPalette;
+            ThemeDefinition def = ThemeCatalog.FindOrDefault(themeId);
+            Color[] c = colors != null && colors.Length == ThemeColorInfo.Count ? (Color[])colors.Clone() : def.CopyDefaults();
+            Palette from = _p, to = BuildPalette(c);
             Dictionary<int, Color> map = BuildMap(from, to);
             _p = to;
-            Mode = mode;
+            Mode = ModeFor(c);
+            CurrentThemeId = def.Id;
+            _colors = c;
 
             foreach (Form f in Application.OpenForms)
             {
@@ -248,6 +277,122 @@ namespace Vision
             var h = Changed;
             if (h != null) h();
             foreach (Form f in Application.OpenForms) f.Invalidate(true);
+        }
+
+        // ---------- 10 temel renkten tam palet ----------
+
+        // Temel renkler (ThemeColorKey sırasıyla) paletteki bu alanlara karşılık gelir
+        private static readonly string[] BaseFields =
+            { "Window", "Surface", "Border", "Text", "Accent", "Success", "Warning", "Danger", "Input", "Terminal" };
+
+        // Türetilen her renk iki temel rengin arasında (ya da ötesinde) bir tondur. Oran ve küçük sapma, koyu / açık
+        // hazır paletten ölçülür; bu yüzden Koyu ve Açık temalar varsayılan renkleriyle önceki sürümlerle BİREBİR aynıdır.
+        private static readonly Dictionary<string, string[]> Anchors = new Dictionary<string, string[]>
+        {
+            { "Sidebar", new[] { "Window", "Surface" } }, { "SurfaceHigh", new[] { "Surface", "Text" } },
+            { "Hover", new[] { "Surface", "Text" } }, { "Selection", new[] { "Surface", "Accent" } },
+            { "TextMuted", new[] { "Text", "Window" } }, { "TextFaint", new[] { "Text", "Window" } },
+            { "AccentHover", new[] { "Accent", "Text" } }, { "AccentFill", new[] { "Accent", "Window" } },
+            { "AccentFillHover", new[] { "Accent", "Text" } }, { "Idle", new[] { "Text", "Window" } },
+            { "DangerSurface", new[] { "Danger", "Window" } }, { "DangerHover", new[] { "Danger", "Text" } },
+            { "DangerPressed", new[] { "Danger", "Window" } }, { "DangerIdle", new[] { "Danger", "Surface" } },
+            { "SuccessHover", new[] { "Success", "Text" } }, { "SuccessPressed", new[] { "Success", "Window" } },
+            { "ErrorBanner", new[] { "Danger", "Window" } }, { "SuccessBanner", new[] { "Success", "Window" } },
+            { "SuccessBannerText", new[] { "Success", "Text" } }, { "WarningBanner", new[] { "Warning", "Window" } },
+            { "WarningBannerText", new[] { "Warning", "Text" } }, { "InfoBanner", new[] { "Accent", "Window" } },
+            { "InfoBannerText", new[] { "Accent", "Text" } }, { "StripConnecting", new[] { "Warning", "Window" } },
+            { "StripError", new[] { "Danger", "Window" } }, { "StripDropped", new[] { "Danger", "Window" } },
+            { "DropBannerTitle", new[] { "Text", "Accent" } }, { "DropBannerFaint", new[] { "Text", "Window" } },
+            { "AccentSurface", new[] { "Accent", "Surface" } }, { "DropHighlight", new[] { "Accent", "Surface" } },
+            { "DropHighlightSoft", new[] { "Accent", "Window" } }, { "TreeSelectedStrong", new[] { "Accent", "Surface" } },
+            { "TreeSelectedSoft", new[] { "Accent", "Window" } }, { "TreeTag", new[] { "Text", "Window" } },
+            { "ListSelectedStrong", new[] { "Accent", "Surface" } }, { "ListSelectedText", new[] { "Text", "Accent" } },
+            { "RowDivider", new[] { "Border", "Window" } }, { "RowDividerMid", new[] { "Border", "Window" } },
+            { "RowDividerStrong", new[] { "Border", "Text" } }, { "ZebraRow", new[] { "Window", "Surface" } },
+            { "ComboActive", new[] { "Surface", "Text" } }, { "OffOutputBack", new[] { "Input", "Window" } },
+            { "OffOutputText", new[] { "Terminal", "Input" } }, { "OffHeaderBack", new[] { "Surface", "Window" } },
+            { "OffInputBack", new[] { "Input", "Surface" } }, { "AlertText", new[] { "Danger", "Text" } },
+            { "CommandBarBack", new[] { "Accent", "Surface" } }, { "CommandFieldBack", new[] { "Input", "Surface" } },
+            { "CommandFieldBorder", new[] { "Accent", "Border" } },
+        };
+
+        /// <summary>Arka plan koyuysa koyu kip (başlık çubuğu, kaydırma çubukları, bazı simgeler buna göre).</summary>
+        private static ThemeMode ModeFor(Color[] colors)
+        {
+            return RelativeLuminance(colors[(int)ThemeColorKey.Window]) < 0.2 ? ThemeMode.Dark : ThemeMode.Light;
+        }
+
+        /// <summary>WCAG göreli parlaklık (0 siyah … 1 beyaz).</summary>
+        public static double RelativeLuminance(Color c)
+        {
+            Func<int, double> lin = v => { double x = v / 255.0; return x <= 0.03928 ? x / 12.92 : Math.Pow((x + 0.055) / 1.055, 2.4); };
+            return 0.2126 * lin(c.R) + 0.7152 * lin(c.G) + 0.0722 * lin(c.B);
+        }
+
+        /// <summary>İki rengin WCAG kontrast oranı (1 … 21). Yazı için en az 4.5 önerilir.</summary>
+        public static double ContrastRatio(Color a, Color b)
+        {
+            double la = RelativeLuminance(a), lb = RelativeLuminance(b);
+            if (la < lb) { double t = la; la = lb; lb = t; }
+            return (la + 0.05) / (lb + 0.05);
+        }
+
+        private static Palette BuildPalette(Color[] colors)
+        {
+            var fields = typeof(Palette).GetFields();
+            Palette reference = ModeFor(colors) == ThemeMode.Dark ? DarkPalette : LightPalette;
+            var p = new Palette();
+            var values = new Dictionary<string, Color>();
+            for (int i = 0; i < BaseFields.Length; i++) values[BaseFields[i]] = Color.FromArgb(255, colors[i]);
+
+            Func<string, Color> refOf = n => (Color)typeof(Palette).GetField(n).GetValue(reference);
+            foreach (var kv in Anchors)
+            {
+                Color A = refOf(kv.Value[0]), B = refOf(kv.Value[1]), X = refOf(kv.Key);
+                double dr = B.R - A.R, dg = B.G - A.G, db = B.B - A.B;
+                double n = dr * dr + dg * dg + db * db;
+                double t = n < 1 ? 0 : ((X.R - A.R) * dr + (X.G - A.G) * dg + (X.B - A.B) * db) / n;
+                t = Math.Max(-1, Math.Min(2, t));
+                double rr = X.R - (A.R + t * dr), rg = X.G - (A.G + t * dg), rb = X.B - (A.B + t * db);
+                Color NA = values[kv.Value[0]], NB = values[kv.Value[1]];
+                values[kv.Key] = Color.FromArgb(
+                    Clamp(NA.R + t * (NB.R - NA.R) + rr),
+                    Clamp(NA.G + t * (NB.G - NA.G) + rg),
+                    Clamp(NA.B + t * (NB.B - NA.B) + rb));
+            }
+
+            // Birincil düğmelerde yazı beyaz: vurgu dolgusu beyaz yazıyla okunacak kadar koyu olmalı (≥ 4.5:1)
+            values["AccentFill"] = DarkenUntilReadable(values["AccentFill"]);
+            values["AccentFillHover"] = DarkenUntilReadable(values["AccentFillHover"]);
+
+            // Tema değişiminde denetim renkleri değerden değere çevrildiği için paletteki tüm değerler farklı olmalı
+            var seen = new HashSet<int>();
+            int[][] steps = { new[] { 1, 0, 0 }, new[] { 0, 1, 0 }, new[] { 0, 0, 1 }, new[] { -1, 0, 0 }, new[] { 0, -1, 0 },
+                              new[] { 0, 0, -1 }, new[] { 1, 1, 0 }, new[] { 0, 1, 1 }, new[] { 1, 0, 1 }, new[] { -1, -1, 0 } };
+            foreach (System.Reflection.FieldInfo fi in fields)
+            {
+                Color orig = values[fi.Name], c = orig;
+                for (int k = 0; !seen.Add(c.ToArgb()) && k < 400; k++)
+                {
+                    int[] st = steps[k % steps.Length];
+                    int m = k / steps.Length + 1;
+                    c = Color.FromArgb(Clamp(orig.R + st[0] * m), Clamp(orig.G + st[1] * m), Clamp(orig.B + st[2] * m));
+                }
+                fi.SetValue(p, c);
+            }
+            return p;
+        }
+
+        private static int Clamp(double v)
+        {
+            return (int)Math.Max(0, Math.Min(255, Math.Round(v)));
+        }
+
+        private static Color DarkenUntilReadable(Color c)
+        {
+            for (int i = 0; i < 40 && ContrastRatio(Color.White, c) < 4.5; i++)
+                c = Color.FromArgb(Clamp(c.R * 0.92), Clamp(c.G * 0.92), Clamp(c.B * 0.92));
+            return c;
         }
 
         private static Dictionary<int, Color> BuildMap(Palette from, Palette to)

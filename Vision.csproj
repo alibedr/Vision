@@ -60,6 +60,10 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="TerminalHighlight.cs" />
+    <Compile Include="ThemeCatalog.cs" />
+    <Compile Include="ThemeEditorDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Icons.cs" />
     <Compile Include="DarkControls.cs" />
     <Compile Include="ReadOnlyOpen.cs" />

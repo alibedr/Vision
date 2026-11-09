@@ -17,7 +17,9 @@ namespace Vision
                 bool fallback;
                 string path = ConfigStore.ResolvePath(out fallback);
                 ConfigStore.MigrateIfMissing(path);
-                Theme.Initialize(ConfigStore.Load(path).Settings.UiTheme);
+                AppSettings st = ConfigStore.Load(path).Settings;
+                st.Normalize();
+                Theme.Initialize(st.UiThemeId, st.EffectiveThemeColors());
             }
             catch { Theme.Initialize(ThemeMode.Dark); }
             try { Application.Run(new MainForm()); }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.Net;
 using System.Xml.Serialization;
@@ -213,8 +214,20 @@ namespace Vision
         /// <summary>Kart Gezgini kenar çubuğu daraltılmış mı (tercih hatırlanır).</summary>
         public bool SidebarCollapsed { get; set; }
 
-        /// <summary>Arayüz teması (koyu / açık). Menü çubuğunun sağındaki düğmeyle değiştirilir ve hatırlanır.</summary>
+        /// <summary>Eski sürümlerin tema ayarı (koyu / açık). Yeni sürüm UiThemeId kullanır; uyumluluk için güncel tutulur.</summary>
         public ThemeMode UiTheme { get; set; }
+
+        /// <summary>Seçili hazır tema (ThemeCatalog kimliği: koyu, acik, solarized…). Sekme şeridindeki Temalar menüsünden seçilir.</summary>
+        public string UiThemeId { get; set; }
+
+        /// <summary>Kullanıcının hazır temalarda değiştirdiği renkler (yalnız varsayılandan farklı olanlar).</summary>
+        public List<ThemeCustomization> ThemeCustomizations { get; set; }
+
+        /// <summary>Seçili temanın kullanıcı değişiklikleriyle birlikte 10 temel rengi.</summary>
+        public Color[] EffectiveThemeColors()
+        {
+            return ThemeCatalog.EffectiveColors(ThemeCatalog.FindOrDefault(UiThemeId), ThemeCustomizations);
+        }
 
         /// <summary>"Birlikte aç (salt okunur)" açıklama penceresi bir daha gösterilmesin.</summary>
         public bool HideReadOnlyOpenInfo { get; set; }
@@ -230,6 +243,11 @@ namespace Vision
             TerminalZoom = ClampZoom(TerminalZoom);
             if (!Enum.IsDefined(typeof(RebootOption), GlobalRebootOption)) GlobalRebootOption = RebootOption.Reboot;
             if (!Enum.IsDefined(typeof(ThemeMode), UiTheme)) UiTheme = ThemeMode.Dark;
+            // Önceki sürümden geçiş: yalnız koyu / açık vardı
+            if (ThemeCatalog.Find(UiThemeId) == null)
+                UiThemeId = UiTheme == ThemeMode.Light ? ThemeCatalog.LightId : ThemeCatalog.DarkId;
+            if (ThemeCustomizations == null) ThemeCustomizations = new List<ThemeCustomization>();
+            ThemeCustomizations.RemoveAll(c => c == null || ThemeCatalog.Find(c.ThemeId) == null);
             LogToFile = false;   // sürekli kayıt kaldırıldı: anlık kayıt düğmeleri kullanılır
             if (Transfer != null) Transfer.ApplyNewDefaults();
         }
