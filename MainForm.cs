@@ -369,7 +369,7 @@ namespace Vision
                 e.SuppressKeyPress = true;
                 ShowHelp(HelpPage.Guide);
             }
-            else if (e.Control && e.Shift && e.KeyCode == Keys.L)   // koyu ↔ açık tema
+            else if (e.Control && e.Shift && e.KeyCode == Keys.L)   // sonraki tema
             {
                 e.SuppressKeyPress = true;
                 ToggleTheme();
@@ -759,10 +759,12 @@ namespace Vision
             _statesDirty = true;
         }
 
-        // Sekme şeridinin sağı: [Yardım] [Açık / Koyu tema] — ayrı menü çubuğu yok
+        // Sekme şeridinin sağı: [Yardım] [Temalar] — ayrı menü çubuğu yok
         private readonly TabStripButton _helpBtn = new TabStripButton("Yardım", IconKind.Info) { IsTab = false };
-        private readonly TabStripButton _themeBtn = new TabStripButton("Açık tema", IconKind.Sun) { IsTab = false };
+        private readonly TabStripButton _themeBtn = new TabStripButton("Temalar", IconKind.Palette) { IsTab = false };
         private readonly ContextMenuStrip _helpMenu = new ContextMenuStrip();
+        private readonly ContextMenuStrip _themeMenu = new ContextMenuStrip();
+        private readonly List<Image> _themeMenuImages = new List<Image>();
         private readonly DarkToolTip _headerTips = new DarkToolTip();
 
         /// <summary>Yardım ve tema düğmelerini sekme şeridinin sağına yerleştirir (F1 ve Ctrl+Shift+L formda işlenir).</summary>
@@ -786,34 +788,97 @@ namespace Vision
             _helpBtn.Dock = DockStyle.Right;
             _themeBtn.Dock = DockStyle.Right;
             _helpBtn.Click += (s, e) => _helpMenu.Show(_helpBtn, new Point(0, _helpBtn.Height));
-            _themeBtn.Click += (s, e) => ToggleTheme();
+            _themeMenu.Renderer = new DarkMenuRenderer();
+            _themeBtn.Click += (s, e) =>
+            {
+                BuildThemeMenu();
+                _themeMenu.Show(_themeBtn, new Point(0, _themeBtn.Height));
+            };
             _headerTips.SetToolTip(_helpBtn, "Kullanım kılavuzu, gereksinimler, hakkında  (F1: kılavuz)");
-            tabStrip.Controls.Add(_helpBtn);    // Dock=Right: son eklenen en sağda → [Yardım] [Tema]
+            tabStrip.Controls.Add(_helpBtn);    // Dock=Right: son eklenen en sağda → [Yardım] [Temalar]
             tabStrip.Controls.Add(_themeBtn);
             RefreshThemeItem();
+            Theme.Changed += RefreshThemeItem;   // düzenleyicideki anlık önizlemede de simge rengi güncel kalsın
         }
 
-        /// <summary>Tema düğmesi: geçilecek temayı gösterir (koyudayken "Açık tema" + güneş, açıktayken "Koyu tema" + ay).</summary>
+        /// <summary>Temalar düğmesi: simge rengi geçerli temanın vurgusu.</summary>
         private void RefreshThemeItem()
         {
-            bool dark = Theme.IsDark;
-            _themeBtn.Text = dark ? "Açık tema" : "Koyu tema";
-            _themeBtn.Icon = dark ? IconKind.Sun : IconKind.Moon;
-            _themeBtn.IconColor = dark ? Theme.Warning : Theme.Accent;
+            ThemeDefinition def = ThemeCatalog.FindOrDefault(Theme.CurrentThemeId);
+            _themeBtn.IconColor = Theme.Accent;
             _themeBtn.FitToText();
-            string tip = (dark ? "Açık temaya geç" : "Koyu temaya geç") + "  (Ctrl+Shift+L)";
+            string tip = "Tema: " + def.Name + "  ·  hazır temalar ve özelleştirme  (Ctrl+Shift+L: sonraki tema)";
             _themeBtn.AccessibleName = tip;
             _headerTips.SetToolTip(_themeBtn, tip);
         }
 
-        /// <summary>Koyu ↔ açık tema: açık tüm pencereler hemen yeni temaya geçer; bağlantılar ve terminaller etkilenmez.</summary>
-        private void ToggleTheme()
+        /// <summary>Temalar menüsü: hazır temalar (seçili olan işaretli, renk örneğiyle) ve "Temayı özelleştir…".</summary>
+        private void BuildThemeMenu()
         {
-            ThemeMode next = Theme.IsDark ? ThemeMode.Light : ThemeMode.Dark;
-            Theme.SetMode(next);
-            _config.Settings.UiTheme = next;
+            _themeMenu.Items.Clear();
+            foreach (Image img in _themeMenuImages) img.Dispose();
+            _themeMenuImages.Clear();
+            List<ThemeCustomization> custom = _config.Settings.ThemeCustomizations;
+            foreach (ThemeDefinition def in ThemeCatalog.All)
+            {
+                bool customized = ThemeCatalog.IsCustomized(custom, def.Id);
+                var it = new ToolStripMenuItem(def.Name + (customized ? "   (özelleştirildi)" : ""))
+                {
+                    ForeColor = Theme.Text,
+                    Checked = string.Equals(def.Id, Theme.CurrentThemeId, StringComparison.OrdinalIgnoreCase),
+                    Image = ThemeSwatch(ThemeCatalog.EffectiveColors(def, custom)),
+                    ToolTipText = def.Description,
+                };
+                string id = def.Id;
+                it.Click += (s, e) => SelectTheme(id);
+                _themeMenu.Items.Add(it);
+            }
+            _themeMenu.Items.Add(new ToolStripSeparator());
+            var edit = new ToolStripMenuItem("Temayı özelleştir…") { ForeColor = Theme.Text };
+            edit.Click += (s, e) =>
+            {
+                ThemeEditorDialog.Edit(this, _config.Settings, SaveConfig);
+                RefreshThemeItem();
+            };
+            _themeMenu.Items.Add(edit);
+        }
+
+        /// <summary>Menüde tema örneği: arka plan, panel, vurgu ve terminal yazısı şeritleri.</summary>
+        private Image ThemeSwatch(Color[] c)
+        {
+            var bmp = new Bitmap(16, 16);
+            using (Graphics g = Graphics.FromImage(bmp))
+            {
+                g.Clear(Color.Transparent);
+                using (var b = new SolidBrush(c[(int)ThemeColorKey.Window])) g.FillRectangle(b, 1, 1, 14, 14);
+                using (var b = new SolidBrush(c[(int)ThemeColorKey.Surface])) g.FillRectangle(b, 1, 1, 14, 5);
+                using (var b = new SolidBrush(c[(int)ThemeColorKey.Accent])) g.FillRectangle(b, 3, 8, 5, 5);
+                using (var b = new SolidBrush(c[(int)ThemeColorKey.Terminal])) g.FillRectangle(b, 9, 9, 5, 2);
+                using (var p = new Pen(c[(int)ThemeColorKey.Border])) g.DrawRectangle(p, 1, 1, 13, 13);
+            }
+            _themeMenuImages.Add(bmp);
+            return bmp;
+        }
+
+        /// <summary>Hazır temaya (kaydedilmiş değişiklikleriyle) geçer ve seçimi kaydeder; bağlantılar ve terminaller etkilenmez.</summary>
+        private void SelectTheme(string id)
+        {
+            ThemeDefinition def = ThemeCatalog.FindOrDefault(id);
+            Theme.Apply(def.Id, ThemeCatalog.EffectiveColors(def, _config.Settings.ThemeCustomizations));
+            _config.Settings.UiThemeId = def.Id;
+            _config.Settings.UiTheme = Theme.Mode;   // eski sürümlerle uyum
             RefreshThemeItem();
             SaveConfig();
+        }
+
+        /// <summary>Ctrl+Shift+L: listedeki sonraki hazır temaya geçer.</summary>
+        private void ToggleTheme()
+        {
+            IList<ThemeDefinition> all = ThemeCatalog.All;
+            int i = 0;
+            for (int k = 0; k < all.Count; k++)
+                if (string.Equals(all[k].Id, Theme.CurrentThemeId, StringComparison.OrdinalIgnoreCase)) i = k;
+            SelectTheme(all[(i + 1) % all.Count].Id);
         }
 
         private void OnUiTick()

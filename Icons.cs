@@ -11,7 +11,7 @@ namespace Vision
         Back, Refresh, NewFolder, Upload, Settings, SidebarHide, SidebarShow, Folder,
         Plus, Search, Edit, Trash, Copy, Check, ChevronRight, ChevronDown, Module, ExpandAll, CollapseAll,
         ChevronUp, Warning, Info, Terminal, Book, Home, Clock, Dot,
-        Save, Bolt, Power, Swap, Minus, Return, Sun, Moon, History,
+        Save, Bolt, Power, Swap, Minus, Return, Sun, Moon, History, Palette,
     }
 
     /// <summary>
@@ -195,6 +195,21 @@ namespace Vision
                         DrawRoundRect(g, pen, 1.6f, 2.4f, 12.8f, 11.2f, 1.8f);
                         g.DrawLines(pen, new[] { P(4.4f, 6.2f), P(6.6f, 8.2f), P(4.4f, 10.2f) });
                         g.DrawLine(pen, 8.2f, 10.4f, 11.4f, 10.4f);
+                        break;
+
+                    case IconKind.Palette:   // ressam paleti: dış hat, başparmak deliği ve üç boya noktası
+                        using (var pal = new GraphicsPath())
+                        {
+                            pal.AddBezier(8f, 1.8f, 12.8f, 1.8f, 14.4f, 5.2f, 14.2f, 8.2f);
+                            pal.AddBezier(14.2f, 8.2f, 14f, 10.6f, 11.6f, 10.4f, 10.6f, 11.6f);
+                            pal.AddBezier(10.6f, 11.6f, 9.8f, 12.8f, 11f, 14.2f, 8f, 14.2f);
+                            pal.AddBezier(8f, 14.2f, 4f, 14.2f, 1.8f, 11.2f, 1.8f, 8f);
+                            pal.AddBezier(1.8f, 8f, 1.8f, 4.4f, 4.4f, 1.8f, 8f, 1.8f);
+                            g.DrawPath(pen, pal);
+                        }
+                        g.FillEllipse(brush, 4.2f, 6.6f, 2.2f, 2.2f);
+                        g.FillEllipse(brush, 6.4f, 3.8f, 2.2f, 2.2f);
+                        g.FillEllipse(brush, 9.6f, 4.4f, 2.2f, 2.2f);
                         break;
 
                     case IconKind.Sun:       // güneş (açık tema)
