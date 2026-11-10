@@ -212,6 +212,7 @@ namespace Vision
             Session.CommandHistory.Add(cmd);
             ScrollToEnd();
             HideNewLinesPill();
+            OpenBootChangeIfNeeded(cmd);
             try
             {
                 await Session.SendCommandAsync(cmd, source);

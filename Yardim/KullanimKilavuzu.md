@@ -270,6 +270,22 @@ Akan loglar arasında bir kelimeyi (ör. `error`) kolayca görmek için:
 - Renklendirmeler **o karta** aittir ve yalnız ekrandaki görünümü değiştirir (karta bir şey gönderilmez, kayıt dosyalarına renk yazılmaz). Kart penceresi kapatılıp yeniden açılsa da korunur; uygulama kapanınca silinir.
 - Seçim tek satırda olmalıdır (en fazla 200 karakter); baştaki ve sondaki boşluklar yok sayılır.
 
+### Boot ayarları penceresi (bspBootChange / bootChange)
+
+Kart terminalinden (komut satırı, hızlı komut ya da genel komut çubuğu) `bspBootChange` veya `bootChange` gönderdiğinizde **Boot ayarları** penceresi açılır. Kart boot ayarlarını tek tek sorar; kart çalışırken gelen loglar bu soruların arasına karıştığı için terminalde hangi alanda olduğunuz kayabilir. Pencere kartın sorduğu alanları loglardan ayırarak bir listede gösterir:
+
+- Üstte **şu an sorulan alan** ve kartın o alandaki değeri yazar; listede o satır vurgulanır (▶).
+- **Yeni değer** kutusuna yazıp **Enter** (ya da **Gönder**): değer karta gider, kart bir sonraki alana geçer. Kutu boşken Enter ya da **Değiştirmeden geç**: alan aynen kalır.
+- **Değeri düzenle** (F2): kartın değerini kutuya kopyalar; küçük bir değişiklik yapıp Enter'a basın.
+- **Temizle (.)**: alanı boşaltır. **◀ Önceki alan**: bir önceki alana döner (karta `-` gönderilir).
+- Listede bir alana **çift tıklayın**: kart o alana gelene kadar alanlar değiştirilmeden geçilir (geri gitmek için `-` gönderilir).
+- **Kalanları geçip bitir**: kalan alanların hepsi değiştirilmeden geçilir; girdiğiniz değerler kaydedilir. **Çık (Ctrl+D)**: komuttan hemen çıkar (kartın imajına göre değişiklikler kaydedilmeyebilir).
+- Değiştirdiğiniz alanlar listede `eski → yeni` olarak görünür. Komut bitince kaç alanın değiştiği yazar; yeni boot ayarları genellikle kart yeniden başlatılınca geçerli olur.
+- **Araya giren kart logları** (alt şerit, tıklayınca açılır): bu sırada gelen loglar kaybolmaz, burada toplanır. Kartın tüm çıktısı terminalde de görünmeye devam eder.
+- Pencere kart bitirmeden kapatılırsa sorulur: **Kalanları geçip bitir**, **Yalnız pencereyi kapat** (terminalden devam edersiniz) ya da **Vazgeç**.
+- Pencere açıkken o kartta Dosya Gezgini gibi arka plan komutları gönderilmez (gönderilseler alan değeri olarak yazılırdı); pencere bitince yeniden çalışır.
+- Genel komut çubuğundan gönderildiyse bağlı her kart için ayrı pencere açılır.
+
 ### Bağlı olmayan kart
 
 Ekranda gösterilen ama bağlı olmayan kart gri tonlarda görünür; komut satırı kilitlenir ("Kart bağlı değil — komut yazılamaz"). Başlığın altındaki şerit durumu açıklar.
@@ -370,9 +386,10 @@ Ayar çubuğundaki **− %100 +** tüm kart terminallerinin yazı boyutunu **bir
 
 **Kart Dosya Gezgini** sekmesi (**Ctrl+2**), kartın cihazlarını, klasörlerini ve dosyalarını `devs` ve `ls` komutlarını elle yazmadan gezmenizi sağlar. Karta sağ tıklayıp **Dosya Gezgininde aç** ile de açılır.
 
-1. Üstten **kartı seçin**. Kart bağlıysa `devs` çalışır ve cihazlar listelenir. Yalnız `devs` çıktısındaki **name** sütunu kullanılır (`drv refs name` ve `drv name` biçimleri desteklenir).
-   - Listede yalnız **içine girilebilen** cihazlar görünür: her cihaz `ll "cihaz"` ile denenir ve dönüş değeri **0** olanlar gösterilir. `/null`, `/tyCo/0` gibi girilemeyen cihazlar gizlenir; adları alttaki durum satırında yazar (ör. *içine girilemeyen 2 cihaz gizlendi (/null, /tyCo/0)*).
-   - Denetim yalnız ilk açılışta yapılır; Cihazlar'a geri dönünce tekrarlanmaz. Kartta bir cihaz sonradan kullanılabilir olduysa Cihazlar'dayken **Yenile** (F5) ile yeniden denetleyin.
+1. Üstten **kartı seçin**. Kart bağlıysa `devs` çalışır ve cihazlar **hemen** listelenir. Yalnız `devs` çıktısındaki **name** sütunu kullanılır (`drv refs name` ve `drv name` biçimleri desteklenir).
+   - `devs`in listelediği **tüm cihazlar** görünür; cihazlar önceden tek tek denenmez, bu yüzden liste beklemeden gelir.
+   - İçine girilip girilemeyeceği, cihaza **girmek istediğinizde** anlaşılır: `ll "cihaz"` dönüş değeri **0** ise içerik açılır. 0 dışındaysa (ör. `/null`, `/tyCo/0`) sarı uyarı şeridinde *"/tyCo/0" cihazının içine girilemiyor (dönüş değeri -1)* yazar, liste değişmez ve cihaz soluk görünür; türü **Cihaz · girilemiyor (-1)** olur.
+   - İşaret, Cihazlar'dayken **Yenile** (F5) ya da kart değişince sıfırlanır; cihaz sonradan açılırsa işaret kendiliğinden kalkar.
 2. Bir cihaza ya da klasöre **çift tıklayın** (veya Enter): `ll "/yol"` çalışır ve içerik **tür, boyut ve tarihle** listelenir. Kartın imajında `ll` yoksa otomatik olarak `ls` kullanılır (bu durumda boyut / tarih görünmez).
 3. Üstteki **yol çubuğundan** (breadcrumb) üst klasörlere doğrudan dönebilirsiniz.
 4. **Geri** (sol ok simgesi, Backspace) önceki klasöre, **Yenile** (dönen ok simgesi, F5) mevcut klasörü yeniden yükler.
@@ -606,6 +623,7 @@ Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındak
 | Ctrl+W | Seçili kart penceresini kapat |
 | F1 | Kullanım Kılavuzu (ayrıca sekme şeridinin sağındaki **Yardım** düğmesi) |
 | Ctrl+Shift+L | Sonraki tema |
+| Enter / F2 / Ctrl+D / Esc | Boot ayarları penceresinde: gönder (boşsa değiştirmeden geç) / kartın değerini düzenle / çık / kapat |
 | Ctrl+S / Esc | Komut Kütüphanesi'nde kaydet / iptal |
 | Ctrl+F | Komut Kütüphanesi'nde ara |
 | Enter | Komut gönder · Kart Gezgini'nde seçili kartı göster · Dosya Gezgini'nde aç |

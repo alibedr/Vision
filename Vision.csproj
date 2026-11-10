@@ -68,6 +68,10 @@
     <Compile Include="DarkControls.cs" />
     <Compile Include="ReadOnlyOpen.cs" />
     <Compile Include="CardFtp.cs" />
+    <Compile Include="BootChange.cs" />
+    <Compile Include="BootChangeDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="CommandResponses.cs" />
     <Compile Include="TerminalSnapshot.cs" />
     <Compile Include="FileExplorerLogic.cs" />

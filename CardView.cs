@@ -945,6 +945,7 @@ namespace Vision
             // Komut gönderen kullanıcı yeni çıktıyı görmek ister: en alta in
             ScrollToEnd();
             HideNewLinesPill();
+            OpenBootChangeIfNeeded(cmd);
             try
             {
                 await Session.SendCommandAsync(cmd);
@@ -954,6 +955,18 @@ namespace Vision
                 ErrorText.LogTechnical(Session.Card.DisplayName + " komut", ex);
                 AppendOutput("\n*** Gönderilemedi: " + ErrorText.Describe(ex) + "\n");
             }
+        }
+
+        /// <summary>
+        /// bspBootChange / bootChange gönderilmeden hemen önce Boot ayarları penceresini açar (G27): kartın sorduğu alanlar
+        /// araya giren loglardan ayrı orada gösterilir. Kart zaten bir boot alanında bekliyorsa (yazılan bir alan değeridir)
+        /// pencere açılmaz.
+        /// </summary>
+        private void OpenBootChangeIfNeeded(string cmd)
+        {
+            if (!BootChangeParser.IsBootChangeCommand(cmd) || Session.InteractiveInputActive) return;
+            try { BootChangeDialog.Begin(Session, FindForm(), cmd); }
+            catch (Exception ex) { ErrorText.LogTechnical(Session.Card.DisplayName + " boot ayarları penceresi", ex); }
         }
 
         private async void Input_KeyDown(object sender, KeyEventArgs e)

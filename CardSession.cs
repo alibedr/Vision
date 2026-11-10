@@ -53,6 +53,7 @@ namespace Vision
         // komutu beklemeye alınır, böylece iki komutun cevabı birbirine karışmaz.
         private readonly SemaphoreSlim _commandGate = new SemaphoreSlim(1, 1);
         private Capture _capture;
+        private readonly List<TerminalTap> _taps = new List<TerminalTap>();   // gelen verinin kopyası (ör. boot ayarları penceresi)
 
         private sealed class Capture
         {
@@ -419,6 +420,36 @@ namespace Vision
             await _client.SendAsync(cmd + _settings.LineEndingChars).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Satırı kartın beklediği girişe (ör. bspBootChange alanı) gönderir: satır sonu eklenir, komut geçmişine ve dönüş
+        /// değerleri paneline yazılmaz. Kartın ekosu terminalde görünür.
+        /// </summary>
+        public Task SendInputLineAsync(string text)
+        {
+            if (State != CardState.Connected) throw new InvalidOperationException("Kart bağlı değil.");
+            LastTxUtc = DateTime.UtcNow;
+            return _client.SendAsync((text ?? "") + _settings.LineEndingChars);
+        }
+
+        /// <summary>
+        /// Kart etkileşimli bir girişte (ör. bspBootChange alanları) bekliyor: dosya gezgini gibi arka plan komutları
+        /// gönderilmez (gönderilseydi alanın değeri olarak yazılırdı).
+        /// </summary>
+        public bool InteractiveInputActive { get; set; }
+
+        /// <summary>Kartın gönderdiği verinin (ANSI ayıklanmış, satır sonları "\n") kopyasını almaya başlar.</summary>
+        public TerminalTap OpenTap()
+        {
+            var t = new TerminalTap(this);
+            lock (_lock) _taps.Add(t);
+            return t;
+        }
+
+        internal void CloseTap(TerminalTap t)
+        {
+            lock (_lock) _taps.Remove(t);
+        }
+
         public Task SendRawAsync(string raw)
         {
             LastTxUtc = DateTime.UtcNow;
@@ -439,6 +470,9 @@ namespace Vision
         {
             if (State != CardState.Connected)
                 return ShellResponse.Failed(command, "Kart bağlı değil. Dosya gezgini ayrı bağlantı açmaz.", "");
+            if (InteractiveInputActive)
+                return ShellResponse.Failed(command, "Kartta boot ayarları (bspBootChange) düzenleniyor; komut gönderilmedi. " +
+                                                     "Boot ayarları penceresi bitince tekrar deneyin.", "");
 
             await _commandGate.WaitAsync().ConfigureAwait(false);
             var cap = new Capture { LastDataUtc = DateTime.UtcNow };
@@ -545,6 +579,7 @@ namespace Vision
             lock (_lock)
             {
                 text = _normalizer.Process(text);           // tüm satır sonu varyantları → tek '\n'
+                foreach (TerminalTap tap in _taps) tap.Append(text);
                 if (_capture != null)
                 {
                     // Dosya gezgini gibi bir yakalama sürüyor: cevap terminale değil yakalayıcıya gider
