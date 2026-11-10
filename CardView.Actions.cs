@@ -72,7 +72,13 @@ namespace Vision
             // --- Anlık kayıt
             _snapBtn.SetTip(_tips, "Dosyaya kaydet — terminalde şu an görünen içeriği bu kart için ayrı bir dosyaya kaydeder\n(sürekli kayıt başlatmaz; her tıklama yeni dosya)");
             _snapBtn.Click += async (s, e) => await SaveSnapshotAsync();
-            _toast.Click += (s, e) => { HideToast(); if (_toastPath != null) ShowInExplorer(_toastPath); };
+            _toast.Click += (s, e) =>
+            {
+                Action action = _toastAction;
+                HideToast();
+                if (action != null) action();
+                else if (_toastPath != null) ShowInExplorer(_toastPath);
+            };
             _toastTimer.Tick += (s, e) => HideToast();
             _outputHost.Controls.Add(_toast);
             _toast.BringToFront();
@@ -116,6 +122,7 @@ namespace Vision
             bool show = w >= 330;
             _quickBtn.Visible = _rebootBtn.Visible = show;
             _quickGap.Visible = _rebootGap.Visible = show;
+            _sentinelBtn.Visible = _sentinelGap.Visible = show;
             bool compact = w < 470;
             string cmd = (Session.Card.QuickCommand ?? "").Trim();
             _quickBtn.Label = compact ? "" : (cmd.Length == 0 ? "Hızlı komut" : cmd);
@@ -269,6 +276,7 @@ namespace Vision
         public void ShowToast(string text, bool ok, string path)
         {
             _toastPath = path;
+            _toastAction = null;
             _toast.Text = text;
             _toast.BackColor = ok ? Theme.SuccessBanner : Theme.ErrorBanner;
             _toast.ForeColor = ok ? Theme.SuccessBannerText : Color.White;

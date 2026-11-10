@@ -76,9 +76,11 @@ namespace Vision
         private readonly TabStripButton _filesTab = new TabStripButton("Kart Dosya Gezgini", IconKind.Folder);
         private readonly TabStripButton _commandsTab = new TabStripButton("Komut Kütüphanesi", IconKind.Book);
         private readonly CommandLibraryView _commandLibrary;
+        private readonly TabStripButton _sentinelTab = new TabStripButton("Sentinel", IconKind.Pulse);
+        private readonly SentinelView _sentinelView;
         private MainTab _activeTab = MainTab.Workspace;
 
-        private enum MainTab { Workspace, Files, Commands }
+        private enum MainTab { Workspace, Files, Commands, Sentinel }
         private volatile bool _statesDirty = true;
 
         public MainForm()
@@ -118,6 +120,12 @@ namespace Vision
             };
             // Kütüphaneden "Karta aktar": komut seçilen kartın (ya da genel çubuğun) komut satırına yazılır, gönderilmez
             _commandLibrary.EnableTransfer(() => _config.Groups, StateOf, TransferCommandToCard, TransferCommandToAll);
+            // Sentinel: kartın içindeki web sunucusunun sayfası uygulama içinde (yalnız var olan oturumlar; yeni bağlantı açmaz)
+            _sentinelView = new SentinelView(() => _config.Groups.SelectMany(g => g.Cards).ToList(), FindSession)
+            {
+                Dock = DockStyle.Fill,
+                Visible = false,
+            };
             BuildLayout();
             LoadSettingsToUi();
             WireEvents();
@@ -243,7 +251,7 @@ namespace Vision
                     if (_statusRight.Visible) e.Graphics.DrawLine(p, _signature.Left - 12, 7, _signature.Left - 12, status.Height - 7);
                 }
             };
-            _statusRight.Text = "Ctrl+N: kart ekle   ·   Ctrl+G: genel komut   ·   Ctrl+1 / 2 / 3: sekmeler   ·   F1: yardım";
+            _statusRight.Text = "Ctrl+N: kart ekle   ·   Ctrl+G: genel komut   ·   Ctrl+1 / 2 / 3 / 4: sekmeler   ·   F1: yardım";
             _signature.Cursor = Cursors.Hand;
             _signature.Click += (s, e) => ShowHelp(HelpPage.About);
             _signature.MouseEnter += (s, e) => _signature.ForeColor = Theme.Accent;
@@ -255,9 +263,11 @@ namespace Vision
             _workspaceTab.Dock = DockStyle.Left;
             _filesTab.Dock = DockStyle.Left;
             _commandsTab.Dock = DockStyle.Left;
+            _sentinelTab.Dock = DockStyle.Left;
             _sidebarToggle.Dock = DockStyle.Left;
             _sidebarToggle.Width = 42;
-            tabStrip.Controls.Add(_commandsTab);     // Dock=Left: son eklenen en solda
+            tabStrip.Controls.Add(_sentinelTab);     // Dock=Left: son eklenen en solda
+            tabStrip.Controls.Add(_commandsTab);
             tabStrip.Controls.Add(_filesTab);
             tabStrip.Controls.Add(_workspaceTab);
             tabStrip.Controls.Add(_sidebarToggle);
@@ -267,6 +277,7 @@ namespace Vision
             _workspaceTab.Click += (s, e) => ShowTab(MainTab.Workspace);
             _filesTab.Click += (s, e) => ShowTab(MainTab.Files);
             _commandsTab.Click += (s, e) => ShowTab(MainTab.Commands);
+            _sentinelTab.Click += (s, e) => ShowTab(MainTab.Sentinel);
             _workspaceTab.Active = true;
 
             // Genel komut çubuğu YALNIZ çalışma alanına aittir (dosya gezgini sekmesinde görünmez/kullanılamaz)
@@ -276,6 +287,7 @@ namespace Vision
             _split.Panel2.Controls.Add(_workspaceHost);
             _split.Panel2.Controls.Add(_fileExplorer);
             _split.Panel2.Controls.Add(_commandLibrary);
+            _split.Panel2.Controls.Add(_sentinelView);
             _split.Panel2.Controls.Add(tabStrip);
 
             Controls.Add(_split);
@@ -320,6 +332,7 @@ namespace Vision
             _grid.ViewsChanged += (s, e) => { UpdateWorkspaceTitle(); _globalBar.UpdateTargets(); _statesDirty = true; };
             _grid.ZoomWheel += step => ChangeZoom(step);
             _grid.CardConfigChanged += card => SaveConfig();
+            _grid.SentinelRequested += card => { ShowTab(MainTab.Sentinel); _sentinelView.SelectCard(card); };
             _zoomOut.Click += (s, e) => ChangeZoom(-1);
             _zoomIn.Click += (s, e) => ChangeZoom(+1);
             _zoomReset.Click += (s, e) => SetZoom(AppSettings.DefaultTerminalZoom);
@@ -384,10 +397,11 @@ namespace Vision
                 e.SuppressKeyPress = true;
                 SetSidebarCollapsed(!_split.Panel1Collapsed);
             }
-            else if (e.Control && !e.Shift && (e.KeyCode == Keys.D1 || e.KeyCode == Keys.D2 || e.KeyCode == Keys.D3))
+            else if (e.Control && !e.Shift && (e.KeyCode == Keys.D1 || e.KeyCode == Keys.D2 || e.KeyCode == Keys.D3 || e.KeyCode == Keys.D4))
             {
                 e.SuppressKeyPress = true;
-                ShowTab(e.KeyCode == Keys.D1 ? MainTab.Workspace : e.KeyCode == Keys.D2 ? MainTab.Files : MainTab.Commands);
+                ShowTab(e.KeyCode == Keys.D1 ? MainTab.Workspace : e.KeyCode == Keys.D2 ? MainTab.Files
+                      : e.KeyCode == Keys.D3 ? MainTab.Commands : MainTab.Sentinel);
             }
             else if (e.Control && e.KeyCode == Keys.G)
             {
@@ -412,6 +426,13 @@ namespace Vision
         }
 
         // ---------- Oturumlar ----------
+
+        /// <summary>Kartın oturumu (yoksa null; oluşturmaz).</summary>
+        private CardSession FindSession(CardConfig card)
+        {
+            CardSession s;
+            return _sessions.TryGetValue(card, out s) ? s : null;
+        }
 
         private CardSession GetSession(CardConfig card)
         {
@@ -718,9 +739,11 @@ namespace Vision
             _workspaceTab.Active = tab == MainTab.Workspace;
             _filesTab.Active = tab == MainTab.Files;
             _commandsTab.Active = tab == MainTab.Commands;
+            _sentinelTab.Active = tab == MainTab.Sentinel;
             _workspaceHost.Visible = tab == MainTab.Workspace;
             _fileExplorer.Visible = tab == MainTab.Files;
             _commandLibrary.Visible = tab == MainTab.Commands;
+            _sentinelView.Visible = tab == MainTab.Sentinel;
             if (tab == MainTab.Files) _fileExplorer.Tick();
             _explorer.HighlightedCard = tab == MainTab.Files ? _fileExplorer.SelectedCard : null;
         }
@@ -883,8 +906,12 @@ namespace Vision
 
         private void OnUiTick()
         {
+            // Sentinel: bağlı kartlarda port 8080 denemesi (zamanı gelince arka planda)
+            DateTime now = DateTime.UtcNow;
+            foreach (CardSession s in _sessions.Values) s.Sentinel.Tick(now, s.State == CardState.Connected, s.Card.Ip);
             _grid.Tick();
             _fileExplorer.Tick();
+            if (_activeTab == MainTab.Sentinel) _sentinelView.Tick();
             if (_statesDirty)
             {
                 _statesDirty = false;

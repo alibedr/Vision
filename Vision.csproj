@@ -69,6 +69,10 @@
     <Compile Include="ReadOnlyOpen.cs" />
     <Compile Include="CardFtp.cs" />
     <Compile Include="BootChange.cs" />
+    <Compile Include="Sentinel.cs" />
+    <Compile Include="SentinelView.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="BootChangeDialog.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -103,6 +107,10 @@
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Include="CardView.Actions.cs">
+      <DependentUpon>CardView.cs</DependentUpon>
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="CardView.Sentinel.cs">
       <DependentUpon>CardView.cs</DependentUpon>
       <SubType>UserControl</SubType>
     </Compile>

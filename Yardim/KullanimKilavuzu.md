@@ -9,7 +9,7 @@ Vision; donanım kartlarına telnet ile bağlanmak, kartlara komut göndermek, b
 | Bölüm | Konum | Ne işe yarar |
 |---|---|---|
 | Kart Gezgini | Sol kenar | Grupları ve kartları listeler; kart ekleme, seçme, bağlanma ve gösterme buradan yapılır. Sekme şeridinin en solundaki kenar çubuğu düğmesi (Ctrl+B) ile gizlenip gösterilir. |
-| Sekmeler | Sağ alanın üstü | **Telnet** (kart terminalleri), **Kart Dosya Gezgini** ve **Komut Kütüphanesi** arasında geçiş (Ctrl+1 / 2 / 3). Aynı şeridin en sağında **Yardım** (Kullanım Kılavuzu, Gereksinimler, Yardım klasörü, Hakkında) ve **Temalar** menüsü (hazır temalar ve özelleştirme; aşağıya bakın) bulunur. |
+| Sekmeler | Sağ alanın üstü | **Telnet** (kart terminalleri), **Kart Dosya Gezgini**, **Komut Kütüphanesi** ve **Sentinel** arasında geçiş (Ctrl+1 / 2 / 3 / 4). Aynı şeridin en sağında **Yardım** (Kullanım Kılavuzu, Gereksinimler, Yardım klasörü, Hakkında) ve **Temalar** menüsü (hazır temalar ve özelleştirme; aşağıya bakın) bulunur. |
 | Telnet sekmesi | Sağ alan | Seçilen kartların terminal pencereleri ızgara düzeninde görünür (en fazla 24 kart). |
 | Terminal ayarları | Telnet sekmesinin üst çubuğu | Satır sonu, yerel eko, zaman damgası, dosyaya kaydet, satır sınırı ve "Tümünü kapat". |
 | Genel komut çubuğu | Telnet sekmesinin altı | Bir komutu ekrandaki tüm kartlara aynı anda gönderir. |
@@ -213,6 +213,16 @@ Her kartın komut satırının sağında bir **hızlı komut** düğmesi (şimş
 - **Sağ tık**: hızlı komutu düzenle / kaldır. Komut kartla birlikte `config.xml`'e kaydedilir.
 - Kart bağlı değilken düğme pasiftir. Çift tıklama komutu iki kez göndermez.
 - Kart penceresi daraldığında düğme yalnız simge olarak görünür (ipucunda komut yazar); çok dar kartlarda gizlenir.
+
+### Sentinel düğmesi
+
+Hızlı komutun solundaki **nabız çizgisi** simgeli düğme, kartın içindeki **Sentinel** web sunucusunu (kartın CPU, task ve socket durumunu gösteren sayfa) başlatır ve durdurur. Düğmede yazı yoktur; ne yapacağı üzerine gelince ipucunda yazar.
+
+- Simgenin rengi sunucunun durumunu gösterir: **soluk** = çalışmıyor, **sarı** = başlatılıyor / durduruluyor, **yeşil** = çalışıyor.
+- Çalışmıyorken tıklamak karta `SentinelWebServerBaslat` gönderir. Sunucu açılınca simge yeşile döner ve *"Sentinel çalışıyor — görüntülemek için tıklayın"* bildirimi çıkar; bildirime tıklamak **Sentinel** sekmesini o kartla açar.
+- Çalışırken tıklamak karta `SentinelWebServerBitir` gönderir; sunucu kapanınca simge solar.
+- Komutlar dönüş değeri basmadığı için Vision sunucunun durumunu kartın **8080** portuna bağlanmayı deneyerek anlar (5 sn'de bir; başlatma / durdurma sonrasında 1 sn'de bir). Kart reboot olursa ya da sunucu terminalden başlatılıp durdurulursa düğme kendiliğinden doğru duruma geçer. Sunucu 20 sn içinde açılmazsa uyarı çıkar.
+- **Sağ tık**: Sentinel sekmesinde aç. Kart bağlı değilken düğme pasiftir.
 
 ### reboot / reboot 2
 
@@ -512,6 +522,17 @@ Bağlantı başarılı olsa da yazma izni yoksa ya da kartın gördüğü yol FT
 
 > Dosya Gezgini ayrı bağlantı açmaz; kartın mevcut bağlantısını kullanır. Kart bağlı değilse bu belirtilir ve **Bağlantı Kur** düğmesi gösterilir. Gezginin komutları ve cevapları terminale yazılmaz; terminal komutlarıyla sırayla çalışır, cevaplar birbirine karışmaz.
 
+## Sentinel
+
+**Sentinel** sekmesi (**Ctrl+4**), kartın içindeki Sentinel web sunucusunun sayfasını (`http://kartIP:8080`) **uygulamanın içinde** gösterir; ayrı bir tarayıcı açılmaz.
+
+- **Solda** bağlı kartlar listelenir; Sentinel'i çalışanlar üstte ve yeşil nabız simgesiyle görünür. Bir karta tıklayın.
+- **Sağda** seçilen kartın sayfası görünür. Sayfa kendini kendisi yeniler; elle yenilemek için **Yenile** (F5).
+- Sunucu çalışmıyorsa sayfanın yerine açıklama çıkar; sağ üstteki **Başlat** ile buradan da başlatabilirsiniz (çalışırken **Durdur**).
+- Sunucu sayfa açıkken kapanırsa (ör. kart reboot oldu) sayfa kapanır ve açıklama görünür; yeniden açılınca sayfa kendiliğinden gelir.
+- Sekmeden çıkınca sayfa kapatılır (kart boşuna sorgulanmaz); sekmeye dönünce yeniden açılır.
+- Sayfa, Windows'un yerleşik görüntüleyicisiyle (IE11 kipi) gösterilir; ek kurulum gerekmez.
+
 ## Komut Kütüphanesi
 
 **Komut Kütüphanesi** sekmesi (**Ctrl+3**), VxWorks 6.4 kart komutlarının açıklamalarını, yazılışlarını ve örnek çıktılarını tek yerde toplar. Kütüphane **Vision'a gömülüdür ve salt okunurdur**: uygulamadan komut ya da modül eklenemez, düzenlenemez, silinemez, taşınamaz; exe'nin yanında ayrı bir komut dosyası da yoktur. Yeni komutlar ve düzeltmeler Vision'ın sonraki sürümleriyle gelir.
@@ -615,7 +636,8 @@ Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındak
 |---|---|
 | Ctrl+N | Kart ekle |
 | Ctrl+G | Genel komut çubuğuna odaklan (Telnet sekmesine geçer) |
-| Ctrl+1 / 2 / 3 | Telnet / Kart Dosya Gezgini / Komut Kütüphanesi sekmesi |
+| Ctrl+1 / 2 / 3 / 4 | Telnet / Kart Dosya Gezgini / Komut Kütüphanesi / Sentinel sekmesi |
+| F5 | Sentinel sekmesinde sayfayı yenile |
 | Ctrl+B | Kart Gezgini kenar çubuğunu gizle / göster |
 | Tab / ↓ / → | Komut satırında otomatik tamamlama önerisini kabul et (çalıştırmaz) |
 | Esc | Komut satırında öneriyi gizle |

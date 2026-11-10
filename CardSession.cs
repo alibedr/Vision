@@ -84,6 +84,9 @@ namespace Vision
 
         /// <summary>Bu kartın yüklemeleri sırasında FTP sunucusunda bırakılan kopyalar ("FTP kopyalarını sil" düğmesi).</summary>
         public FtpCopyTracker FtpCopies { get; } = new FtpCopyTracker();
+
+        /// <summary>Kartın içindeki Sentinel web sunucusunun durumu (port 8080 denemesiyle izlenir).</summary>
+        public SentinelTracker Sentinel { get; } = new SentinelTracker();
         public string LastError { get; private set; }
 
         /// <summary>Kullanıcı ekranında kırmızı gösterilecek uyarı satırlarının ön eki.</summary>

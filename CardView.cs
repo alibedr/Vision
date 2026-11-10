@@ -90,6 +90,7 @@ namespace Vision
             BuildInput();
             BuildOutput();
             BuildActions();
+            BuildSentinel();
             BuildHighlightMenu();
             ((TerminalBox)_output).ZoomWheel = OnTerminalZoomWheel;
 
@@ -277,10 +278,12 @@ namespace Vision
             _sendBtn.SetTip(_tips, "Gönder (Enter)");
             var gap = new Panel { Dock = DockStyle.Right, Width = 6, BackColor = Color.Transparent };
 
-            // Sağdan sola: [Gönder] [reboot ⇄] [⚡ hızlı komut] [komut satırı]
+            // Sağdan sola: [Gönder] [reboot ⇄] [⚡ hızlı komut] [Sentinel] [komut satırı]
             _quickBtn.Dock = DockStyle.Right;
             _rebootBtn.Dock = DockStyle.Right;
             _inputBar.Controls.Add(field);
+            _inputBar.Controls.Add(_sentinelGap);
+            _inputBar.Controls.Add(_sentinelBtn);
             _inputBar.Controls.Add(_quickGap);
             _inputBar.Controls.Add(_quickBtn);
             _inputBar.Controls.Add(_rebootGap);
@@ -343,6 +346,7 @@ namespace Vision
             _tx.ForeColor = now - Session.LastTxUtc < ActivityWindow ? Theme.Accent : Theme.TextFaint;
 
             if (Session.State != _shownState) RefreshState();
+            RefreshSentinelButton();
             RefreshUptime();
             RefreshResponses();
             CheckReachedBottom();
@@ -817,6 +821,8 @@ namespace Vision
             if (IsDisposed) return;
             _shownConnectedLook = null;
             RefreshState();
+            _shownSentinelVersion = -1;      // simge rengi yeni temadan (bildirim gösterilmez)
+            RefreshSentinelButton(true);
         }
 
         // Bağlı değilken kullanılan gri tonlar (bağlı kartın renkleri hiç değişmez)

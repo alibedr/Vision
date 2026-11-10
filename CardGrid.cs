@@ -145,6 +145,9 @@ namespace Vision
         /// <summary>Bir kartın kalıcı ayarı değişti (hızlı komut / reboot seçimi).</summary>
         public event Action<CardConfig> CardConfigChanged;
 
+        /// <summary>Kart penceresinde Sentinel sayfası istendi (Sentinel sekmesinde açılır).</summary>
+        public event Action<CardConfig> SentinelRequested;
+
         /// <summary>Ortak yakınlaştırmayı tüm açık kartlara uygular (merkezi tek değer).</summary>
         public void ApplyZoom(float zoom)
         {
@@ -158,6 +161,7 @@ namespace Vision
             view.SetZoom(Zoom);                                   // yeni kart ortak yakınlaştırmayla açılır
             view.ZoomWheel += d => { var h = ZoomWheel; if (h != null) h(d); };
             view.ConfigChanged += v => { var h = CardConfigChanged; if (h != null) h(v.Session.Card); };
+            view.SentinelRequested += v => { var h = SentinelRequested; if (h != null) h(v.Session.Card); };
             view.CloseRequested += v => Close(v);
             view.MaximizeToggled += v => SetMaximized(_maximized == v ? null : v);
             view.Activated += v => Select(v);
