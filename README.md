@@ -26,8 +26,8 @@ Geliştiren: **Ali Bedir**
 
 | | |
 |---|---|
-| Çalıştırma | Windows 10 / 11, .NET Framework 4.6.1 veya üstü |
-| Geliştirme | Visual Studio 2019 (16.11), C# 7.3; NuGet paketi gerekmez |
+| Çalıştırma | Windows 10 / 11, .NET Framework 4.6.1 veya üstü; Sentinel sayfası için Microsoft Edge WebView2 Runtime (Windows 11 ve güncel Windows 10'da hazır) |
+| Geliştirme | Visual Studio 2019 (16.11), C# 7.3; tek NuGet paketi `Microsoft.Web.WebView2` (derlemede otomatik indirilir) |
 
 ## Derleme
 

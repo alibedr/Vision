@@ -528,10 +528,12 @@ Bağlantı başarılı olsa da yazma izni yoksa ya da kartın gördüğü yol FT
 
 - **Solda** bağlı kartlar listelenir; Sentinel'i çalışanlar üstte ve yeşil nabız simgesiyle görünür. Bir karta tıklayın.
 - **Sağda** seçilen kartın sayfası görünür. Sayfa kendini kendisi yeniler; elle yenilemek için **Yenile** (F5).
+- Sayfa yenilenmiyorsa üst çubuktaki seçimden Vision'ın sayfayı **her 2 / 5 / 10 / 30 sn'de** yeniden yüklemesini seçebilirsiniz (varsayılan: *Sayfanın kendi yenilemesi*).
 - Sunucu çalışmıyorsa sayfanın yerine açıklama çıkar; sağ üstteki **Başlat** ile buradan da başlatabilirsiniz (çalışırken **Durdur**).
 - Sunucu sayfa açıkken kapanırsa (ör. kart reboot oldu) sayfa kapanır ve açıklama görünür; yeniden açılınca sayfa kendiliğinden gelir.
 - Sekmeden çıkınca sayfa kapatılır (kart boşuna sorgulanmaz); sekmeye dönünce yeniden açılır.
-- Sayfa, Windows'un yerleşik görüntüleyicisiyle (IE11 kipi) gösterilir; ek kurulum gerekmez.
+- Sayfa **Microsoft Edge (WebView2)** motoruyla gösterilir; sayfadaki düğmeler, veri çekme ve kendi yenilemesi tarayıcıdaki gibi çalışır. Edge WebView2 Runtime Windows 11'de ve güncel Windows 10'da hazır gelir.
+- Bilgisayarda Edge WebView2 Runtime yoksa sayfa Windows'un eski görüntüleyicisiyle açılır; üst çubukta sarı **"Edge görüntüleyicisi yok"** uyarısı çıkar ve sayfa her 2 sn'de yeniden yüklenir. Bu durumda sayfadaki betikler (düğmeler) çalışmayabilir; Microsoft'un **WebView2 Runtime** kurulumu yapılınca sayfa tam çalışır.
 
 ## Komut Kütüphanesi
 

@@ -31,7 +31,15 @@ namespace Vision
         private readonly Panel _pageHost = new Panel { Dock = DockStyle.Fill, BackColor = Theme.Input };
         private readonly Label _overlay = new Label { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, ForeColor = Theme.TextMuted, BackColor = Theme.Input, Font = Theme.Ui };
         private readonly ToolTip _tips = new DarkToolTip();
-        private WebBrowser _browser;
+        private readonly ComboBox _reloadCombo = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 168 };
+        private readonly Label _engineNote = Theme.MakeLabel("", Theme.UiSmall, Theme.Warning);
+        private SentinelPage _page;
+        private bool _reloadTouched;           // kullanıcı yenileme aralığını kendisi seçti
+        private DateTime _nextReloadUtc;
+
+        // Yenileme seçenekleri: 0 = sayfanın kendi yenilemesi
+        private static readonly int[] ReloadSeconds = { 0, 2, 5, 10, 30 };
+        private static readonly string[] ReloadNames = { "Sayfanın kendi yenilemesi", "Her 2 sn yenile", "Her 5 sn yenile", "Her 10 sn yenile", "Her 30 sn yenile" };
 
         private CardConfig _selected;
         private string _navigatedUrl;          // tarayıcıda açık olan Sentinel adresi (yoksa null)
@@ -94,7 +102,13 @@ namespace Vision
             _toggleBtn.Height = 32;
             _toggleBtn.Width = 110;
             _toggleBtn.Click += async (s, e) => await ToggleAsync();
-            _pageBar.Controls.AddRange(new Control[] { _pageTitle, _pageUrl, _refreshBtn, _toggleBtn });
+            Theme.StyleCombo(_reloadCombo);
+            _reloadCombo.Items.AddRange(ReloadNames);
+            _reloadCombo.SelectedIndex = 0;
+            _reloadCombo.SelectedIndexChanged += (s, e) => { _reloadTouched = true; _nextReloadUtc = DateTime.UtcNow.AddSeconds(ReloadSeconds[Math.Max(0, _reloadCombo.SelectedIndex)]); };
+            _tips.SetToolTip(_reloadCombo, "Sayfa normalde kendini yeniler. Yenilenmiyorsa Vision'ın sayfayı belirli aralıklarla yeniden yüklemesini seçin.");
+            _engineNote.Visible = false;
+            _pageBar.Controls.AddRange(new Control[] { _pageTitle, _pageUrl, _engineNote, _reloadCombo, _refreshBtn, _toggleBtn });
             _pageBar.Resize += (s, e) => LayoutPageBar();
             _pageBar.Paint += (s, e) => { using (var p = new Pen(Theme.Border)) e.Graphics.DrawLine(p, 0, _pageBar.Height - 1, _pageBar.Width, _pageBar.Height - 1); };
             _pageHost.Controls.Add(_overlay);
@@ -111,11 +125,16 @@ namespace Vision
             int w = _pageBar.ClientSize.Width;
             _toggleBtn.Location = new Point(w - 14 - _toggleBtn.Width, 8);
             _refreshBtn.Location = new Point(_toggleBtn.Left - 6 - _refreshBtn.Width, 8);
+            _reloadCombo.Location = new Point(_refreshBtn.Left - 8 - _reloadCombo.Width, 8 + (32 - _reloadCombo.Height) / 2);
             _pageTitle.Location = new Point(16, 15);
             _pageTitle.Size = _pageTitle.PreferredSize;
             _pageUrl.Location = new Point(_pageTitle.Right + 12, 15);
             _pageUrl.Size = _pageUrl.PreferredSize;
-            _pageUrl.Visible = _pageUrl.Right < _refreshBtn.Left - 8;
+            _engineNote.Size = _engineNote.PreferredSize;
+            _engineNote.Location = new Point(_reloadCombo.Left - 12 - _engineNote.Width, 17);
+            int urlLimit = _engineNote.Visible && _engineNote.Text.Length > 0 ? _engineNote.Left : _reloadCombo.Left;
+            _pageUrl.Visible = _pageUrl.Right < urlLimit - 8;
+            _reloadCombo.Visible = _reloadCombo.Left > _pageTitle.Right + 8;
         }
 
         // =====================================================================
@@ -238,9 +257,21 @@ namespace Vision
             // Sayfa / açıklama
             if (st == SentinelStatus.Running && connected)
             {
-                EnsureBrowser();
-                if (_navigatedUrl != url && DateTime.UtcNow >= _retryAtUtc) Navigate(url);
-                if (_overlay.Visible) { _overlay.Visible = false; _browser.Visible = true; }
+                EnsurePage();
+                DateTime now = DateTime.UtcNow;
+                if (_navigatedUrl != url && now >= _retryAtUtc) Navigate(url);
+                else
+                {
+                    // İsteğe bağlı düzenli yenileme (sayfa kendini yenilemiyorsa)
+                    int every = ReloadSeconds[Math.Max(0, _reloadCombo.SelectedIndex)];
+                    if (every > 0 && _navigatedUrl != null && now >= _nextReloadUtc)
+                    {
+                        _page.Reload();
+                        _nextReloadUtc = now.AddSeconds(every);
+                    }
+                }
+                if (!_page.Control.Visible) _page.Control.Visible = true;
+                if (_overlay.Visible) _overlay.Visible = false;
                 return;
             }
 
@@ -256,60 +287,81 @@ namespace Vision
                        (msg != null ? "\n\n⚠  " + msg : "");
             }
             if (_overlay.Text != text) _overlay.Text = text;
-            if (!_overlay.Visible) _overlay.Visible = true;
-            if (_browser != null && _browser.Visible) _browser.Visible = false;
+            if (!_overlay.Visible) { _overlay.Visible = true; _overlay.BringToFront(); }
+            if (_page != null && _page.Control.Visible) _page.Control.Visible = false;
         }
 
-        private void EnsureBrowser()
+        /// <summary>Görüntüleyiciyi ilk gerektiğinde oluşturur: önce Edge (WebView2), olmazsa eski görüntüleyici.</summary>
+        private void EnsurePage()
         {
-            if (_browser != null) return;
-            _browser = new WebBrowser
+            if (_page != null) return;
+            CreatePage(true);
+        }
+
+        private void CreatePage(bool modern)
+        {
+            SentinelPage page = modern ? (SentinelPage)new EdgeSentinelPage() : new LegacySentinelPage();
+            page.LoadFailed = () =>
             {
-                Dock = DockStyle.Fill,
-                ScriptErrorsSuppressed = true,        // sayfadaki betik hataları iletişim kutusu açmasın
-                AllowWebBrowserDrop = false,          // sürüklenen dosya sayfanın yerine açılmasın
-                IsWebBrowserContextMenuEnabled = true,
-                WebBrowserShortcutsEnabled = true,
-                Visible = false,
+                // Sunucu henüz cevap veremedi: 2 sn sonra tekrar dene
+                _navigatedUrl = null;
+                _retryAtUtc = DateTime.UtcNow.AddSeconds(2);
             };
-            _browser.DocumentCompleted += (s, e) =>
-            {
-                // Sunucu henüz cevap veremedi (Windows'un "sayfa görüntülenemiyor" sayfası): 2 sn sonra tekrar dene
-                if (e.Url != null && e.Url.Scheme == "res" && _navigatedUrl != null)
+            var edge = page as EdgeSentinelPage;
+            if (edge != null)
+                edge.InitFailed = ex =>
                 {
-                    _navigatedUrl = null;
-                    _retryAtUtc = DateTime.UtcNow.AddSeconds(2);
-                }
-            };
-            _browser.NewWindow += (s, e) => e.Cancel = true;   // sayfa yeni pencere açmaya çalışırsa dış tarayıcı açılmasın
-            _pageHost.Controls.Add(_browser);
-            _browser.BringToFront();
+                    if (IsHandleCreated) BeginInvoke(new Action(() => FallBack(ex)));
+                    else FallBack(ex);
+                };
+            _page = page;
+            page.Control.Visible = true;
+            _pageHost.Controls.Add(page.Control);
+            page.Control.BringToFront();
+            page.Start();
+        }
+
+        /// <summary>Edge görüntüleyicisi başlatılamadı: eski görüntüleyiciye geçilir, sayfa düzenli yeniden yüklenir.</summary>
+        private void FallBack(Exception ex)
+        {
+            if (_page == null || !_page.IsModern || IsDisposed) return;
+            _pageHost.Controls.Remove(_page.Control);
+            _page.Dispose();
+            _page = null;
+            _navigatedUrl = null;
+            _retryAtUtc = DateTime.MinValue;
+            CreatePage(false);
+            if (!_reloadTouched) { _reloadCombo.SelectedIndex = 1; _reloadTouched = false; }
+            _engineNote.Text = "⚠  Edge görüntüleyicisi yok — eski görüntüleyici";
+            _engineNote.Visible = true;
+            _tips.SetToolTip(_engineNote, "Bu bilgisayarda Microsoft Edge WebView2 Runtime bulunamadı (" + ErrorText.Describe(ex) + ").\n" +
+                                          "Sayfa Windows'un eski görüntüleyicisiyle gösteriliyor; sayfadaki betikler çalışmayabilir, bu yüzden düzenli yeniden yüklenir.\n" +
+                                          "Microsoft'un \"WebView2 Runtime\" kurulumu yapılırsa sayfa tam çalışır.");
+            _barSignature = null;
+            LayoutPageBar();
+            RefreshPage();
         }
 
         private void Navigate(string url)
         {
             _navigatedUrl = url;
-            try { _browser.Navigate(url, null, null, "Cache-Control: no-cache\r\nPragma: no-cache\r\n"); }
-            catch (Exception ex)
-            {
-                ErrorText.LogTechnical("Sentinel " + url, ex);
-                _navigatedUrl = null;
-                _retryAtUtc = DateTime.UtcNow.AddSeconds(3);
-            }
+            int every = ReloadSeconds[Math.Max(0, _reloadCombo.SelectedIndex)];
+            _nextReloadUtc = DateTime.UtcNow.AddSeconds(Math.Max(every, 1));
+            _page.Navigate(url);
         }
 
         private void ReloadPage()
         {
-            if (_browser == null || _navigatedUrl == null) return;
-            Navigate(_navigatedUrl);
+            if (_page == null || _navigatedUrl == null) return;
+            _page.Reload();
         }
 
-        /// <summary>Sayfayı kapatır: tarayıcı boş sayfaya geçer, kart artık sorgulanmaz.</summary>
+        /// <summary>Sayfayı kapatır: görüntüleyici boş sayfaya geçer, kart artık sorgulanmaz.</summary>
         private void ClosePage()
         {
-            if (_navigatedUrl == null || _browser == null) return;
+            if (_navigatedUrl == null || _page == null) return;
             _navigatedUrl = null;
-            try { _browser.Navigate("about:blank"); } catch { }
+            _page.Blank();
         }
 
         private async Task ToggleAsync()
@@ -335,7 +387,7 @@ namespace Vision
 
         protected override void Dispose(bool disposing)
         {
-            if (disposing && _browser != null) _browser.Dispose();
+            if (disposing && _page != null) _page.Dispose();
             base.Dispose(disposing);
         }
 
