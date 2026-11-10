@@ -427,29 +427,64 @@ namespace Vision
         [StructLayout(LayoutKind.Sequential)]
         private struct POINT { public int X; public int Y; }
 
-        [StructLayout(LayoutKind.Sequential)]
-        private struct SCROLLINFO
-        {
-            public int cbSize; public int fMask; public int nMin; public int nMax;
-            public int nPage; public int nPos; public int nTrackPos;
-        }
-
         private const int WM_SETREDRAW = 0x000B;
         private const int EM_GETSCROLLPOS = 0x0400 + 221;
-        private const int EM_SETSCROLLPOS = 0x0400 + 222;
-        private const int SB_VERT = 1;
         private const int WM_VSCROLL = 0x0115;
         private const int SB_BOTTOM = 7;
-        private const int SIF_ALL = 0x17;
+        private const int EM_GETFIRSTVISIBLELINE = 0x00CE;
+        private const int EM_LINESCROLL = 0x00B6;
+        private const int WM_HSCROLL = 0x0114;
+        private const int SB_THUMBPOSITION = 4;
+
+        /// <summary>
+        /// Görünümün konumu: dikeyde ilk görünen SATIR, yatayda piksel. RichEdit'in EM_GETSCROLLPOS / EM_SETSCROLLPOS ve
+        /// kaydırma çubuğu değerleri 16 bittir: belge 65.535 pikseli geçince (ör. ~4.000+ satır) dikey konum orantılı
+        /// sıkıştırılıyor, geri yüklenince ekran en üste ya da en alta atlıyordu. Satır numarası bu sınırdan etkilenmez.
+        /// </summary>
+        private struct ViewState
+        {
+            public int FirstLine;
+            public int X;
+        }
+
+        private ViewState SaveView()
+        {
+            IntPtr h = _output.Handle;
+            var pos = new POINT();
+            SendMessage(h, EM_GETSCROLLPOS, IntPtr.Zero, ref pos);   // yalnız yatay değer kullanılır
+            return new ViewState
+            {
+                FirstLine = (int)SendMessage(h, EM_GETFIRSTVISIBLELINE, IntPtr.Zero, IntPtr.Zero),
+                X = pos.X,
+            };
+        }
+
+        /// <summary>Kaydedilen satırı yeniden ilk görünen satır yapar ve yatay konumu geri alır.</summary>
+        private void RestoreView(ViewState v)
+        {
+            IntPtr h = _output.Handle;
+            int current = (int)SendMessage(h, EM_GETFIRSTVISIBLELINE, IntPtr.Zero, IntPtr.Zero);
+            int target = Math.Max(0, v.FirstLine);
+            if (current != target) SendMessage(h, EM_LINESCROLL, IntPtr.Zero, (IntPtr)(target - current));
+            SetHorizontal(v.X);
+        }
+
+        /// <summary>Yalnız yatay konumu değiştirir (dikey konuma dokunmaz).</summary>
+        private void SetHorizontal(int x)
+        {
+            IntPtr h = _output.Handle;
+            var pos = new POINT();
+            SendMessage(h, EM_GETSCROLLPOS, IntPtr.Zero, ref pos);
+            if (pos.X == x) return;
+            int px = Math.Max(0, Math.Min(0xFFFF, x));
+            SendMessage(h, WM_HSCROLL, (IntPtr)((px << 16) | SB_THUMBPOSITION), IntPtr.Zero);
+        }
 
         [DllImport("user32.dll")]
         private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, ref POINT lParam);
 
         [DllImport("user32.dll")]
         private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
-
-        [DllImport("user32.dll")]
-        private static extern bool GetScrollInfo(IntPtr hWnd, int fnBar, ref SCROLLINFO lpsi);
 
         /// <summary>
         /// Yeni metni ekler. Kullanıcı en alttaysa akışı izlemeye devam eder; yukarıdaysa kaydırma
@@ -494,8 +529,7 @@ namespace Vision
         {
             if (!_output.IsHandleCreated) { if (before != null) before(); return; }
             IntPtr h = _output.Handle;
-            var pos = new POINT();
-            SendMessage(h, EM_GETSCROLLPOS, IntPtr.Zero, ref pos);
+            ViewState view = SaveView();
             int selStart = _output.SelectionStart, selLen = _output.SelectionLength;
             bool wasProgram = _programScroll;
             _programScroll = true;
@@ -506,7 +540,7 @@ namespace Vision
                 ColorizeAlerts(0, null);
                 ApplyHighlights(0, null);
                 _output.Select(selStart, selLen);
-                SendMessage(h, EM_SETSCROLLPOS, IntPtr.Zero, ref pos);
+                RestoreView(view);
             }
             finally
             {
@@ -542,9 +576,8 @@ namespace Vision
         {
             // Ekleme ve kırpma tek seferde, çizim kapalıyken yapılır (satır sınırı aşıldığında titreme / gereksiz çizim yok)
             IntPtr h = _output.Handle;
-            var pos = new POINT();
-            // Konum her zaman EKLEMEDEN ÖNCE alınır: akış izlenirken de yatay konum (pos.X) korunur
-            SendMessage(h, EM_GETSCROLLPOS, IntPtr.Zero, ref pos);
+            // Konum her zaman EKLEMEDEN ÖNCE alınır: akış izlenirken de yatay konum (view.X) korunur
+            ViewState view = SaveView();
             int selStart = _output.SelectionStart, selLen = _output.SelectionLength;
 
             SendMessage(h, WM_SETREDRAW, IntPtr.Zero, IntPtr.Zero);
@@ -554,7 +587,7 @@ namespace Vision
                 _output.AppendText(text);
                 ColorizeAlerts(start, text);
                 ApplyHighlights(start, text);                  // kullanıcının renklendirdiği metinler (sağ tık → Renklendir)
-                int removed = TrimToLimit(!follow, ref pos);   // en eski satırlar silinir, en yeniler kalır
+                int removed = TrimToLimit(!follow, ref view);  // en eski satırlar silinir, en yeniler kalır
 
                 if (follow)
                 {
@@ -566,7 +599,7 @@ namespace Vision
                     selStart = Math.Max(0, selStart - removed);
                     if (removed > 0 && selLen > 0 && selStart == 0) selLen = 0;
                     _output.Select(selStart, selLen);
-                    SendMessage(h, EM_SETSCROLLPOS, IntPtr.Zero, ref pos);
+                    RestoreView(view);
                 }
             }
             finally
@@ -577,7 +610,7 @@ namespace Vision
             // Akış izleniyorsa: çizim açıldıktan sonra (kaydırma ölçüleri güncel) yalnız dikeyde en alta inilir; yatay
             // konum eklemeden önceki yerinde kalır. (Eskiden imleç gelen uzun satırın sonuna gittiği için kutu sağa
             // kayıyor, satır sonu gelince başa dönüyordu.)
-            if (follow) ScrollToEnd(pos.X);
+            if (follow) ScrollToEnd(view.X);
         }
 
         /// <summary>Satır sınırı değiştiğinde mevcut çıktıyı hemen yeni sınıra kırpar (konum korunur).</summary>
@@ -588,18 +621,17 @@ namespace Vision
             if (!IsHandleCreated || _output.TextLength == 0) return;
             bool follow = IsAtBottom();
             IntPtr h = _output.Handle;
-            var pos = new POINT();
-            SendMessage(h, EM_GETSCROLLPOS, IntPtr.Zero, ref pos);
+            ViewState view = SaveView();
             int selStart = _output.SelectionStart, selLen = _output.SelectionLength;
             SendMessage(h, WM_SETREDRAW, IntPtr.Zero, IntPtr.Zero);
             try
             {
-                int removed = TrimToLimit(!follow, ref pos);
-                if (follow) ScrollToEnd(pos.X);
+                int removed = TrimToLimit(!follow, ref view);
+                if (follow) ScrollToEnd(view.X);
                 else
                 {
                     _output.Select(Math.Max(0, selStart - removed), removed > 0 && selStart - removed <= 0 ? 0 : selLen);
-                    SendMessage(h, EM_SETSCROLLPOS, IntPtr.Zero, ref pos);
+                    RestoreView(view);
                 }
             }
             finally
@@ -612,9 +644,9 @@ namespace Vision
         /// <summary>
         /// Çıktıyı ayarlı satır sınırında tutar: fazla satırlar BAŞTAN silinir (hiçbir zaman tümü silinmez).
         /// Ek güvenlik olarak çok uzun, satır sonu içermeyen akışta karakter sınırı da uygulanır.
-        /// keepPosition: kullanıcı yukarıdaysa kaydırma konumu silinen yükseklik kadar düzeltilir. Silinen karakter sayısını döndürür.
+        /// keepPosition: kullanıcı yukarıdaysa ilk görünen satır silinen satır sayısı kadar düzeltilir. Silinen karakter sayısını döndürür.
         /// </summary>
-        private int TrimToLimit(bool keepPosition, ref POINT pos)
+        private int TrimToLimit(bool keepPosition, ref ViewState view)
         {
             int lastLine = _output.GetLineFromCharIndex(_output.TextLength);
             bool endsWithNewline = _output.GetFirstCharIndexFromLine(lastLine) == _output.TextLength;
@@ -630,24 +662,15 @@ namespace Vision
             }
             if (cut <= 0) return 0;
 
-            int removedHeight = 0;
-            if (keepPosition)
-            {
-                // Silinecek kısmın piksel yüksekliği = kesim noktasının belge içindeki y'si.
-                // GetPositionFromCharIndex o anki görünüme göredir; ekleme sırasında kutu kaymış olabileceği için
-                // ŞU ANKİ kaydırma konumu eklenir.
-                var now = new POINT();
-                SendMessage(_output.Handle, EM_GETSCROLLPOS, IntPtr.Zero, ref now);
-                Point p = _output.GetPositionFromCharIndex(cut);
-                removedHeight = p.Y + now.Y;
-            }
+            // Silinen satır sayısı (kesim her zaman bir satır başında ya da satırın ortasındaysa o satıra kadar)
+            int removedLines = _output.GetLineFromCharIndex(cut);
 
             _output.ReadOnly = false;
             _output.Select(0, cut);
             _output.SelectedText = "";
             _output.ReadOnly = true;
 
-            if (keepPosition) pos.Y = Math.Max(0, pos.Y - removedHeight);
+            if (keepPosition) view.FirstLine = Math.Max(0, view.FirstLine - removedLines);
             return cut;
         }
 
@@ -659,14 +682,19 @@ namespace Vision
             if (_dropBanner.Visible) _shownDrop = null;   // uyarı kutusu yeni adla yeniden kurulsun
         }
 
+        /// <summary>
+        /// Son satır görünüyor mu ("en altta")? Satır numarasıyla ölçülür: kaydırma çubuğu değerleri 16 bit olduğundan
+        /// uzun çıktıda (65.535 pikselden yüksek) orantılı sıkıştırılıyor, bir satırlık pay gerçekte 8–10 satır
+        /// ediyordu; kullanıcı birkaç satır yukarı çıksa da "en altta" sayılıp aşağı çekiliyordu.
+        /// </summary>
         private bool IsAtBottom()
         {
             if (!IsHandleCreated || _output.TextLength == 0) return true;
-            var si = new SCROLLINFO { cbSize = Marshal.SizeOf(typeof(SCROLLINFO)), fMask = SIF_ALL };
-            if (!GetScrollInfo(_output.Handle, SB_VERT, ref si) || si.nPage == 0 || si.nMax <= si.nPage)
-                return true;                                   // kaydırma çubuğu yok: her şey görünüyor
-            int lineHeight = Math.Max(8, _output.Font.Height);
-            return si.nPos + si.nPage >= si.nMax - lineHeight; // son satır görünüyorsa "en altta"
+            int lastLine = _output.GetLineFromCharIndex(_output.TextLength);
+            int bottomChar = _output.GetCharIndexFromPosition(new Point(0, Math.Max(0, _output.ClientSize.Height - 1)));
+            int lastVisibleLine = _output.GetLineFromCharIndex(bottomChar);
+            // Metin genelde satır sonuyla biter (son satır boş): son dolu satır görünüyorsa da en altta sayılır
+            return lastVisibleLine >= lastLine - 1;
         }
 
         /// <summary>En alta (en yeni satıra) iner; yatay kaydırma konumu değişmez.</summary>
@@ -696,7 +724,7 @@ namespace Vision
             try
             {
                 var before = new POINT();
-                SendMessage(h, EM_GETSCROLLPOS, IntPtr.Zero, ref before);
+                SendMessage(h, EM_GETSCROLLPOS, IntPtr.Zero, ref before);   // yalnız yatay değer kullanılır
                 int x = keepX ?? before.X;
 
                 _output.SelectionStart = _output.TextLength;
@@ -706,13 +734,9 @@ namespace Vision
                 // hesaba katmaz: dikey kaydırma çubuğuyla gerçekten en alta inilir (son satır tam görünür)
                 SendMessage(h, WM_VSCROLL, (IntPtr)SB_BOTTOM, IntPtr.Zero);
 
-                var after = new POINT();
-                SendMessage(h, EM_GETSCROLLPOS, IntPtr.Zero, ref after);
-                if (after.X != x)
-                {
-                    after.X = x;                               // dikey konum (en alt) kalır, yatay geri alınır
-                    SendMessage(h, EM_SETSCROLLPOS, IntPtr.Zero, ref after);
-                }
+                // Yatay geri alınır; dikey (en alt) değişmez. EM_SETSCROLLPOS kullanılmaz: dikey değeri 16 bit olduğundan
+                // uzun çıktıda ekranı yukarıya atıyordu.
+                SetHorizontal(x);
             }
             finally
             {
