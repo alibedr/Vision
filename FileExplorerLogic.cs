@@ -1035,6 +1035,79 @@ namespace Vision
             }
         }
 
+        /// <summary>Kart klasörünün içeriği (bilgisayara indirmek için): yollar klasöre göre, "\\" ile.</summary>
+        public sealed class FolderTree
+        {
+            public readonly List<string> Folders = new List<string>();
+            public readonly List<KeyValuePair<string, FsEntry>> Files = new List<KeyValuePair<string, FsEntry>>();
+        }
+
+        /// <summary>
+        /// Klasörü alt klasörleriyle birlikte tarar (her klasör listeleme komutuyla açılır) — G31. Karttan bilgisayara
+        /// klasör sürüklenince / kaydedilince hangi dosyaların indirileceği buradan çıkar. Açılamayan klasör hata sayılır
+        /// (eksik kopya oluşmasın). Çok büyük ağaçlar reddedilir.
+        /// </summary>
+        public async Task<OpResult> CollectTreeAsync(FsEntry folder, FolderTree tree)
+        {
+            const int MaxFolders = 300, MaxFiles = 3000;
+            if (Busy) return Reject("Başka bir işlem sürüyor.");
+            var queue = new Queue<KeyValuePair<string, string>>();   // kart yolu, bilgisayardaki göreli yol
+            queue.Enqueue(new KeyValuePair<string, string>(folder.FullPath, ""));
+            int visited = 0;
+            BeginWork("Klasör taranıyor  ·  " + folder.FullPath);
+            try
+            {
+                while (queue.Count > 0)
+                {
+                    if (++visited > MaxFolders)
+                    {
+                        var big = OpResult.Fail("\"" + folder.Name + "\" çok büyük (" + MaxFolders + " klasörden fazla); alt klasörleri ayrı ayrı alın.");
+                        SetError(big);
+                        return big;
+                    }
+                    KeyValuePair<string, string> item = queue.Dequeue();
+                    string cmd = _listCommand + " " + FsPath.Quote(item.Key);
+                    PendingCommand = "Klasör taranıyor  ·  " + cmd;
+                    Raise();
+                    ShellResponse r = await Exec(cmd, ShortTimeoutSec);
+                    OpResult bad = CheckReturn(r, "\"" + item.Key + "\" listelenemedi", null);
+                    if (bad != null) { SetError(bad); return bad; }
+                    foreach (FsEntry child in LsParser.Parse(r.OutputLines, item.Key))
+                    {
+                        string rel = item.Value.Length == 0 ? ReadOnlyCopies.SafeSegment(child.Name)
+                                                            : item.Value + "\\" + ReadOnlyCopies.SafeSegment(child.Name);
+                        if (child.Kind == FsKind.Folder)
+                        {
+                            tree.Folders.Add(rel);
+                            queue.Enqueue(new KeyValuePair<string, string>(child.FullPath, rel));
+                        }
+                        else
+                        {
+                            tree.Files.Add(new KeyValuePair<string, FsEntry>(rel, child));
+                            if (tree.Files.Count > MaxFiles)
+                            {
+                                var many = OpResult.Fail("\"" + folder.Name + "\" çok fazla dosya içeriyor (" + MaxFiles + "+); alt klasörleri ayrı ayrı alın.");
+                                SetError(many);
+                                return many;
+                            }
+                        }
+                    }
+                }
+                return new OpResult { Ok = true };
+            }
+            catch (Exception ex)
+            {
+                ErrorText.LogTechnical("klasör tarama " + folder.FullPath, ex);
+                var r = OpResult.Fail("\"" + folder.Name + "\" taranamadı: " + ErrorText.Describe(ex));
+                SetError(r);
+                return r;
+            }
+            finally
+            {
+                EndWork();
+            }
+        }
+
         /// <summary>Arayüzün bilgi şeridinde göstermek istediği iletiyi ayarlar.</summary>
         public void ShowNotice(string message)
         {

@@ -12,6 +12,7 @@ namespace Vision
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             ReadOnlyCopies.CleanupStale(TimeSpan.FromHours(12));   // önceki oturumlardan kalan salt okunur kopyalar
+            DragOutCopies.CleanupStale(TimeSpan.FromHours(12));    // karttan sürüklemede kalan geçici kopyalar
             // Tema, hiçbir pencere / denetim oluşturulmadan önce seçilmeli (denetimler renklerini oluşurken alır)
             try
             {
@@ -25,7 +26,7 @@ namespace Vision
             catch { Theme.Initialize(ThemeMode.Dark); }
             SentinelView.EnableModernPageMode();   // Sentinel sayfası uygulama içinde IE11 kipinde gösterilsin
             try { Application.Run(new MainForm()); }
-            finally { ReadOnlyCopies.CleanupSession(); }
+            finally { ReadOnlyCopies.CleanupSession(); DragOutCopies.CleanupSession(); }
         }
     }
 }

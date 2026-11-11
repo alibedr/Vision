@@ -49,6 +49,7 @@ namespace Vision
             // Sürükle-bırak: Windows Gezgini'nden bırakma = yükleme; liste içinde klasöre bırakma = taşı (Ctrl: kopyala)
             _list.AllowDrop = true;
             _list.ItemDrag += List_ItemDrag;
+            WireDragOut();
             _list.DragEnter += List_DragOver;
             _list.DragOver += List_DragOver;
             _list.DragLeave += (s, e) => SetDropHighlight(-1);
@@ -144,6 +145,7 @@ namespace Vision
                 ToolStripItem ren = AddMenu("Yeniden adlandır…", async () => await RenameSelectedAsync(), "F2");
                 ToolStripItem mov = AddMenu("Taşı…", async () => await TransferWithDialogAsync(e, false), null);
                 AddMenu("Kopyala…", async () => await TransferWithDialogAsync(e, true), null);
+                AddMenu("Bilgisayara kaydet…", async () => await SaveToComputerAsync(e), null);
                 _itemMenu.Items.Add(new ToolStripSeparator());
                 ToolStripItem del = AddMenu("Sil…", async () => await DeleteSelectedAsync(), "Delete");
                 del.ForeColor = Theme.Danger;
@@ -447,9 +449,8 @@ namespace Vision
             var item = e.Item as ListViewItem;
             var entry = item != null ? item.Tag as FsEntry : null;
             if (entry == null || entry.Kind == FsKind.Device || !CanOperate) return;
-            var data = new DataObject();
-            data.SetData(InternalDragFormat, entry);
-            _list.DoDragDrop(data, DragDropEffects.Move | DragDropEffects.Copy);
+            // Kart içinde taşıma / kopyalama ve Windows Gezgini'ne (bilgisayara) bırakma — G31
+            StartCardDrag(entry);
             SetDropHighlight(-1);
         }
 
@@ -460,7 +461,8 @@ namespace Vision
             ListViewItem over = ItemAt(e.X, e.Y);
             var overEntry = over != null ? over.Tag as FsEntry : null;
 
-            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            // Listeden sürüklenen kart öğesi bilgisayara da bırakılabildiği için "dosya" biçimi de taşır: önce iç biçim
+            if (!e.Data.GetDataPresent(InternalDragFormat) && e.Data.GetDataPresent(DataFormats.FileDrop))
             {
                 // Bilgisayardan: bir klasörün üzerine ya da içinde bulunulan klasöre yükle
                 bool onFolder = overEntry != null && overEntry.Kind == FsKind.Folder;
@@ -490,7 +492,7 @@ namespace Vision
             var overEntry = over != null ? over.Tag as FsEntry : null;
             string folderTarget = overEntry != null && overEntry.Kind == FsKind.Folder ? overEntry.FullPath : null;
 
-            var files = e.Data.GetData(DataFormats.FileDrop) as string[];
+            var files = e.Data.GetDataPresent(InternalDragFormat) ? null : e.Data.GetData(DataFormats.FileDrop) as string[];
             if (files != null)
             {
                 // Bırakma işlemi Windows Gezgini'ni bekletir: soru / ilerleme pencereleri bırakma bittikten sonra açılmalı.
@@ -513,13 +515,13 @@ namespace Vision
             {
                 e.Effect = DragDropEffects.None;
                 if (!CanOperate || target.Same(_browser.Current)) return;
-                if (e.Data.GetDataPresent(DataFormats.FileDrop)) e.Effect = DragDropEffects.Copy;
-                else if (e.Data.GetDataPresent(InternalDragFormat)) e.Effect = (e.KeyState & 8) != 0 ? DragDropEffects.Copy : DragDropEffects.Move;
+                if (e.Data.GetDataPresent(InternalDragFormat)) e.Effect = (e.KeyState & 8) != 0 ? DragDropEffects.Copy : DragDropEffects.Move;
+                else if (e.Data.GetDataPresent(DataFormats.FileDrop)) e.Effect = DragDropEffects.Copy;
             };
             btn.DragDrop += async (s, e) =>
             {
                 if (!CanOperate) return;
-                var files = e.Data.GetData(DataFormats.FileDrop) as string[];
+                var files = e.Data.GetDataPresent(InternalDragFormat) ? null : e.Data.GetData(DataFormats.FileDrop) as string[];
                 if (files != null)
                 {
                     string[] copy = files.ToArray();

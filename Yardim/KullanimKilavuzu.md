@@ -495,6 +495,17 @@ Yükleme, kartlara dosya atarken elle izlediğiniz yolun aynısını otomatik ya
 
 Yüklemek için: Windows Gezgini'nden dosyaları listeye **sürükleyip bırakın** (bir klasörün üzerine bırakırsanız o klasöre; boş bir klasöre de bırakılabilir) ya da **Yükle** (yukarı ok simgesi) düğmesini kullanın. Hedefte aynı adlı öğe varsa üzerine yazmadan önce sorulur.
 
+### Karttan bilgisayara (sürükle-bırak ya da "Bilgisayara kaydet…")
+
+Yüklemenin tersi de çalışır: listedeki bir **dosyayı ya da klasörü** Windows Gezgini'ne, masaüstüne ya da herhangi bir klasöre **sürükleyip bırakın**. Öğe karttan alınıp bırakılan yere kopyalanır.
+
+- Sürükleme başlarken hiçbir şey indirilmez. Vision dışına **bırakıldığı anda** küçük bir ilerleme penceresi açılır ("… karttan alınıyor"). Dosyalar yüklemedeki yolun tersiyle alınır: kartta `copy` ile FTP konumuna geçici kopya, FTP'den indirme, geçici kopyanın silinmesi. İkili dosyalar (.bin, .out …) bozulmadan gelir. İndirme bitince Windows Gezgini dosyaları bırakılan yere kopyalar; aynı adlı dosya varsa Gezgin kendisi sorar.
+- **Klasör** sürüklenirse alt klasörleriyle birlikte alınır (klasörler tek tek listelenir, dosyalar sırayla indirilir; ilerleme penceresinde *3 / 12 · alt\dosya.txt* gibi görünür). En fazla 300 klasör / 3000 dosya; daha büyükse alt klasörleri ayrı ayrı alın.
+- İndirme sürerken Windows Gezgini bırakmanın bitmesini bekler. Büyük dosyalarda biraz sürebilir; **İptal** o anki dosya bitince durdurur ve hiçbir şey kopyalanmaz.
+- Listenin içine bırakmak eskisi gibi kart içinde **taşır** (Ctrl ile **kopyalar**); bilgisayara indirme yapılmaz.
+- Sürüklemek yerine sağ tık → **Bilgisayara kaydet…** ile klasör seçerek de alabilirsiniz; bitince kayıt yeri Windows Gezgini'nde açılır. Aynı adlı öğe varsa üzerine yazmadan önce sorulur.
+- FTP bilgisi kart bağlıyken otomatik alınır (yüklemedeki gibi). Alınamazsa neden şeritte yazar.
+
 - Hata olursa hangi aşamada olduğu, nedeni, **FTP sunucusunun cevabı** ve adresi birlikte yazılır. Örnek: *imaj.bin: FTP'ye gönderilemedi (FTP klasörüne yazılamadı: kullanıcının bu klasörde yazma izni yok ya da klasör yok — sunucu: 550 Permission denied · ftp://192.168.1.100:21/upload/imaj.bin)*.
 - Adında Türkçe ya da özel karakter (ç, ş, ğ, ü, ö, ı, İ, çift tırnak) olan dosyalar FTP'ye hiç gönderilmeden açıklamayla reddedilir: kartın kabuğu bu adları doğru yazamaz. Dosyayı İngilizce karakterlerle yeniden adlandırın. Boşluk, `#` ve `%` sorun değildir.
 - Pasif kipte FTP veri bağlantısı kurulamazsa gönderim bir kez etkin kiple denenir ve bu bilgi sonuçta yazar.
@@ -686,6 +697,7 @@ Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındak
 | F2 / Delete | Dosya Gezgini'nde yeniden adlandır / sil |
 | Ctrl+Shift+N | Dosya Gezgini'nde yeni klasör |
 | Ctrl + sürükle | Dosya Gezgini'nde taşımak yerine kopyala |
+| Sürükle → Windows Gezgini / masaüstü | Kart dosyasını / klasörünü bilgisayara kopyala |
 | Ctrl+Enter / Ctrl+Shift+Enter | Dosya Gezgini'nde varsayılan uygulamayla / "Birlikte aç" ile aç (salt okunur kopya) |
 | Ctrl + + / Ctrl + − / Ctrl + 0 | Tüm kart terminallerinde yazıyı büyüt / küçült / %100 (Telnet sekmesi) |
 | Ctrl + fare tekerleği | Terminal üzerinde: tüm kartların yazısını birlikte büyüt / küçült |
@@ -701,6 +713,7 @@ Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındak
 | `logs\hatalar.log` | Bağlantı hatalarının teknik ayrıntıları (hata kodu, özgün İngilizce mesaj). Her zaman açıktır. |
 | `Yardim\` | Bu kılavuz ve gereksinimler belgesi. |
 | `%TEMP%\TelnetCards\SaltOkunur\` | "Birlikte aç" ile açılan salt okunur kopyalar (kapanışta silinir). |
+| `%TEMP%\TelnetCards\Surukle\` | Karttan Windows Gezgini'ne sürüklenen öğelerin geçici kopyaları (kapanışta silinir). |
 
 `config.xml` ve `%TEMP%` dışındaki klasörler exe'nin yanındadır (Visual Studio'dan çalıştırırken `bin\Debug\`).
 
