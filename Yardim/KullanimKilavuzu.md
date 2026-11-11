@@ -221,7 +221,7 @@ Hızlı komutun solundaki **nabız çizgisi** simgeli düğme, kartın içindeki
 - Simgenin rengi sunucunun durumunu gösterir: **soluk** = çalışmıyor, **sarı** = başlatılıyor / durduruluyor, **yeşil** = çalışıyor.
 - Çalışmıyorken tıklamak karta `SentinelWebServerBaslat` gönderir. Sunucu açılınca simge yeşile döner ve *"Sentinel çalışıyor — görüntülemek için tıklayın"* bildirimi çıkar; bildirime tıklamak **Sentinel** sekmesini o kartla açar.
 - Çalışırken tıklamak karta `SentinelWebServerBitir` gönderir; sunucu kapanınca simge solar.
-- Komutlar dönüş değeri basmadığı için Vision sunucunun durumunu kartın **8080** portuna bağlanmayı deneyerek anlar (5 sn'de bir; başlatma / durdurma sonrasında 1 sn'de bir). Kart reboot olursa ya da sunucu terminalden başlatılıp durdurulursa düğme kendiliğinden doğru duruma geçer. Sunucu 20 sn içinde açılmazsa uyarı çıkar.
+- Komutlar dönüş değeri basmadığı için Vision sunucunun durumunu kartın **8080** portuna bağlanmayı deneyerek anlar (5 sn'de bir; başlatma / durdurma sonrasında 1 sn'de bir). Sunucu meşgulken cevap vermeyen denemeler "durdu" sayılmaz; "durdu" demek için kartın portu 8 sn boyunca reddetmesi gerekir. Kart reboot olursa ya da sunucu terminalden başlatılıp durdurulursa düğme kendiliğinden doğru duruma geçer. Sunucu 20 sn içinde açılmazsa uyarı çıkar.
 - **Sağ tık**: Sentinel sekmesinde aç. Kart bağlı değilken düğme pasiftir.
 
 ### reboot / reboot 2
@@ -290,6 +290,7 @@ Kart terminalinden (komut satırı, hızlı komut ya da genel komut çubuğu) `b
 - **Temizle (.)**: alanı boşaltır. **◀ Önceki alan**: bir önceki alana döner (karta `-` gönderilir).
 - Listede bir alana **çift tıklayın**: kart o alana gelene kadar alanlar değiştirilmeden geçilir (geri gitmek için `-` gönderilir).
 - **Kalanları geçip bitir**: kalan alanların hepsi değiştirilmeden geçilir; girdiğiniz değerler kaydedilir. **Çık (Ctrl+D)**: komuttan hemen çıkar (kartın imajına göre değişiklikler kaydedilmeyebilir).
+- Kart bir alanı sorarken aynı anda log gelirse ve alanın değeri logdan güvenle ayrılamazsa, değer yerine sarı **"okunamadı (araya log girdi) — terminale bakın"** yazar. Bu yalnız görüntüdür; karta bir şey yazılmaz. Kartın gerçek değerini terminalde görebilirsiniz.
 - Değiştirdiğiniz alanlar listede `eski → yeni` olarak görünür. Komut bitince kaç alanın değiştiği yazar; yeni boot ayarları genellikle kart yeniden başlatılınca geçerli olur.
 - **Araya giren kart logları** (alt şerit, tıklayınca açılır): bu sırada gelen loglar kaybolmaz, burada toplanır. Kartın tüm çıktısı terminalde de görünmeye devam eder.
 - Pencere kart bitirmeden kapatılırsa sorulur: **Kalanları geçip bitir**, **Yalnız pencereyi kapat** (terminalden devam edersiniz) ya da **Vazgeç**.

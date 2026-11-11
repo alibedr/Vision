@@ -226,8 +226,9 @@ namespace Vision
         private void Pump()
         {
             DateTime now = DateTime.UtcNow;
-            string text = _tap != null ? _tap.Take() : null;
-            if (text != null) _parser.Feed(text, now);
+            // Parçalar geldikleri gibi verilir: istem, ardından gelen logdan ayrı okunur
+            List<TerminalTap.Chunk> chunks = _tap != null ? _tap.Take() : null;
+            if (chunks != null) foreach (TerminalTap.Chunk c in chunks) _parser.Feed(c.Text, c.Utc);
             _parser.Tick(now);
 
             if (!_parser.IsOver && _session.State != CardState.Connected)
@@ -457,7 +458,10 @@ namespace Vision
             if (_parser.Phase == BootChangePhase.Prompting && cur != null)
             {
                 _currentLabel.Text = cur.Label;
-                _currentValue.Text = "kartta:  " + (string.IsNullOrEmpty(cur.CardValue) ? "(boş)" : cur.CardValue);
+                _currentValue.Text = cur.Uncertain
+                    ? "kartta:  okunamadı — istemle aynı anda log geldi; kartın değerini terminalde görebilirsiniz"
+                    : "kartta:  " + (string.IsNullOrEmpty(cur.CardValue) ? "(boş)" : cur.CardValue);
+                _currentValue.ForeColor = cur.Uncertain ? Theme.Warning : Theme.TextMuted;
             }
             else if (_parser.IsOver)
             {
@@ -475,7 +479,7 @@ namespace Vision
             _input.Enabled = canAct;
             _send.Enabled = canAct;
             _keep.Enabled = canAct;
-            _edit.Enabled = canAct && cur != null && !string.IsNullOrEmpty(cur.CardValue);
+            _edit.Enabled = canAct && cur != null && !cur.Uncertain && !string.IsNullOrEmpty(cur.CardValue);
             _clear.Enabled = canAct;
             _prev.Enabled = canAct && _parser.CurrentIndex > 0;
             _skipRest.Enabled = _parser.Phase == BootChangePhase.Prompting && !_skipAll;
@@ -533,7 +537,7 @@ namespace Vision
             public void SetFields(List<BootField> fields)
             {
                 string sig = CurrentIndex + "|" + Awaiting + "|" +
-                             string.Join("|", fields.Select(f => f.Label + "=" + f.CardValue + ">" + f.Entered));
+                             string.Join("|", fields.Select(f => f.Label + "=" + f.CardValue + (f.Uncertain ? "?" : "") + ">" + f.Entered));
                 if (sig == _signature) return;
                 _signature = sig;
                 _fields = fields.ToList();
@@ -579,7 +583,7 @@ namespace Vision
                 if (f.Entered != null && f.Changed)
                 {
                     // eski → yeni
-                    string oldText = string.IsNullOrEmpty(f.OriginalValue) ? "(boş)" : f.OriginalValue;
+                    string oldText = string.IsNullOrEmpty(f.OriginalValue) ? (f.Uncertain ? "okunamadı" : "(boş)") : f.OriginalValue;
                     string newText = f.EffectiveValue.Length == 0 ? "(boş)" : f.EffectiveValue;
                     int w1 = TextRenderer.MeasureText(g, oldText + "  →  ", _mono, Size.Empty, TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width;
                     TextRenderer.DrawText(g, oldText + "  →  ", _mono, valueRect, muted, flags);
@@ -588,8 +592,11 @@ namespace Vision
                 }
                 else
                 {
-                    TextRenderer.DrawText(g, value.Length == 0 ? "(boş)" : value, _mono, valueRect,
-                                          value.Length == 0 ? (current ? fore : Theme.TextFaint) : fore, flags);
+                    if (f.Uncertain)
+                        TextRenderer.DrawText(g, "okunamadı (araya log girdi) — terminale bakın", _normal, valueRect, current ? fore : Theme.Warning, flags);
+                    else
+                        TextRenderer.DrawText(g, value.Length == 0 ? "(boş)" : value, _mono, valueRect,
+                                              value.Length == 0 ? (current ? fore : Theme.TextFaint) : fore, flags);
                 }
                 using (var p = new Pen(Theme.RowDivider)) g.DrawLine(p, e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
             }

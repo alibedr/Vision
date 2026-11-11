@@ -16,12 +16,26 @@ namespace Vision
         Stopping,
     }
 
+    /// <summary>Port denemesinin sonucu.</summary>
+    internal enum SentinelProbe
+    {
+        /// <summary>Bağlantı kuruldu: sunucu çalışıyor.</summary>
+        Open,
+        /// <summary>Kart bağlantıyı reddetti (portu dinleyen yok): sunucu durmuş olabilir.</summary>
+        Refused,
+        /// <summary>Süre içinde cevap yok: sunucu meşgul olabilir — durum değiştirilmez.</summary>
+        NoAnswer,
+    }
+
     /// <summary>
     /// Kartın içindeki Sentinel web sunucusunun durumu (G28). Komutlar dönüş değeri basmadığı (void) için sunucunun çalışıp
     /// çalışmadığı, kartın 8080 portuna bağlanmayı deneyerek anlaşılır: bağlantı kurulursa çalışıyor. Denemede istek
     /// gönderilmez (sunucu sayfa üretmez); bağlantı hemen kapatılır.
     /// Normalde 5 sn'de bir, başlatma / durdurma sonrasında 1 sn'de bir denenir. Kart reboot olursa ya da sunucu
     /// kendiliğinden kapanırsa durum kendiliğinden düzelir. Yalnız bağlı kartlar denenir.
+    /// Çalışırken "durdu" demek için kesin kanıt aranır (G28.5): cevapsız deneme (sayfa sunarken meşgul sunucu) sayılmaz;
+    /// yalnız kartın bağlantıyı REDDETMESİ sayılır ve bu en az 3 denemede, 8 sn boyunca, arada başarılı deneme olmadan
+    /// sürmelidir. Böylece sayfa gösterilirken sunucu meşgul diye sayfa kapanmaz.
     /// </summary>
     public sealed class SentinelTracker
     {
@@ -33,7 +47,10 @@ namespace Vision
         private static readonly TimeSpan FastInterval = TimeSpan.FromSeconds(1);
         private static readonly TimeSpan StartTimeout = TimeSpan.FromSeconds(20);
         private static readonly TimeSpan StopTimeout = TimeSpan.FromSeconds(15);
-        private const int ConnectTimeoutMs = 1500;
+        private static readonly TimeSpan RefusedInterval = TimeSpan.FromSeconds(2);
+        private static readonly TimeSpan RefusedFor = TimeSpan.FromSeconds(8);
+        private const int RefusedCount = 3;
+        private const int ConnectTimeoutMs = 3000;
 
         private readonly object _lock = new object();
         private SentinelStatus _status = SentinelStatus.Stopped;
@@ -41,7 +58,8 @@ namespace Vision
         private DateTime _nextProbeUtc;
         private bool _probing;
         private bool _connected;
-        private int _failures;
+        private int _refused;              // çalışırken art arda reddedilen deneme sayısı
+        private DateTime _firstRefusedUtc;
         private string _message;
         private int _version;
 
@@ -63,7 +81,7 @@ namespace Vision
                 _status = SentinelStatus.Starting;
                 _transitionUtc = nowUtc;
                 _nextProbeUtc = nowUtc + FastInterval;
-                _failures = 0;
+                _refused = 0;
                 _message = null;
                 _version++;
             }
@@ -93,7 +111,7 @@ namespace Vision
                     if (_connected || _status != SentinelStatus.Stopped)
                     {
                         _status = SentinelStatus.Stopped;
-                        _failures = 0;
+                        _refused = 0;
                         _version++;
                     }
                     _connected = false;
@@ -122,44 +140,59 @@ namespace Vision
             string target = ip.Trim();
             Task.Run(async () =>
             {
-                bool open = await ProbeAsync(target).ConfigureAwait(false);
-                Apply(open, DateTime.UtcNow);
+                SentinelProbe result = await ProbeAsync(target).ConfigureAwait(false);
+                Apply(result, DateTime.UtcNow);
             });
         }
 
-        private void Apply(bool open, DateTime nowUtc)
+        private void Apply(SentinelProbe result, DateTime nowUtc)
         {
             lock (_lock)
             {
                 _probing = false;
                 if (!_connected) return;
                 SentinelStatus before = _status;
+                bool open = result == SentinelProbe.Open;
+                if (open) _refused = 0;
                 switch (_status)
                 {
                     case SentinelStatus.Starting:
                         if (open) { _status = SentinelStatus.Running; _message = null; }
                         break;
                     case SentinelStatus.Stopping:
-                        if (!open) { _status = SentinelStatus.Stopped; _message = null; }
+                        // Kullanıcı durdurdu: kartın reddetmesi yeterli kanıt
+                        if (result == SentinelProbe.Refused) { _status = SentinelStatus.Stopped; _message = null; }
                         break;
                     case SentinelStatus.Running:
-                        // Meşgul sunucu yüzünden tek seferlik başarısızlıkta durum titremesin: art arda iki kez
-                        if (open) _failures = 0;
-                        else if (++_failures >= 2) { _status = SentinelStatus.Stopped; _failures = 0; }
+                        // Cevapsız deneme sayılmaz (sunucu sayfa sunarken meşgul olabilir); yalnız sürekli ret "durdu" demektir
+                        if (result == SentinelProbe.Refused)
+                        {
+                            if (_refused == 0) _firstRefusedUtc = nowUtc;
+                            _refused++;
+                            if (_refused >= RefusedCount && nowUtc - _firstRefusedUtc >= RefusedFor)
+                            {
+                                _status = SentinelStatus.Stopped;
+                                _refused = 0;
+                            }
+                        }
                         break;
                     default:
-                        if (open) { _status = SentinelStatus.Running; _failures = 0; }   // terminalden başlatılmış olabilir
+                        if (open) _status = SentinelStatus.Running;   // terminalden başlatılmış olabilir
                         break;
                 }
-                bool fast = _status == SentinelStatus.Starting || _status == SentinelStatus.Stopping ||
-                            (_status == SentinelStatus.Running && _failures > 0);
-                _nextProbeUtc = nowUtc + (fast ? FastInterval : IdleInterval);
+                TimeSpan next = _status == SentinelStatus.Starting || _status == SentinelStatus.Stopping ? FastInterval
+                              : _status == SentinelStatus.Running && _refused > 0 ? RefusedInterval
+                              : IdleInterval;
+                _nextProbeUtc = nowUtc + next;
                 if (before != _status) _version++;
             }
         }
 
-        /// <summary>Kartın 8080 portuna bağlanılabiliyor mu? (İstek gönderilmez, bağlantı hemen kapatılır.)</summary>
-        private static async Task<bool> ProbeAsync(string ip)
+        /// <summary>
+        /// Kartın 8080 portuna bağlanmayı dener (istek gönderilmez, bağlantı hemen kapatılır). Ret (portu dinleyen yok)
+        /// ile cevapsızlık (meşgul / ulaşılamıyor) ayrılır.
+        /// </summary>
+        private static async Task<SentinelProbe> ProbeAsync(string ip)
         {
             try
             {
@@ -170,16 +203,28 @@ namespace Vision
                     if (done != connect)
                     {
                         var ignored = connect.ContinueWith(t => { var e = t.Exception; }, TaskContinuationOptions.OnlyOnFaulted);
-                        return false;
+                        return SentinelProbe.NoAnswer;
                     }
                     await connect.ConfigureAwait(false);
-                    return client.Connected;
+                    return client.Connected ? SentinelProbe.Open : SentinelProbe.NoAnswer;
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                return false;
+                return IsRefused(ex) ? SentinelProbe.Refused : SentinelProbe.NoAnswer;
             }
+        }
+
+        private static bool IsRefused(Exception ex)
+        {
+            for (Exception e = ex; e != null; e = e.InnerException)
+            {
+                var se = e as SocketException;
+                if (se != null) return se.SocketErrorCode == SocketError.ConnectionRefused;
+                var ae = e as AggregateException;
+                if (ae != null && ae.InnerExceptions.Count > 0) return IsRefused(ae.InnerExceptions[0]);
+            }
+            return false;
         }
     }
 }

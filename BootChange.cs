@@ -11,38 +11,53 @@ namespace Vision
     /// </summary>
     public sealed class TerminalTap : IDisposable
     {
+        /// <summary>Karttan tek seferde gelen veri parçası ve geliş zamanı.</summary>
+        public struct Chunk
+        {
+            public string Text;
+            public DateTime Utc;
+        }
+
         private readonly CardSession _session;
-        private readonly StringBuilder _buffer = new StringBuilder();
+        private readonly List<Chunk> _chunks = new List<Chunk>();
         private readonly object _lock = new object();
+        private int _length;
         private bool _closed;
 
         internal TerminalTap(CardSession session) { _session = session; }
 
         internal void Append(string text)
         {
+            if (string.IsNullOrEmpty(text)) return;
             lock (_lock)
             {
                 if (_closed) return;
-                _buffer.Append(text);
-                if (_buffer.Length > 1000000) _buffer.Remove(0, _buffer.Length - 500000);   // okunmazsa bellek şişmesin
+                _chunks.Add(new Chunk { Text = text, Utc = DateTime.UtcNow });
+                _length += text.Length;
+                // okunmazsa bellek şişmesin
+                while (_length > 1000000 && _chunks.Count > 1) { _length -= _chunks[0].Text.Length; _chunks.RemoveAt(0); }
             }
         }
 
-        /// <summary>Son çağrıdan bu yana gelen metin (yoksa null).</summary>
-        public string Take()
+        /// <summary>
+        /// Son çağrıdan bu yana gelen parçalar, geldikleri gibi (yoksa null). Parça sınırları korunur: kartın istemi
+        /// ile ardından gelen log ayrı parçalarda gelir; ayrıştırıcı istemi ilk parçadan okur.
+        /// </summary>
+        public List<Chunk> Take()
         {
             lock (_lock)
             {
-                if (_buffer.Length == 0) return null;
-                string s = _buffer.ToString();
-                _buffer.Clear();
-                return s;
+                if (_chunks.Count == 0) return null;
+                var list = new List<Chunk>(_chunks);
+                _chunks.Clear();
+                _length = 0;
+                return list;
             }
         }
 
         public void Dispose()
         {
-            lock (_lock) { _closed = true; _buffer.Clear(); }
+            lock (_lock) { _closed = true; _chunks.Clear(); _length = 0; }
             _session.CloseTap(this);
         }
     }
@@ -58,6 +73,11 @@ namespace Vision
         public string CardValue { get; set; }
         /// <summary>Kullanıcının bu alan için gönderdiği yeni değer (gönderilmediyse null; "." temizle).</summary>
         public string Entered { get; set; }
+        /// <summary>
+        /// Kartın gösterdiği değer güvenle okunamadı (istemle aynı anda araya log girdi). Değer yerine "okunamadı"
+        /// gösterilir; yanlış bir değer gösterip "kartın ayarı bu mu?" diye korkutmasın (G27.3).
+        /// </summary>
+        public bool Uncertain { get; set; }
 
         /// <summary>Alanın kartta kalacak değeri (yeni değer gönderildiyse o, yoksa kartın gösterdiği).</summary>
         public string EffectiveValue
@@ -89,7 +109,9 @@ namespace Vision
     /// Kart her alanı "alan adı          : değer " biçiminde sorar ve satır sonu basmadan girişi bekler. Kart çalışırken
     /// gelen loglar bu satırların arasına (hatta aynı satırın sonuna) karışır; burada alan istemleri loglardan ayrılır:
     /// hangi alanın sorulduğu ve değeri <see cref="Fields"/>'ta, araya giren satırlar <see cref="Logs"/>'ta tutulur.
-    /// Yarım gelen istemin yanlış okunmaması için son (satır sonu gelmemiş) satır, veri kısa süre kesilince değerlendirilir.
+    /// İstem, kartın onu gönderdiği veri parçasından okunur (parça sınırları korunur): istemden SONRA gelen parçalar
+    /// (araya giren loglar) alanın değeri sayılmaz. Boş alanın değeri ayrı parçada gelebileceği için, istemden kısa süre
+    /// içinde gelen tek sözcüklük parça değer olarak kabul edilir. Emin olunamayan değer "okunamadı" olarak işaretlenir.
     /// </summary>
     public sealed class BootChangeParser
     {
@@ -100,6 +122,11 @@ namespace Vision
 
         /// <summary>Son satır bu kadar süre değişmezse (kart girişi bekliyor) değerlendirilir.</summary>
         public static readonly TimeSpan TailSettle = TimeSpan.FromMilliseconds(120);
+        /// <summary>Boş görünen istemin değeri ayrı parçada gelirse ancak bu süre içinde kabul edilir.</summary>
+        public static readonly TimeSpan ValueWindow = TimeSpan.FromMilliseconds(250);
+        /// <summary>İstemden bu kadar kısa sürede gelen değer, kartın aynı yazışının devamıdır (kesin kabul edilir).</summary>
+        public static readonly TimeSpan SameWriteWindow = TimeSpan.FromMilliseconds(40);
+        private static readonly Regex SingleTokenThenSpace = new Regex(@"^\S+ $", RegexOptions.Compiled);
 
         // "boot device          : motetsec0 "  ·  "inet on ethernet (e) : 10.0.0.5:ffffff00 "  ·  "ftp password (pw) (blank = use rsh): x"
         private static readonly Regex FieldLine = new Regex(
@@ -125,10 +152,12 @@ namespace Vision
         private int _lineNo;                 // tamamlanan satır sayısı (son satırın kimliği için)
         private DateTime _lastDataUtc;
         private bool _awaitingNext = true;   // bir sonraki istem "şu anki alan" olacak
-        private int _tailHandledLine = -1;   // bu satır numarasındaki son satır işlendi / gönderimde görülüyordu
-        private string _tailHandledText;
         private string _promptText;          // şu anki alanın istem metni (aynı satıra eklenen eko / log ayrılsın)
         private int _promptLine = -1;        // şu anki istemin satır numarası
+        private DateTime _promptAtUtc;       // şu anki istemin geldiği an
+        private bool _valueOpen;             // istem boş değerle okundu; değer hemen ardından ayrı parçada gelebilir
+        private bool _valueFromLateChunk;    // değer istemden sonraki parçadan okundu (ardından log gelirse şüpheli)
+        private bool _promptAddedField;      // istem bu alanı ilk kez gösterdi (ilk değeri de güncellenir)
         private string _lastSent;
 
         public BootChangeParser()
@@ -166,10 +195,11 @@ namespace Vision
 
         // ---------- Veri ----------
 
-        public void Feed(string text, DateTime nowUtc)
+        /// <summary>Karttan gelen bir veri parçası (parçalar geldikleri sırayla, ayrı ayrı verilmelidir).</summary>
+        public void Feed(string text, DateTime arrivalUtc)
         {
             if (string.IsNullOrEmpty(text) || IsOver) return;
-            _lastDataUtc = nowUtc;
+            _lastDataUtc = arrivalUtc;
             foreach (char ch in text)
             {
                 if (ch == '\n')
@@ -182,18 +212,16 @@ namespace Vision
                 }
                 else if (ch != '\r') _tail.Append(ch);
             }
+            // Parça bitti: kart istemi bastıysa (satır sonu yok, boşlukla biter) şimdi okunur — sonra gelen loglar karışmasın
+            if (_tail.Length > 0) ExamineTail(_tail.ToString().Replace("\t", " "), arrivalUtc, false);
         }
 
-        /// <summary>Düzenli çağrılır: veri kısa süredir kesildiyse son satır (bekleyen istem) değerlendirilir.</summary>
+        /// <summary>Düzenli çağrılır: veri kısa süredir kesildiyse kabuk istemi (komut bitti) denetlenir.</summary>
         public void Tick(DateTime nowUtc)
         {
             if (IsOver || _tail.Length == 0) return;
             if (nowUtc - _lastDataUtc < TailSettle) return;
-            string tail = _tail.ToString().Replace("\t", " ");
-            if (_tailHandledLine == _lineNo && _tailHandledText == tail) return;
-            _tailHandledLine = _lineNo;
-            _tailHandledText = tail;
-            ExamineTail(tail);
+            ExamineTail(_tail.ToString().Replace("\t", " "), _lastDataUtc, true);
         }
 
         /// <summary>Kullanıcı şu anki alana bir şey gönderdi ("" = değiştirmeden geç, "." = temizle, "-" = önceki alan).</summary>
@@ -203,9 +231,7 @@ namespace Vision
             if (f != null && text != PreviousToken && text.Length > 0) f.Entered = text;
             _lastSent = text;
             _awaitingNext = true;
-            // Gönderim anında görünen istem, kart cevap verene kadar "yeni istem" sayılmasın
-            _tailHandledLine = _lineNo;
-            _tailHandledText = _tail.ToString().Replace("\t", " ");
+            _valueOpen = false;
             Changed();
         }
 
@@ -242,24 +268,41 @@ namespace Vision
             // Komut bitti: dönüş değeri ya da kabuk istemi
             if (ValueLine.IsMatch(trimmed) || ShellPromptStart.IsMatch(trimmed)) { Finish(); return; }
 
-            // Şu anki istemin satırı tamamlandı (kullanıcı girişi ya da araya giren log): sonuna eklenen eko ve loglar ayrılır
+            // Şu anki istemin satırı tamamlandı (kullanıcı girişi ya da araya giren log): sonuna eklenen eko ve loglar ayrılır.
+            // Değer istemin parçasından okunduğu için sonradan gelen metin değeri değiştirmez.
             if (number == _promptLine)
             {
                 if (_promptText != null && line.StartsWith(_promptText, StringComparison.Ordinal))
-                    AddLog(StripEcho(line.Substring(_promptText.Length)));
+                {
+                    string extra = StripEcho(line.Substring(_promptText.Length));
+                    if (extra.Trim().Length > 0 && _valueFromLateChunk && !_awaitingNext && Current != null)
+                    {
+                        // Ayrı parçada gelen "değer" aslında logun başı olabilir: emin değiliz
+                        MarkUncertain(Current);
+                    }
+                    AddLog(extra);
+                }
+                _valueOpen = false;
                 return;
             }
 
             string label, rest;
             if (MatchField(line, out label, out rest))
             {
-                // İstem, son satır değerlendirilemeden aynı satıra gelen bir logla tamamlandı: değer ilk sözcüktür
-                string value = FirstToken(rest);
+                // İstem, aynı parçada gelen bir logla birlikte tamamlandı (istem tek başına görülemedi).
+                // Değer yalnız tek sözcükse kabul edilir; sonrasında başka metin varsa (log) değer okunamadı sayılır.
+                string all = rest.Trim();
+                bool single = all.IndexOf(' ') < 0 && !all.EndsWith(":");
+                string value = single ? all : "";
                 if (_awaitingNext)
                 {
-                    SetCurrent(label, value, line.Substring(0, line.Length - rest.Length) + (value.Length > 0 ? value + " " : ""), number);
-                    string extra = rest.Trim();
-                    if (extra.Length > value.Length) AddLog(extra.Substring(value.Length).Trim());
+                    SetCurrent(label, value, line.Substring(0, line.Length - rest.Length) + (value.Length > 0 ? value + " " : ""), number, _lastDataUtc);
+                    _valueOpen = false;
+                    if (!single && all.Length > 0)
+                    {
+                        MarkUncertain(Current);
+                        AddLog(all);
+                    }
                 }
                 else
                 {
@@ -276,29 +319,67 @@ namespace Vision
             AddLog(line.TrimEnd());
         }
 
-        private void ExamineTail(string tail)
+        private void ExamineTail(string tail, DateTime arrivalUtc, bool settled)
         {
-            if (Phase == BootChangePhase.Prompting && ShellPromptOnly.IsMatch(tail)) { Finish(); return; }
-            // İstem her zaman boşlukla biter ("alan : " ya da "alan : değer "); yarım gelmiş istem beklenir
-            if (!tail.EndsWith(" ") && !tail.EndsWith(":")) return;
+            if (settled && Phase == BootChangePhase.Prompting && ShellPromptOnly.IsMatch(tail)) { Finish(); return; }
 
+            if (_lineNo == _promptLine)
+            {
+                // Şu anki istemin satırı sürüyor: boş görünen değer hemen ardından ayrı parçada gelmiş olabilir
+                // ("alan : " + "değer "). İstemden kısa süre içinde gelen TEK sözcük + boşluk değer kabul edilir;
+                // bunun dışında satıra eklenen her şey (eko, log) değeri değiştirmez.
+                if (_valueOpen && !_awaitingNext && Current != null && _promptText != null &&
+                    arrivalUtc - _promptAtUtc <= ValueWindow && tail.StartsWith(_promptText, StringComparison.Ordinal))
+                {
+                    string extra = tail.Substring(_promptText.Length);
+                    if (SingleTokenThenSpace.IsMatch(extra))
+                    {
+                        BootField f = Current;
+                        string value = extra.Trim();
+                        f.CardValue = value;
+                        if (_promptAddedField) f.OriginalValue = value;
+                        _promptText = tail;
+                        _valueOpen = false;
+                        _valueFromLateChunk = arrivalUtc - _promptAtUtc > SameWriteWindow;
+                        Changed();
+                    }
+                }
+                return;
+            }
+
+            // Yeni istem her zaman boşlukla biter ("alan : " ya da "alan : değer "); yarım gelmiş istem beklenir
+            if (!tail.EndsWith(" ") && !tail.EndsWith(":")) return;
             string label, rest;
             if (!MatchField(tail, out label, out rest)) return;
             if (Phase == BootChangePhase.Starting) Phase = BootChangePhase.Prompting;
 
-            if (!_awaitingNext && _lineNo == _promptLine) return;   // aynı istemin sonuna eko / log eklenmiş
-
-            SetCurrent(label, rest.Trim(), tail, _lineNo);
+            string v = rest.Trim();
+            SetCurrent(label, v, tail, _lineNo, arrivalUtc);
+            _valueOpen = v.Length == 0;
         }
 
-        private void SetCurrent(string label, string value, string promptText, int line)
+        private void SetCurrent(string label, string value, string promptText, int line, DateTime atUtc)
         {
+            int before = Fields.Count;
             CurrentIndex = Register(label, value);
+            _promptAddedField = Fields.Count > before;
             _promptText = promptText;
             _promptLine = line;
+            _promptAtUtc = atUtc;
+            _valueFromLateChunk = false;
+            _valueOpen = false;
             _awaitingNext = false;
             _lastSent = null;
             PromptSerial++;
+            Changed();
+        }
+
+        private void MarkUncertain(BootField f)
+        {
+            if (f == null) return;
+            f.Uncertain = true;
+            f.CardValue = "";
+            if (_promptAddedField) f.OriginalValue = "";
             Changed();
         }
 
@@ -312,6 +393,7 @@ namespace Vision
             }
             BootField f0 = Fields[i];
             f0.CardValue = value;
+            f0.Uncertain = false;   // alan yeniden soruldu ve temiz okundu
             // "-" ile geri dönülen alan: kart girilen değeri gösteriyorsa "değişti" işareti kalır, göstermiyorsa (kart kabul etmedi) kalkar
             if (f0.Entered != null && f0.EffectiveValue != value) f0.Entered = null;
             return i;
@@ -376,18 +458,6 @@ namespace Vision
         private static bool SameLabel(string a, string b)
         {
             return string.Equals(Spaces.Replace(a ?? "", " ").Trim(), Spaces.Replace(b ?? "", " ").Trim(), StringComparison.OrdinalIgnoreCase);
-        }
-
-        /// <summary>
-        /// Logla birleşmiş istem satırında alanın değeri: ilk sözcük. ":" ile biten ilk sözcük bir log etiketidir
-        /// ("usbHub: …") — o durumda alan boştur.
-        /// </summary>
-        private static string FirstToken(string s)
-        {
-            s = (s ?? "").Trim();
-            int i = s.IndexOf(' ');
-            string first = i < 0 ? s : s.Substring(0, i);
-            return first.EndsWith(":") ? "" : first;
         }
     }
 }
