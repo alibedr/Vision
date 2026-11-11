@@ -35,6 +35,8 @@ Geliştiren: **Ali Bedir**
 2. **Build → Build Solution** (Ctrl+Shift+B).
 3. Çıktı `bin\Debug\` (ya da `bin\Release\`) klasöründedir. `Yardim\` klasörü exe'nin yanına kopyalanır; komut kütüphanesi exe'ye gömülüdür.
 
+Hazır paket (`Vision.zip`) düzeni: `Vision\Vision.exe`, `Vision\lib\` (Sentinel sayfası için Edge WebView2 DLL'leri) ve `Vision\Yardim\`. Klasör bütün olarak kopyalanmalıdır.
+
 ## Klasör yapısı
 
 | Konum | İçerik |
