@@ -133,6 +133,9 @@
     <Compile Include="FileExplorerView.cs">
       <SubType>UserControl</SubType>
     </Compile>
+    <Compile Include="FileExplorerView.DragOut.cs">
+      <DependentUpon>FileExplorerView.cs</DependentUpon>
+    </Compile>
     <Compile Include="FileExplorerView.Operations.cs">
       <DependentUpon>FileExplorerView.cs</DependentUpon>
     </Compile>
