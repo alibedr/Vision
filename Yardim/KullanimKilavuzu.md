@@ -25,8 +25,9 @@ Sekme şeridinin en sağındaki **Temalar** düğmesi (Yardım'ın yanında, pal
 | Açık | Aydınlık ortamlar için açık tema |
 | Solarized | Göz yormayan, düşük parlaklıkta mavi-yeşil tonlar |
 | Monokai | Kod düzenleyicilerden tanıdık sıcak koyu tema |
+| VS Code Dark Modern | Visual Studio Code'un varsayılan koyu teması (Dark Modern) |
 | Yüksek kontrast | En yüksek okunabilirlik: siyah zemin, parlak yazı |
-| Klasik terminal | Siyah zemin üzerinde yeşil fosforlu terminal görünümü |
+| Matrix | Siyah zemin üzerinde yeşil fosforlu, Matrix tarzı görünüm |
 
 - Geçiş anında olur: açık tüm pencereler (kart terminalleri, Dosya Gezgini, Komut Kütüphanesi, başlık ve kaydırma çubukları) yeni temaya geçer. Bağlantılar kesilmez, terminal içerikleri silinmez.
 - **Ctrl+Shift+L** listedeki sonraki temaya geçer.
@@ -532,7 +533,7 @@ Bağlantı başarılı olsa da yazma izni yoksa ya da kartın gördüğü yol FT
 - Sayfa yenilenmiyorsa üst çubuktaki seçimden Vision'ın sayfayı **her 2 / 5 / 10 / 30 sn'de** yeniden yüklemesini seçebilirsiniz (varsayılan: *Sayfanın kendi yenilemesi*).
 - Sunucu çalışmıyorsa sayfanın yerine açıklama çıkar; sağ üstteki **Başlat** ile buradan da başlatabilirsiniz (çalışırken **Durdur**).
 - Sunucu sayfa açıkken kapanırsa (ör. kart reboot oldu) sayfa kapanır ve açıklama görünür; yeniden açılınca sayfa kendiliğinden gelir.
-- Sekmeden çıkınca sayfa kapatılır (kart boşuna sorgulanmaz); sekmeye dönünce yeniden açılır.
+- Başka sekmeye geçince sayfa **arka planda açık kalır**: bağlantı kopmaz, sayfadaki "bağlı kalma süresi" gibi sayaçlar sıfırlanmaz; sekmeye dönünce kaldığı yerden görünür. Listeden başka bir kart seçilince o kartın sayfası açılır. Sekme hiç açılmadıysa hiçbir karta bağlanılmaz.
 - Sayfa **Microsoft Edge (WebView2)** motoruyla gösterilir; sayfadaki düğmeler, veri çekme ve kendi yenilemesi tarayıcıdaki gibi çalışır. Edge WebView2 Runtime Windows 11'de ve güncel Windows 10'da hazır gelir.
 - Bilgisayarda Edge WebView2 Runtime yoksa sayfa Windows'un eski görüntüleyicisiyle açılır; üst çubukta sarı **"Edge görüntüleyicisi yok"** uyarısı çıkar ve sayfa her 2 sn'de yeniden yüklenir. Bu durumda sayfadaki betikler (düğmeler) çalışmayabilir; Microsoft'un **WebView2 Runtime** kurulumu yapılınca sayfa tam çalışır.
 

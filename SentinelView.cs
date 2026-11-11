@@ -42,6 +42,7 @@ namespace Vision
         private static readonly string[] ReloadNames = { "Sayfanın kendi yenilemesi", "Her 2 sn yenile", "Her 5 sn yenile", "Her 10 sn yenile", "Her 30 sn yenile" };
 
         private CardConfig _selected;
+        private bool _everShown;               // sekme en az bir kez açıldı (sayfa ancak ondan sonra açılır)
         private string _navigatedUrl;          // tarayıcıda açık olan Sentinel adresi (yoksa null)
         private DateTime _retryAtUtc;          // sayfa yüklenemediyse yeniden deneme zamanı
         private string _listSignature;
@@ -149,10 +150,15 @@ namespace Vision
             Tick();
         }
 
-        /// <summary>Ana pencerenin zamanlayıcısından çağrılır (sekme görünürken).</summary>
+        /// <summary>
+        /// Ana pencerenin zamanlayıcısından her zaman çağrılır. Sekme bir kez açıldıktan sonra sayfa, başka sekmeye
+        /// geçilse de arka planda açık kalır (sayfanın bağlantısı ve sayaçları sıfırlanmaz — G28.6). Sekme hiç
+        /// açılmadıysa karta bağlanılmaz.
+        /// </summary>
         public void Tick()
         {
-            if (!Visible) { ClosePage(); return; }
+            if (Visible) _everShown = true;
+            if (!_everShown) return;
             RefreshList();
             RefreshPage();
         }
@@ -160,8 +166,7 @@ namespace Vision
         protected override void OnVisibleChanged(EventArgs e)
         {
             base.OnVisibleChanged(e);
-            if (!Visible) ClosePage();
-            else Tick();
+            if (Visible) Tick();
         }
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)

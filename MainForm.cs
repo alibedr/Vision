@@ -911,7 +911,7 @@ namespace Vision
             foreach (CardSession s in _sessions.Values) s.Sentinel.Tick(now, s.State == CardState.Connected, s.Card.Ip);
             _grid.Tick();
             _fileExplorer.Tick();
-            if (_activeTab == MainTab.Sentinel) _sentinelView.Tick();
+            _sentinelView.Tick();   // sekme görünmese de: açık sayfa arka planda sürer, sunucu durursa kapanır
             if (_statesDirty)
             {
                 _statesDirty = false;
