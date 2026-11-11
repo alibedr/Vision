@@ -8,6 +8,7 @@ namespace Vision
         [STAThread]
         private static void Main()
         {
+            LibFolder.Setup();   // yanında gelen DLL'ler "lib" klasöründen yüklensin (WebView2 türlerine dokunmadan önce)
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             ReadOnlyCopies.CleanupStale(TimeSpan.FromHours(12));   // önceki oturumlardan kalan salt okunur kopyalar

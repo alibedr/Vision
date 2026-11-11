@@ -78,6 +78,7 @@
     <Compile Include="BootChange.cs" />
     <Compile Include="Sentinel.cs" />
     <Compile Include="SentinelPage.cs" />
+    <Compile Include="LibFolder.cs" />
     <Compile Include="SentinelView.cs">
       <SubType>UserControl</SubType>
     </Compile>

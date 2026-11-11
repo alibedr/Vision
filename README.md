@@ -19,7 +19,7 @@ Geliştiren: **Ali Bedir**
 - Kart Dosya Gezgini: `devs` ile hızlı cihaz listesi, `ll`, klasör ve dosya işlemleri, FTP üzerinden karta yükleme, salt okunur "Birlikte aç"
 - Sentinel: kartın içindeki web sunucusunu tek tıkla başlatma / durdurma ve kartın sağlık sayfasını (CPU, task, socket) tarayıcı açmadan uygulama içinde görüntüleme
 - Komut Kütüphanesi: exe'ye gömülü, salt okunur 113 VxWorks 6.4 kabuk komutu (açıklama, örnek kullanım, örnek çıktı), modüllerde gruplama ve komutu tek tıkla bir kartın komut satırına aktarma
-- 7 hazır tema (Koyu, Açık, Solarized, Monokai, VS Code Dark Modern, Yüksek kontrast, Matrix) ve tema düzenleyici: renk değiştirme, anlık önizleme, kaydetme, varsayılana dönme (sekme şeridindeki Temalar menüsü; Ctrl+Shift+L sonraki tema)
+- 21 hazır tema: Vision temaları (Koyu, Açık, Yüksek kontrast, Matrix) ve popüler editör temaları (Dark Modern, Light Modern, Dark+, Monokai, Solarized Dark, Solarized Light, Dracula, One Dark Pro, GitHub Dark, GitHub Light, Nord, Night Owl, Tokyo Night, Catppuccin Mocha, Gruvbox Dark, Material Theme, Ayu Dark) ve tema düzenleyici: renk değiştirme, anlık önizleme, kaydetme, varsayılana dönme (sekme şeridindeki Temalar menüsü; Ctrl+Shift+L sonraki tema)
 - Türkçe arayüz ve hata mesajları, uygulama içi yardım (F1)
 
 ## Gereksinimler
@@ -34,6 +34,8 @@ Geliştiren: **Ali Bedir**
 1. `Vision.sln` dosyasını Visual Studio 2019 ile açın.
 2. **Build → Build Solution** (Ctrl+Shift+B).
 3. Çıktı `bin\Debug\` (ya da `bin\Release\`) klasöründedir. `Yardim\` klasörü exe'nin yanına kopyalanır; komut kütüphanesi exe'ye gömülüdür.
+
+Hazır paket (`Vision.zip`) düzeni: `Vision\Vision.exe`, `Vision\lib\` (Sentinel sayfası için Edge WebView2 DLL'leri) ve `Vision\Yardim\`. Klasör bütün olarak kopyalanmalıdır.
 
 ## Klasör yapısı
 

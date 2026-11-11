@@ -300,7 +300,19 @@ namespace Vision
         private void EnsurePage()
         {
             if (_page != null) return;
-            CreatePage(true);
+            try { CreatePage(true); }
+            catch (Exception ex)
+            {
+                // Edge kitaplığı yüklenemedi (ör. lib klasörü eksik): eski görüntüleyiciyle devam
+                ErrorText.LogTechnical("Sentinel Edge WebView2", ex);
+                if (_page != null) { try { _pageHost.Controls.Remove(_page.Control); _page.Dispose(); } catch { } }
+                _page = new LegacySentinelPage();
+                ShowLegacyNote(ex);
+                _page.LoadFailed = () => { _navigatedUrl = null; _retryAtUtc = DateTime.UtcNow.AddSeconds(2); };
+                _page.Control.Visible = true;
+                _pageHost.Controls.Add(_page.Control);
+                _page.Control.BringToFront();
+            }
         }
 
         private void CreatePage(bool modern)
@@ -336,6 +348,12 @@ namespace Vision
             _navigatedUrl = null;
             _retryAtUtc = DateTime.MinValue;
             CreatePage(false);
+            ShowLegacyNote(ex);
+            RefreshPage();
+        }
+
+        private void ShowLegacyNote(Exception ex)
+        {
             if (!_reloadTouched) { _reloadCombo.SelectedIndex = 1; _reloadTouched = false; }
             _engineNote.Text = "⚠  Edge görüntüleyicisi yok — eski görüntüleyici";
             _engineNote.Visible = true;
@@ -344,7 +362,6 @@ namespace Vision
                                           "Microsoft'un \"WebView2 Runtime\" kurulumu yapılırsa sayfa tam çalışır.");
             _barSignature = null;
             LayoutPageBar();
-            RefreshPage();
         }
 
         private void Navigate(string url)

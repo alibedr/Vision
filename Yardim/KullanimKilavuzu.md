@@ -19,15 +19,38 @@ Vision; donanım kartlarına telnet ile bağlanmak, kartlara komut göndermek, b
 
 Sekme şeridinin en sağındaki **Temalar** düğmesi (Yardım'ın yanında, palet simgesi) hazır temaları listeler. Seçili tema işaretlidir; her temanın yanında küçük bir renk örneği görünür.
 
+Temalar menüde iki başlık altında listelenir.
+
+**Vision temaları**
+
 | Tema | Görünüm |
 |---|---|
 | Koyu | Vision'ın varsayılan koyu teması |
 | Açık | Aydınlık ortamlar için açık tema |
-| Solarized | Göz yormayan, düşük parlaklıkta mavi-yeşil tonlar |
-| Monokai | Kod düzenleyicilerden tanıdık sıcak koyu tema |
-| VS Code Dark Modern | Visual Studio Code'un varsayılan koyu teması (Dark Modern) |
 | Yüksek kontrast | En yüksek okunabilirlik: siyah zemin, parlak yazı |
 | Matrix | Siyah zemin üzerinde yeşil fosforlu, Matrix tarzı görünüm |
+
+**Popüler editör temaları** — kod düzenleyicilerden tanıdık temalar, kendi renk paletleriyle
+
+| Tema | Görünüm |
+|---|---|
+| Dark Modern | Visual Studio Code'un varsayılan koyu teması |
+| Light Modern | Visual Studio Code'un varsayılan açık teması |
+| Dark+ | Klasik koyu editör teması (Dark+) |
+| Monokai | Kod düzenleyicilerden tanıdık sıcak koyu tema |
+| Solarized Dark | Göz yormayan, düşük parlaklıkta mavi-yeşil tonlar |
+| Solarized Light | Solarized'ın açık, krem zeminli sürümü |
+| Dracula | Mor vurgulu, canlı renkli koyu tema |
+| One Dark Pro | Atom'un One Dark teması: yumuşak, dengeli koyu |
+| GitHub Dark | GitHub'ın koyu teması |
+| GitHub Light | GitHub'ın açık teması |
+| Nord | Kuzey ışıklarından esinlenen soğuk mavi-gri tonlar |
+| Night Owl | Gece çalışması için derin lacivert tema |
+| Tokyo Night | Tokyo gece ışıklarından esinlenen koyu tema |
+| Catppuccin Mocha | Pastel tonlu, yumuşak koyu tema |
+| Gruvbox Dark | Sıcak, retro tonlu koyu tema |
+| Material Theme | Material Design renkleriyle koyu tema |
+| Ayu Dark | Turuncu vurgulu, çok koyu sade tema |
 
 - Geçiş anında olur: açık tüm pencereler (kart terminalleri, Dosya Gezgini, Komut Kütüphanesi, başlık ve kaydırma çubukları) yeni temaya geçer. Bağlantılar kesilmez, terminal içerikleri silinmez.
 - **Ctrl+Shift+L** listedeki sonraki temaya geçer.

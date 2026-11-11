@@ -53,17 +53,18 @@ jobs:
           New-Item -ItemType Directory -Force $out | Out-Null
           Copy-Item bin\Release\Vision.exe $out
           if (Test-Path bin\Release\Vision.exe.config) { Copy-Item bin\Release\Vision.exe.config $out }
-          # Edge WebView2 (Sentinel sayfası): yönetilen DLL'ler + mimariye göre yükleyici
-          Copy-Item bin\Release\Microsoft.Web.WebView2.Core.dll, bin\Release\Microsoft.Web.WebView2.WinForms.dll $out
+          # Edge WebView2 (Sentinel sayfası): DLL'ler exe'nin yanında değil "lib" klasöründe (Program: LibFolder.Setup)
+          $lib = "$out\lib"
+          New-Item -ItemType Directory -Force $lib | Out-Null
+          Copy-Item bin\Release\Microsoft.Web.WebView2.Core.dll, bin\Release\Microsoft.Web.WebView2.WinForms.dll $lib
           $pkg = (Get-ChildItem packages -Directory -Filter "Microsoft.Web.WebView2.*" | Select-Object -First 1).FullName
           foreach ($rid in "win-x86", "win-x64", "win-arm64") {
             $src = if (Test-Path "bin\Release\runtimes\$rid\native\WebView2Loader.dll") { "bin\Release\runtimes\$rid\native\WebView2Loader.dll" } else { "$pkg\runtimes\$rid\native\WebView2Loader.dll" }
             if (Test-Path $src) {
-              New-Item -ItemType Directory -Force "$out\runtimes\$rid\native" | Out-Null
-              Copy-Item $src "$out\runtimes\$rid\native"
+              New-Item -ItemType Directory -Force "$lib\runtimes\$rid\native" | Out-Null
+              Copy-Item $src "$lib\runtimes\$rid\native"
             }
           }
-          if (Test-Path bin\Release\WebView2Loader.dll) { Copy-Item bin\Release\WebView2Loader.dll $out }
           Get-ChildItem -Recurse $out | Select-Object FullName
           Copy-Item -Recurse bin\Release\Yardim $out
           Compress-Archive -Path $out -DestinationPath Vision.zip -Force
