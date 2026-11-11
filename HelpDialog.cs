@@ -13,8 +13,7 @@ namespace Vision
 
     /// <summary>
     /// Yardım penceresi (F1): Kullanım Kılavuzu, Gereksinimler ve Hakkında.
-    /// Belgeler exe'nin yanındaki Yardim klasöründeki .md dosyalarından okunur (yeniden derlemeden güncellenebilir);
-    /// klasör yoksa exe'ye gömülü kopya gösterilir.
+    /// Belgeler exe'nin içine gömülüdür (G32); her sürüm kendi kılavuzunu gösterir, ayrı Yardim klasörü gerekmez.
     /// </summary>
     public sealed class HelpDialog : Form
     {
@@ -106,39 +105,17 @@ namespace Vision
             _nav.Controls.Add(_toc);
             Theme.ApplyDarkScrollBars(_toc);
 
-            var openFolder = Theme.MakeButton("Yardım klasörünü aç", IconKind.Folder, Theme.ButtonKind.Secondary);
-            openFolder.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-            openFolder.Font = Theme.UiSmall;
             _source.AutoSize = false;
             _source.AutoEllipsis = true;
             _source.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-            _nav.Controls.Add(openFolder);
             _nav.Controls.Add(_source);
-            openFolder.Click += (s, e) => OpenHelpFolder(this);
-            new DarkToolTip().SetToolTip(openFolder, "Belgeleri (.md) bir metin düzenleyiciyle güncellemek için klasörü açar");
 
             _nav.Resize += (s, e) =>
             {
-                openFolder.SetBounds(14, _nav.Height - 70, 222, 28);
                 _source.SetBounds(14, _nav.Height - 36, 222, 30);
-                _toc.Size = new Size(240, Math.Max(40, openFolder.Top - _toc.Top - 10));
+                _toc.Size = new Size(240, Math.Max(40, _source.Top - _toc.Top - 10));
             };
             _nav.Paint += (s, e) => { using (var pen = new Pen(Theme.Border)) e.Graphics.DrawLine(pen, _nav.Width - 1, 0, _nav.Width - 1, _nav.Height); };
-        }
-
-        /// <summary>Yardım belgelerinin (.md) bulunduğu klasörü Windows Gezgini'nde açar.</summary>
-        public static void OpenHelpFolder(IWin32Window owner)
-        {
-            try
-            {
-                if (Directory.Exists(HelpMarkdown.FolderPath)) Process.Start("explorer.exe", "\"" + HelpMarkdown.FolderPath + "\"");
-                else ChoiceDialog.Ask(owner, "Yardım", "Yardım klasörü bulunamadı.",
-                    HelpMarkdown.FolderPath + "\n\nŞu an uygulamaya gömülü kopya gösteriliyor.", new[] { "Tamam" }, 0, -1);
-            }
-            catch (Exception ex)
-            {
-                ErrorText.LogTechnical("yardım klasörü", ex);
-            }
         }
 
         // ---------- Sayfalar ----------
@@ -169,8 +146,8 @@ namespace Vision
                 string md = HelpMarkdown.LoadDocument(file, out source);
                 if (md == null)
                 {
-                    body = "<h1>Belge bulunamadı</h1><p><code>" + HelpMarkdown.Escape(Path.Combine(HelpMarkdown.FolderPath, file)) +
-                           "</code> bulunamadı ve uygulamaya gömülü kopya da yok.</p>";
+                    body = "<h1>Belge bulunamadı</h1><p><code>" + HelpMarkdown.Escape(file) +
+                           "</code> uygulamaya gömülü değil (derleme hatası).</p>";
                     toc = new List<HelpMarkdown.TocEntry>();
                     _source.Text = "Belge bulunamadı";
                 }

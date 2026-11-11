@@ -222,29 +222,13 @@ namespace Vision
 
         public const string FolderName = "Yardim";
 
-        /// <summary>Exe'nin yanındaki Yardim klasörü (düzenlenebilir kopya).</summary>
-        public static string FolderPath
-        {
-            get { return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, FolderName); }
-        }
-
         /// <summary>
-        /// Belgeyi okur: önce exe'nin yanındaki Yardim klasörü (yeniden derlemeden düzenlenebilir),
-        /// bulunamazsa exe'nin içine gömülü kopya. source: dosya yolu ya da "gömülü".
+        /// Belgeyi exe'nin içine gömülü kopyadan okur (G32): belge her zaman çalışan sürümle birebir aynıdır.
+        /// Exe'nin yanında eski bir Yardim klasörü kalmış olsa bile kullanılmaz (eskimiş kılavuz gösterilmesin).
+        /// Belgeler depoda Yardim\*.md olarak durur ve derlemede exe'ye gömülür.
         /// </summary>
         public static string LoadDocument(string fileName, out string source)
         {
-            string path = Path.Combine(FolderPath, fileName);
-            try
-            {
-                if (File.Exists(path))
-                {
-                    source = path;
-                    return File.ReadAllText(path, Encoding.UTF8);
-                }
-            }
-            catch { }
-
             Assembly asm = typeof(HelpMarkdown).Assembly;
             using (Stream st = asm.GetManifestResourceStream(FolderName + "." + fileName))
             {
@@ -252,7 +236,7 @@ namespace Vision
                 {
                     using (var reader = new StreamReader(st, Encoding.UTF8))
                     {
-                        source = "uygulamaya gömülü kopya";
+                        source = "uygulamaya gömülü";
                         return reader.ReadToEnd();
                     }
                 }

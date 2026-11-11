@@ -2,14 +2,14 @@
 
 Vision; donanım kartlarına telnet ile bağlanmak, kartlara komut göndermek, birden çok kartın çıktısını aynı anda izlemek ve kartların dosya sistemini gezmek için geliştirilmiş bir masaüstü uygulamasıdır.
 
-> Bu belge uygulamanın yanındaki `Yardim\KullanimKilavuzu.md` dosyasından okunur. Herhangi bir metin düzenleyiciyle güncelleyebilirsiniz; değişiklik, Yardım penceresi bir sonraki açılışta görünür.
+> Bu belge uygulamanın içine gömülüdür; her Vision sürümü kendi kılavuzunu gösterir. Kaynağı projede `Yardim\KullanimKilavuzu.md` dosyasıdır.
 
 ## Ekranın bölümleri
 
 | Bölüm | Konum | Ne işe yarar |
 |---|---|---|
 | Kart Gezgini | Sol kenar | Grupları ve kartları listeler; kart ekleme, seçme, bağlanma ve gösterme buradan yapılır. Sekme şeridinin en solundaki kenar çubuğu düğmesi (Ctrl+B) ile gizlenip gösterilir. |
-| Sekmeler | Sağ alanın üstü | **Telnet** (kart terminalleri), **Kart Dosya Gezgini**, **Komut Kütüphanesi** ve **Sentinel** arasında geçiş (Ctrl+1 / 2 / 3 / 4). Aynı şeridin en sağında **Yardım** (Kullanım Kılavuzu, Gereksinimler, Yardım klasörü, Hakkında) ve **Temalar** menüsü (hazır temalar ve özelleştirme; aşağıya bakın) bulunur. |
+| Sekmeler | Sağ alanın üstü | **Telnet** (kart terminalleri), **Kart Dosya Gezgini**, **Komut Kütüphanesi** ve **Sentinel** arasında geçiş (Ctrl+1 / 2 / 3 / 4). Aynı şeridin en sağında **Yardım** (Kullanım Kılavuzu, Gereksinimler, Hakkında) ve **Temalar** menüsü (hazır temalar ve özelleştirme; aşağıya bakın) bulunur. |
 | Telnet sekmesi | Sağ alan | Seçilen kartların terminal pencereleri ızgara düzeninde görünür (en fazla 24 kart). |
 | Terminal ayarları | Telnet sekmesinin üst çubuğu | Satır sonu, yerel eko, zaman damgası, dosyaya kaydet, satır sınırı ve "Tümünü kapat". |
 | Genel komut çubuğu | Telnet sekmesinin altı | Bir komutu ekrandaki tüm kartlara aynı anda gönderir. |
@@ -712,7 +712,6 @@ Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındak
 | `%APPDATA%\TelnetCards\KomutGecmisi.txt` | Komut geçmişi: yazılan tüm komutlar, satır başına bir komut, eskiden yeniye (en fazla 5.000; tüm kartlar ve genel çubuk ortak; otomatik kaydedilir). Silinirse geçmiş boş başlar. |
 | `logs\GrupAdı_IP_anlik_tarih_saat.log` | "Dosyaya kaydet" ile alınan anlık terminal görüntüleri (her tıklama ayrı dosya). |
 | `logs\hatalar.log` | Bağlantı hatalarının teknik ayrıntıları (hata kodu, özgün İngilizce mesaj). Her zaman açıktır. |
-| `Yardim\` | Bu kılavuz ve gereksinimler belgesi. |
 | `%TEMP%\TelnetCards\SaltOkunur\` | "Birlikte aç" ile açılan salt okunur kopyalar (kapanışta silinir). |
 | `%TEMP%\TelnetCards\Surukle\` | Karttan Windows Gezgini'ne sürüklenen öğelerin geçici kopyaları (kapanışta silinir). |
 
@@ -737,4 +736,4 @@ Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındak
 
 ## Belgeleri güncelleme
 
-Bu kılavuz ve gereksinimler belgesi Markdown biçimindedir. Proje içinde `Yardim\` klasöründedir; derlemede exe'nin yanına kopyalanır ve exe'nin içine de yedek olarak gömülür. Yardım penceresindeki **Yardım klasörünü aç** düğmesiyle dosyalara ulaşabilirsiniz. Yeni özellik eklendikçe ilgili bölüm güncellenmelidir.
+Bu kılavuz ve gereksinimler belgesi Markdown biçimindedir. Proje içinde `Yardim\` klasöründedir ve derlemede exe'nin içine gömülür; dağıtılan pakette ayrı bir Yardim klasörü yoktur. Yeni özellik eklendikçe ilgili bölüm güncellenmeli ve yeni sürüm derlenmelidir.
