@@ -501,7 +501,8 @@ Yüklemenin tersi de çalışır: listedeki bir **dosyayı ya da klasörü** Win
 
 - Sürükleme başlarken hiçbir şey indirilmez. Vision dışına **bırakıldığı anda** küçük bir ilerleme penceresi açılır ("… karttan alınıyor"). Dosyalar yüklemedeki yolun tersiyle alınır: kartta `copy` ile FTP konumuna geçici kopya, FTP'den indirme, geçici kopyanın silinmesi. İkili dosyalar (.bin, .out …) bozulmadan gelir. İndirme bitince Windows Gezgini dosyaları bırakılan yere kopyalar; aynı adlı dosya varsa Gezgin kendisi sorar.
 - **Klasör** sürüklenirse alt klasörleriyle birlikte alınır (klasörler tek tek listelenir, dosyalar sırayla indirilir; ilerleme penceresinde *3 / 12 · alt\dosya.txt* gibi görünür). En fazla 300 klasör / 3000 dosya; daha büyükse alt klasörleri ayrı ayrı alın.
-- İndirme sürerken Windows Gezgini bırakmanın bitmesini bekler. Büyük dosyalarda biraz sürebilir; **İptal** o anki dosya bitince durdurur ve hiçbir şey kopyalanmaz.
+- İndirme, bırakma Windows Gezgini'ne iletilmeden önce Vision'da yapılır; Gezgin beklemez, bitince dosyayı alır. Büyük dosyalarda biraz sürebilir; **İptal** o anki dosya bitince durdurur ve hiçbir şey kopyalanmaz.
+- Bırakılan yer dosya kabul etmiyorsa (ör. bir uygulamanın düğmesi) hiçbir şey indirilmez.
 - Listenin içine bırakmak eskisi gibi kart içinde **taşır** (Ctrl ile **kopyalar**); bilgisayara indirme yapılmaz.
 - Sürüklemek yerine sağ tık → **Bilgisayara kaydet…** ile klasör seçerek de alabilirsiniz; bitince kayıt yeri Windows Gezgini'nde açılır. Aynı adlı öğe varsa üzerine yazmadan önce sorulur.
 - FTP bilgisi kart bağlıyken otomatik alınır (yüklemedeki gibi). Alınamazsa neden şeritte yazar.

@@ -15,56 +15,26 @@ namespace Vision
     /// sürüklenip bırakılabilir; ayrıca sağ tık "Bilgisayara kaydet…". Yükleme yolunun tersi kullanılır: kartta copy ile
     /// FTP konumuna geçici kopya, FTP'den indirme, geçici kopyanın silinmesi (ikili dosyalar bozulmaz).
     ///
-    /// Sürükle-bırak "geciktirilmiş" çalışır: sürükleme başlarken hiçbir şey indirilmez; Windows Gezgini'ne bırakıldığı
-    /// AN dosyalar geçici klasöre indirilir (ilerleme penceresi açılır) ve Gezgin onları bırakılan yere kopyalar.
+    /// Sürükleme başlarken hiçbir şey indirilmez; Vision dışına bırakıldığı AN (bırakma Gezgin'e iletilmeden önce)
+    /// öğe geçici klasöre indirilir (ilerleme penceresi açılır) ve Gezgin onu bırakılan yere kopyalar.
     /// Vision'ın kendi listesine bırakmak eskisi gibi kart içinde taşır / kopyalar; indirme yapılmaz.
     /// </summary>
     public sealed partial class FileExplorerView
     {
-        // ---------- Sürükleme verisi ----------
+        // ---------- Sürükleme ----------
+        //
+        // Windows'a (Gezgin, masaüstü) baştan GERÇEK yollar verilir: geçici klasörde öğeyle aynı adlı boş bir yer tutucu
+        // (dosya ya da klasör). Fare Vision dışında bırakıldığında, bırakma Gezgin'e iletilmeden ÖNCE (sürükleme
+        // döngüsünün "devam edilsin mi" sorusunda) öğe karttan bu yola indirilir; sonra Gezgin onu bırakılan yere
+        // kopyalar. Böylece Gezgin hiçbir zaman geçersiz veri almaz ve indirme sürerken beklemez (G31.3).
 
-        /// <summary>
-        /// Sürüklenen kart öğesi. İç biçim (Vision.FsEntry) her zaman vardır; Windows'a "dosya" (FileDrop) olarak da
-        /// görünür ama dosyalar yalnız bırakma anında ve Vision'ın DIŞINDAKİ bir pencereye bırakılınca üretilir.
-        /// </summary>
-        private sealed class CardDragData : DataObject
+        private sealed class DragState
         {
-            private readonly Func<string[]> _render;
-            private bool _rendered;
-            private string[] _files;
-
-            public CardDragData(FsEntry entry, Func<string[]> render)
-            {
-                SetData(InternalDragFormat, entry);
-                _render = render;
-            }
-
-            /// <summary>Fare bırakıldı (sürükleme döngüsü bunu bildirir); dosyalar ancak o zaman üretilir.</summary>
-            public bool Dropping { get; set; }
-
-            public override bool GetDataPresent(string format, bool autoConvert)
-            {
-                return format == DataFormats.FileDrop || base.GetDataPresent(format, autoConvert);
-            }
-
-            public override string[] GetFormats(bool autoConvert)
-            {
-                return base.GetFormats(autoConvert).Concat(new[] { DataFormats.FileDrop }).Distinct().ToArray();
-            }
-
-            public override object GetData(string format, bool autoConvert)
-            {
-                if (format != DataFormats.FileDrop) return base.GetData(format, autoConvert);
-                // Sürüklerken (Gezgin yalnız bakıyor) ya da Vision'ın kendi penceresine bırakılırken indirme yapılmaz
-                if (!Dropping || IsOverOwnWindow()) return null;
-                if (!_rendered)
-                {
-                    _rendered = true;
-                    try { _files = _render(); }
-                    catch (Exception ex) { ErrorText.LogTechnical("karttan sürükle-bırak", ex); _files = null; }
-                }
-                return _files;
-            }
+            public FsEntry Entry;
+            public string Dir;              // geçici klasör
+            public string Path;             // Gezgin'e verilen yol (Dird)
+            public bool Handled;            // bırakma bir kez işlenir
+            public DragDropEffects LastEffect = DragDropEffects.None;   // hedefin kabul ettiği etki (None: kabul etmiyor)
         }
 
         [StructLayout(LayoutKind.Sequential)]
@@ -75,6 +45,9 @@ namespace Vision
 
         [DllImport("user32.dll")]
         private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+
+        [DllImport("user32.dll")]
+        private static extern bool ReleaseCapture();
 
         /// <summary>Fare Vision'ın bir penceresinin üzerinde mi?</summary>
         private static bool IsOverOwnWindow()
@@ -94,54 +67,66 @@ namespace Vision
             }
         }
 
-        private CardDragData _activeDrag;
+        private DragState _drag;
 
         private void WireDragOut()
         {
-            // Fare bırakılınca sürükleme döngüsü bunu sorar: bırakma anı buradan anlaşılır
-            _list.QueryContinueDrag += (s, e) =>
-            {
-                if (_activeDrag != null && e.Action == DragAction.Drop && !e.EscapePressed) _activeDrag.Dropping = true;
-            };
+            _list.GiveFeedback += (s, e) => { if (_drag != null) _drag.LastEffect = e.Effect; };
+            _list.QueryContinueDrag += List_QueryContinueDrag;
         }
 
-        /// <summary>Listeden sürükleme başladı: kart içi taşıma + Windows'a sürükleme için veri.</summary>
+        /// <summary>Listeden sürükleme başladı: kart içi taşıma + Windows'a (bilgisayara) bırakma için veri.</summary>
         private void StartCardDrag(FsEntry entry)
         {
-            bool canExport = entry.Kind == FsKind.File || entry.Kind == FsKind.Folder || entry.Kind == FsKind.Unknown;
-            DataObject data;
-            if (canExport)
+            var data = new DataObject();
+            data.SetData(InternalDragFormat, entry);
+            DragState st = null;
+            if (entry.Kind == FsKind.File || entry.Kind == FsKind.Folder || entry.Kind == FsKind.Unknown)
             {
-                _activeDrag = new CardDragData(entry, () => RenderDragOut(entry));
-                data = _activeDrag;
+                try
+                {
+                    string dir = DragOutCopies.NewDir(_card != null ? _card.Ip : null);
+                    string path = Path.Combine(dir, ReadOnlyCopies.SafeSegment(entry.Name));
+                    // Yer tutucu: Gezgin sürüklerken var olan bir öğe görsün (içerik bırakınca indirilir)
+                    if (entry.Kind == FsKind.Folder) Directory.CreateDirectory(path);
+                    else File.WriteAllBytes(path, new byte[0]);
+                    st = new DragState { Entry = entry, Dir = dir, Path = path };
+                    data.SetData(DataFormats.FileDrop, new[] { path });
+                }
+                catch (Exception ex)
+                {
+                    ErrorText.LogTechnical("karttan sürükleme hazırlığı", ex);   // yalnız kart içi sürükleme yapılabilir
+                    st = null;
+                }
             }
-            else
-            {
-                data = new DataObject();
-                data.SetData(InternalDragFormat, entry);
-            }
+            _drag = st;
             try { _list.DoDragDrop(data, DragDropEffects.Move | DragDropEffects.Copy); }
-            finally { _activeDrag = null; }
+            finally { _drag = null; }
         }
 
         /// <summary>
-        /// Windows Gezgini'ne bırakıldı: öğe geçici klasöre indirilir, yolu Gezgin'e verilir (Gezgin bırakılan yere
-        /// kopyalar). Bu sırada Gezgin bekler; ilerleme Vision'da gösterilir, İptal ile durdurulabilir.
+        /// Sürükleme döngüsü her adımda sorar. Fare Vision DIŞINDA, kabul eden bir hedefe bırakılınca öğe burada indirilir;
+        /// indirme başarısız / iptal ise bırakma iptal edilir (Gezgin'e boş yer tutucu gitmez).
         /// </summary>
-        private string[] RenderDragOut(FsEntry entry)
+        private void List_QueryContinueDrag(object sender, QueryContinueDragEventArgs e)
         {
-            if (!CanOperate) return null;
-            string dir;
-            try { dir = DragOutCopies.NewDir(_card != null ? _card.Ip : null); }
-            catch (Exception ex)
+            DragState st = _drag;
+            if (st == null || st.Handled || e.EscapePressed || e.Action != DragAction.Drop) return;
+            st.Handled = true;
+            if (IsOverOwnWindow()) return;                                   // Vision'ın içine: kart içi taşıma / kopyalama
+            if (st.LastEffect == DragDropEffects.None) { e.Action = DragAction.Cancel; return; }   // hedef kabul etmiyor
+            if (!CanOperate) { e.Action = DragAction.Cancel; return; }
+
+            ReleaseCapture();   // ilerleme penceresi (İptal) fareyle kullanılabilsin
+            string result = null;
+            try { result = RunTransferDialog(st.Entry, st.Dir); }
+            catch (Exception ex) { ErrorText.LogTechnical("karttan sürükle-bırak", ex); }
+            if (result == null || !string.Equals(result, st.Path, StringComparison.OrdinalIgnoreCase))
             {
-                _browser.ShowWarning("Geçici klasör oluşturulamadı: " + ErrorText.Describe(ex));
-                return null;
+                e.Action = DragAction.Cancel;   // hata / iptal: hiçbir şey kopyalanmaz (neden şeritte)
+                return;
             }
-            string result = RunTransferDialog(entry, dir);
-            if (result == null) { ReadOnlyCopies.DeleteTree(dir); return null; }
-            _browser.ShowNotice("\"" + entry.Name + "\" karttan bilgisayara alındı (Windows Gezgini bırakılan yere kopyalıyor).");
-            return new[] { result };
+            _browser.ShowNotice("\"" + st.Entry.Name + "\" karttan bilgisayara alındı (Windows Gezgini bırakılan yere kopyalıyor).");
         }
 
         // ---------- Bilgisayara kaydet (sağ tık) ----------
