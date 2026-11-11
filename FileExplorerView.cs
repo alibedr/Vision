@@ -342,10 +342,7 @@ namespace Vision
             else if (busy && _list.Items.Count == 0)
                 overlay = "Yükleniyor…\n\n" + b.PendingCommand;
             else if (b != null && b.Loaded && b.Entries.Count == 0 && b.Error == null)
-                overlay = !b.Current.IsRoot ? "Bu klasör boş."
-                        : b.HiddenDevices.Count > 0
-                        ? "Kartta içine girilebilen cihaz yok.\n\nDenenen cihazların hiçbiri listelenemedi: " + string.Join(", ", b.HiddenDevices) + "\n\"Yenile\" ile tekrar denetleyin."
-                        : "Kart cihaz listesi döndürmedi.";
+                overlay = !b.Current.IsRoot ? "Bu klasör boş." : "Kart cihaz listesi döndürmedi.";
             else if (b != null && !b.Loaded && !busy && b.Error != null)
                 overlay = "Cihaz listesi alınamadı.\n\n\"Yenile\" ile tekrar deneyin.";
             _overlay.Text = overlay ?? "";
@@ -379,8 +376,8 @@ namespace Vision
             if (!connected || !b.Loaded) return "";
             string where = b.Current.IsRoot ? "Cihazlar" : b.Current.Path;
             string count = b.Entries.Count + (b.Current.IsRoot ? " cihaz" : " öğe");
-            if (b.Current.IsRoot && b.HiddenDevices.Count > 0)
-                count += "  ·  içine girilemeyen " + b.HiddenDevices.Count + " cihaz gizlendi (" + string.Join(", ", b.HiddenDevices) + ")";
+            int bad = b.Current.IsRoot ? b.Entries.Count(e => e.NotEnterable) : 0;
+            if (bad > 0) count += "  ·  " + bad + " cihazın içine girilemedi";
             string rc = b.LastResponse != null && b.LastResponse.ReturnCode.HasValue && !b.Current.IsRoot
                 ? "  ·  son dönüş değeri " + b.LastResponse.ReturnCode.Value : "";
             return count + "  ·  " + where + rc;
@@ -404,7 +401,7 @@ namespace Vision
         private void FillList(FileBrowser b)
         {
             // Aynı içerik yeniden çizilmesin (seçim ve kaydırma korunur)
-            string signature = (b.Current.Path ?? "<root>") + "|" + string.Join("|", b.Entries.Select(e => e.Name + ":" + e.Kind));
+            string signature = (b.Current.Path ?? "<root>") + "|" + string.Join("|", b.Entries.Select(e => e.Name + ":" + e.KindText));
             if (_list.Tag as string == signature) return;
             _list.Tag = signature;
 
@@ -630,8 +627,9 @@ namespace Vision
                     e.Graphics.DrawImage(img, x, e.Bounds.Y + (e.Bounds.Height - 20) / 2, 20, 20);
                 }
                 x += 28;
-                Color fore = Enabled ? Theme.Text : Theme.TextFaint;
-                Font f = entry != null && (entry.Kind == FsKind.Folder || entry.Kind == FsKind.Device) ? Theme.UiBold : Font;
+                bool notEnterable = entry != null && entry.NotEnterable;   // içine girilemeyen cihaz soluk çizilir
+                Color fore = !Enabled ? Theme.TextFaint : notEnterable ? Theme.TextMuted : Theme.Text;
+                Font f = entry != null && !notEnterable && (entry.Kind == FsKind.Folder || entry.Kind == FsKind.Device) ? Theme.UiBold : Font;
                 TextRenderer.DrawText(e.Graphics, e.SubItem.Text, f, new Rectangle(x, e.Bounds.Y, e.Bounds.Right - x - 4, e.Bounds.Height),
                     fore, TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
             }
@@ -639,7 +637,8 @@ namespace Vision
             {
                 var r = new Rectangle(e.Bounds.X + 10, e.Bounds.Y, e.Bounds.Width - 12, e.Bounds.Height);
                 bool pathColumn = e.ColumnIndex == Columns.Count - 1;
-                Color fore = pathColumn ? Theme.TextFaint : Theme.TextMuted;
+                Color fore = pathColumn ? Theme.TextFaint
+                           : e.ColumnIndex == 1 && entry != null && entry.NotEnterable ? Theme.Warning : Theme.TextMuted;
                 TextRenderer.DrawText(e.Graphics, e.SubItem.Text, pathColumn ? Theme.Mono : Font, r, fore,
                     TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
             }

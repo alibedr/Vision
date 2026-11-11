@@ -144,6 +144,13 @@ namespace Vision
         public long? Size { get; set; }
         /// <summary>Değiştirilme zamanı, kartın yazdığı gibi (ör. "Jun 12 14:30"); yalnız "ll" çıktısında.</summary>
         public string Modified { get; set; }
+        /// <summary>
+        /// Yalnız cihazlar için: içine girilmeye çalışıldı ve kart listelemeyi reddetti (dönüş değeri 0 değil).
+        /// Cihaz listede kalır, türünde "girilemiyor" yazar.
+        /// </summary>
+        public bool NotEnterable { get; set; }
+        /// <summary>NotEnterable ise kartın döndürdüğü değer (biliniyorsa).</summary>
+        public int? NotEnterableCode { get; set; }
 
         public string SizeText
         {
@@ -163,7 +170,10 @@ namespace Vision
             {
                 switch (Kind)
                 {
-                    case FsKind.Device: return "Cihaz";
+                    case FsKind.Device:
+                        return NotEnterable
+                            ? "Cihaz · girilemiyor" + (NotEnterableCode.HasValue ? " (" + NotEnterableCode.Value + ")" : "")
+                            : "Cihaz";
                     case FsKind.Folder: return "Klasör";
                     case FsKind.File: return "Dosya";
                     default: return "Klasör / dosya";
@@ -387,6 +397,8 @@ namespace Vision
         public ShellResponse Response { get; set; }
         /// <summary>Hata değil bilgi (ör. "bu bir dosya"): bilgi şeridinde gösterilir.</summary>
         public bool IsNotice { get; set; }
+        /// <summary>Hata değil uyarı (ör. içine girilemeyen cihaz): uyarı rengiyle gösterilir.</summary>
+        public bool IsWarning { get; set; }
 
         public static OpResult Success(string message) { return new OpResult { Ok = true, Message = message }; }
         public static OpResult Fail(string message) { return new OpResult { Ok = false, Message = message }; }
@@ -416,7 +428,6 @@ namespace Vision
             _exec = exec;
             Current = FsLocation.Root;
             Entries = new List<FsEntry>();
-            HiddenDevices = new List<string>();
         }
 
         public FsLocation Current { get; private set; }
@@ -436,13 +447,11 @@ namespace Vision
         /// <summary>Listeleme komutu: "ll" (varsayılan) ya da kartta ll yoksa "ls".</summary>
         public string ListCommand { get { return _listCommand; } }
         /// <summary>
-        /// "devs"in listelediği ama içine girilemeyen (listeleme komutu 0 dışında değer döndüren) cihazlar.
-        /// Bunlar Cihazlar listesinde gösterilmez (ör. /null, /tyCo/0).
+        /// İçine girilmeye çalışılıp girilemeyen cihazlar (cihaz → kartın dönüş değeri). Cihazlar listesinde
+        /// "girilemiyor" olarak işaretlenir. Kart değişince / Cihazlar'da Yenile ile temizlenir.
+        /// Cihazlar önceden denetlenmez (G27): "devs" ile hepsi hemen listelenir, denetim yalnız içine girerken yapılır.
         /// </summary>
-        public List<string> HiddenDevices { get; private set; }
-
-        /// <summary>Cihaz denetiminin önbelleği (cihaz → içine girilebiliyor mu). Yenile / ilk yükleme temizler.</summary>
-        private readonly Dictionary<string, bool> _deviceProbe = new Dictionary<string, bool>();
+        private readonly Dictionary<string, int?> _notEnterable = new Dictionary<string, int?>(StringComparer.Ordinal);
 
         /// <summary>İçinde bulunulan klasör (kökteyken null).</summary>
         public string CurrentDirectory { get { return Current.IsRoot ? null : Current.Path; } }
@@ -472,7 +481,7 @@ namespace Vision
 
         public Task<bool> LoadDevicesAsync()
         {
-            if (!Busy) _deviceProbe.Clear();   // kart yeniden seçildi / bağlandı: cihazlar yeniden denetlenir
+            if (!Busy) _notEnterable.Clear();   // kart yeniden seçildi / bağlandı: işaretler sıfırlanır
             return NavigateAsync(FsLocation.Root, true, null);
         }
 
@@ -500,7 +509,7 @@ namespace Vision
 
         public Task<bool> RefreshAsync()
         {
-            if (Current.IsRoot && !Busy) _deviceProbe.Clear();   // Cihazlar'da Yenile: cihazlar yeniden denetlenir
+            if (Current.IsRoot && !Busy) _notEnterable.Clear();   // Cihazlar'da Yenile: "girilemiyor" işaretleri sıfırlanır
             return NavigateAsync(Current, false, null);
         }
 
@@ -557,28 +566,12 @@ namespace Vision
                 OpResult common = CheckCommon(resp, "devs");
                 if (common != null) return common;
                 // devs'in dönüş değeri durum kodu değildir (cihaz sayısını döndürür); kontrol edilmez.
+                // Cihazlar önceden denetlenmez: hepsi gösterilir, girilip girilemeyeceği içine girilirken anlaşılır (G27).
                 List<string> devices = DevsParser.Parse(resp.OutputLines);
+                LastResponse = resp;
+                _lastListing = devices.Select(d => DeviceEntry(d)).ToList();
                 if (devices.Count == 0)
-                {
-                    _lastListing = new List<FsEntry>();
-                    HiddenDevices = new List<string>();
                     return new OpResult { Ok = true, Message = "Kart \"devs\" komutuna cihaz döndürmedi." };
-                }
-                // Yalnız içine girilebilen cihazlar: her cihaz listeleme komutuyla denenir, dönüş değeri 0 olanlar gösterilir
-                ProbeResult probe = await ProbeDevicesAsync(devices);
-                if (probe.Error != null) return probe.Error;
-                LastResponse = resp;   // ham cevap panelinde devs görünsün
-                if (probe.CannotProbe)
-                {
-                    // Kartta listeleme komutu (ll / ls) hiç yok: süzülemez, tüm cihazlar gösterilir
-                    HiddenDevices = new List<string>();
-                    _lastListing = devices.Select(d => new FsEntry { Name = d, FullPath = d, Kind = FsKind.Device }).ToList();
-                    return new OpResult { Ok = true, Message = "Kartın imajında listeleme komutu (ll / ls) yok; cihazların içine girilip girilemeyeceği denetlenemedi, tümü gösteriliyor." };
-                }
-                HiddenDevices = devices.Where(d => !probe.Usable.Contains(d)).ToList();
-                _lastListing = probe.Usable.Select(d => new FsEntry { Name = d, FullPath = d, Kind = FsKind.Device }).ToList();
-                if (_lastListing.Count == 0)
-                    return new OpResult { Ok = true, Message = "Kartta içine girilebilen cihaz bulunamadı (" + devices.Count + " cihaz denendi: " + string.Join(", ", devices) + ")." };
                 return new OpResult { Ok = true };
             }
 
@@ -593,9 +586,21 @@ namespace Vision
                 PendingCommand = cmd;
                 lr = await Exec(cmd, ShortTimeoutSec);
             }
-            OpResult check = CheckReturn(lr, "\"" + target.Path + "\" açılamadı", "Erişim yok, yol geçersiz ya da bu bir klasör değil.");
+            bool openingDevice = fromEntry != null && fromEntry.Kind == FsKind.Device;
+            OpResult check = openingDevice
+                ? CheckReturn(lr, "\"" + target.Path + "\" cihazının içine girilemiyor",
+                              "Bu cihaz bir dosya sistemi değil (ör. /null, /tyCo/0) ya da şu an erişilemiyor.")
+                : CheckReturn(lr, "\"" + target.Path + "\" açılamadı", "Erişim yok, yol geçersiz ya da bu bir klasör değil.");
             if (check != null)
             {
+                if (openingDevice && check.MissingCommand == null && lr.Failure == null && lr.ReturnCode.HasValue)
+                {
+                    // Cihaz listede kalır ama "girilemiyor" olarak işaretlenir
+                    _notEnterable[fromEntry.FullPath] = lr.ReturnCode;
+                    fromEntry.NotEnterable = true;
+                    fromEntry.NotEnterableCode = lr.ReturnCode;
+                    check.IsWarning = true;
+                }
                 if (fromEntry != null && fromEntry.Kind == FsKind.Unknown && lr.UndefinedSymbol == null && lr.Failure == null)
                     fromEntry.Kind = FsKind.File;
                 return check;
@@ -612,50 +617,22 @@ namespace Vision
                 return new OpResult { Ok = false, IsNotice = true, Message = "\"" + fromEntry.Name + "\" bir dosya. İçeriğine bakmak için \"Görüntüle\"yi kullanın." };
             }
             if (fromEntry != null && fromEntry.Kind == FsKind.Unknown) fromEntry.Kind = FsKind.Folder;
+            if (openingDevice && fromEntry.NotEnterable)
+            {
+                // Daha önce girilemeyen cihaz artık açılabiliyor: işaret kaldırılır
+                _notEnterable.Remove(fromEntry.FullPath);
+                fromEntry.NotEnterable = false;
+                fromEntry.NotEnterableCode = null;
+            }
             _lastListing = entries;
             return new OpResult { Ok = true };
         }
 
-        private sealed class ProbeResult
+        private FsEntry DeviceEntry(string device)
         {
-            public readonly List<string> Usable = new List<string>();
-            public bool CannotProbe;
-            /// <summary>Denetim sırasında bağlantı sorunu: listeleme hatası olarak gösterilir.</summary>
-            public OpResult Error;
-        }
-
-        /// <summary>
-        /// Cihazları sırayla listeleme komutuyla (ll, yoksa ls) dener; dönüş değeri 0 olanlar içine girilebilir sayılır.
-        /// Sonuç önbelleğe alınır: Cihazlar'a her dönüşte kart yeniden denenmez (Yenile ve kart değişince yenilenir).
-        /// </summary>
-        private async Task<ProbeResult> ProbeDevicesAsync(List<string> devices)
-        {
-            var result = new ProbeResult();
-            for (int i = 0; i < devices.Count; i++)
-            {
-                string dev = devices[i];
-                bool ok;
-                if (_deviceProbe.TryGetValue(dev, out ok)) { if (ok) result.Usable.Add(dev); continue; }
-
-                string cmd = _listCommand + " " + FsPath.Quote(dev);
-                PendingCommand = "Cihazlar denetleniyor (" + (i + 1) + "/" + devices.Count + ")  ·  " + cmd;
-                Raise();
-                ShellResponse pr = await Exec(cmd, ShortTimeoutSec);
-                if (pr.UndefinedSymbol != null && _listCommand == "ll")
-                {
-                    _listCommand = "ls";   // kartın imajında ll yok: ls ile dene ve bunu hatırla
-                    cmd = "ls " + FsPath.Quote(dev);
-                    PendingCommand = "Cihazlar denetleniyor (" + (i + 1) + "/" + devices.Count + ")  ·  " + cmd;
-                    Raise();
-                    pr = await Exec(cmd, ShortTimeoutSec);
-                }
-                if (pr.UndefinedSymbol != null) { result.CannotProbe = true; return result; }
-                if (pr.Failure != null) { result.Error = CheckCommon(pr, cmd) ?? OpResult.Fail(pr.Failure); return result; }
-                ok = pr.IsSuccess;   // zaman aşımı ya da 0 dışı dönüş değeri: içine girilemiyor
-                _deviceProbe[dev] = ok;
-                if (ok) result.Usable.Add(dev);
-            }
-            return result;
+            int? code;
+            bool bad = _notEnterable.TryGetValue(device, out code);
+            return new FsEntry { Name = device, FullPath = device, Kind = FsKind.Device, NotEnterable = bad, NotEnterableCode = bad ? code : null };
         }
 
         // ---------- Dosya / klasör işlemleri ----------
@@ -1451,7 +1428,7 @@ namespace Vision
         private void SetError(OpResult r)
         {
             Error = r.Message;
-            ErrorIsWarning = r.MissingCommand != null;
+            ErrorIsWarning = r.MissingCommand != null || r.IsWarning;
         }
 
         private void BeginWork(string pending)

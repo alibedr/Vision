@@ -90,6 +90,7 @@ namespace Vision
             BuildInput();
             BuildOutput();
             BuildActions();
+            BuildSentinel();
             BuildHighlightMenu();
             ((TerminalBox)_output).ZoomWheel = OnTerminalZoomWheel;
 
@@ -277,10 +278,12 @@ namespace Vision
             _sendBtn.SetTip(_tips, "Gönder (Enter)");
             var gap = new Panel { Dock = DockStyle.Right, Width = 6, BackColor = Color.Transparent };
 
-            // Sağdan sola: [Gönder] [reboot ⇄] [⚡ hızlı komut] [komut satırı]
+            // Sağdan sola: [Gönder] [reboot ⇄] [⚡ hızlı komut] [Sentinel] [komut satırı]
             _quickBtn.Dock = DockStyle.Right;
             _rebootBtn.Dock = DockStyle.Right;
             _inputBar.Controls.Add(field);
+            _inputBar.Controls.Add(_sentinelGap);
+            _inputBar.Controls.Add(_sentinelBtn);
             _inputBar.Controls.Add(_quickGap);
             _inputBar.Controls.Add(_quickBtn);
             _inputBar.Controls.Add(_rebootGap);
@@ -343,6 +346,7 @@ namespace Vision
             _tx.ForeColor = now - Session.LastTxUtc < ActivityWindow ? Theme.Accent : Theme.TextFaint;
 
             if (Session.State != _shownState) RefreshState();
+            RefreshSentinelButton();
             RefreshUptime();
             RefreshResponses();
             CheckReachedBottom();
@@ -677,6 +681,7 @@ namespace Vision
         /// <summary>Kartın görünen adı değişince başlığı günceller ("IP" ya da "IP (Ad)").</summary>
         public void RefreshTitle()
         {
+            if (IsHandleCreated) RefreshState();   // alt satırdaki grup adı (grup yeniden adlandırılmış olabilir)
             _title.Text = Session.Card.Label;
             _tips.SetToolTip(_title, Session.Card.Label + "  ·  " + Session.Card.DisplayName);
             if (_dropBanner.Visible) _shownDrop = null;   // uyarı kutusu yeni adla yeniden kurulsun
@@ -817,6 +822,8 @@ namespace Vision
             if (IsDisposed) return;
             _shownConnectedLook = null;
             RefreshState();
+            _shownSentinelVersion = -1;      // simge rengi yeni temadan (bildirim gösterilmez)
+            RefreshSentinelButton(true);
         }
 
         // Bağlı değilken kullanılan gri tonlar (bağlı kartın renkleri hiç değişmez)
@@ -945,6 +952,7 @@ namespace Vision
             // Komut gönderen kullanıcı yeni çıktıyı görmek ister: en alta in
             ScrollToEnd();
             HideNewLinesPill();
+            OpenBootChangeIfNeeded(cmd);
             try
             {
                 await Session.SendCommandAsync(cmd);
@@ -954,6 +962,18 @@ namespace Vision
                 ErrorText.LogTechnical(Session.Card.DisplayName + " komut", ex);
                 AppendOutput("\n*** Gönderilemedi: " + ErrorText.Describe(ex) + "\n");
             }
+        }
+
+        /// <summary>
+        /// bspBootChange / bootChange gönderilmeden hemen önce Boot ayarları penceresini açar (G27): kartın sorduğu alanlar
+        /// araya giren loglardan ayrı orada gösterilir. Kart zaten bir boot alanında bekliyorsa (yazılan bir alan değeridir)
+        /// pencere açılmaz.
+        /// </summary>
+        private void OpenBootChangeIfNeeded(string cmd)
+        {
+            if (!BootChangeParser.IsBootChangeCommand(cmd) || Session.InteractiveInputActive) return;
+            try { BootChangeDialog.Begin(Session, FindForm(), cmd); }
+            catch (Exception ex) { ErrorText.LogTechnical(Session.Card.DisplayName + " boot ayarları penceresi", ex); }
         }
 
         private async void Input_KeyDown(object sender, KeyEventArgs e)

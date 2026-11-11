@@ -9,7 +9,7 @@ Vision; donanım kartlarına telnet ile bağlanmak, kartlara komut göndermek, b
 | Bölüm | Konum | Ne işe yarar |
 |---|---|---|
 | Kart Gezgini | Sol kenar | Grupları ve kartları listeler; kart ekleme, seçme, bağlanma ve gösterme buradan yapılır. Sekme şeridinin en solundaki kenar çubuğu düğmesi (Ctrl+B) ile gizlenip gösterilir. |
-| Sekmeler | Sağ alanın üstü | **Telnet** (kart terminalleri), **Kart Dosya Gezgini** ve **Komut Kütüphanesi** arasında geçiş (Ctrl+1 / 2 / 3). Aynı şeridin en sağında **Yardım** (Kullanım Kılavuzu, Gereksinimler, Yardım klasörü, Hakkında) ve **Temalar** menüsü (hazır temalar ve özelleştirme; aşağıya bakın) bulunur. |
+| Sekmeler | Sağ alanın üstü | **Telnet** (kart terminalleri), **Kart Dosya Gezgini**, **Komut Kütüphanesi** ve **Sentinel** arasında geçiş (Ctrl+1 / 2 / 3 / 4). Aynı şeridin en sağında **Yardım** (Kullanım Kılavuzu, Gereksinimler, Yardım klasörü, Hakkında) ve **Temalar** menüsü (hazır temalar ve özelleştirme; aşağıya bakın) bulunur. |
 | Telnet sekmesi | Sağ alan | Seçilen kartların terminal pencereleri ızgara düzeninde görünür (en fazla 24 kart). |
 | Terminal ayarları | Telnet sekmesinin üst çubuğu | Satır sonu, yerel eko, zaman damgası, dosyaya kaydet, satır sınırı ve "Tümünü kapat". |
 | Genel komut çubuğu | Telnet sekmesinin altı | Bir komutu ekrandaki tüm kartlara aynı anda gönderir. |
@@ -25,8 +25,9 @@ Sekme şeridinin en sağındaki **Temalar** düğmesi (Yardım'ın yanında, pal
 | Açık | Aydınlık ortamlar için açık tema |
 | Solarized | Göz yormayan, düşük parlaklıkta mavi-yeşil tonlar |
 | Monokai | Kod düzenleyicilerden tanıdık sıcak koyu tema |
+| VS Code Dark Modern | Visual Studio Code'un varsayılan koyu teması (Dark Modern) |
 | Yüksek kontrast | En yüksek okunabilirlik: siyah zemin, parlak yazı |
-| Klasik terminal | Siyah zemin üzerinde yeşil fosforlu terminal görünümü |
+| Matrix | Siyah zemin üzerinde yeşil fosforlu, Matrix tarzı görünüm |
 
 - Geçiş anında olur: açık tüm pencereler (kart terminalleri, Dosya Gezgini, Komut Kütüphanesi, başlık ve kaydırma çubukları) yeni temaya geçer. Bağlantılar kesilmez, terminal içerikleri silinmez.
 - **Ctrl+Shift+L** listedeki sonraki temaya geçer.
@@ -81,12 +82,14 @@ Arayüz renkleri WCAG 2.1 AA kontrast ölçütüne göre ölçülüp ayarlanmı�
 
 1. Kart Gezgini'nde **+ Kart Ekle** düğmesine basın (ya da **Ctrl+N**).
 2. **Grup adı**, **Port** (varsayılan 23), **Başlangıç IP adresi** ve **Kart sayısı** alanlarını doldurun.
-3. Kart sayısı kadar IP alanı otomatik oluşur ve başlangıç IP'sinden sırayla doldurulur (ör. 192.168.1.10, .11, .12). Alanları elle değiştirebilirsiniz; **Sıralı doldur** tüm alanları yeniden sıralar.
+3. Kart sayısı kadar IP alanı otomatik oluşur ve başlangıç IP'sinden sırayla doldurulur (ör. 192.168.1.10, .11, .12). Başlangıç IP'sini değiştirdikçe **Kart 1 dahil** tüm alanlar kendiliğinden güncellenir; düğmeye basmak gerekmez. Bir alanı elle değiştirirseniz o alan artık kendiliğinden değişmez; **Sıralı doldur** elle değiştirilenler dahil tüm alanları yeniden sıralar.
 4. **Grubu Oluştur** ile kaydedin.
 
 Doğrulama kuralları: grup adı boş ya da var olan bir grupla aynı olamaz; IP'ler dört bölümlü geçerli IPv4 olmalı ve listede tekrar etmemelidir. Hatalı alanlar kırmızıyla işaretlenir.
 
 Var olan bir gruba kart eklemek için gruba sağ tıklayıp **Gruba kart ekle…** seçin.
+
+Grubun adını değiştirmek için gruba sağ tıklayıp **Grubun adını değiştir…** seçin (ya da grubu seçip **F2**). Kartlar, bağlantılar ve port olduğu gibi kalır; yeni ad her yerde hemen görünür. Aynı adda iki grup olamaz.
 
 ### Kartlara ad verme
 
@@ -129,7 +132,7 @@ Gruplar, kartlar ve tüm ayarlar bilgisayarınızda, **`%APPDATA%\TelnetCards\co
 
 | Öğe | Seçenekler |
 |---|---|
-| Grup | Tümünü ekranda göster · Seçilileri ekranda göster · Tümünü bağla · Tümünün bağlantısını kes · Gruba kart ekle… · Grubu sil |
+| Grup | Tümünü ekranda göster · Seçilileri ekranda göster · Tümünü bağla · Tümünün bağlantısını kes · Gruba kart ekle… · Grubun adını değiştir… · Grubu sil |
 | Kart | Ekranda göster · Bağlan / Bağlantıyı kes · Dosya Gezgininde aç · Kartı kaldır |
 
 Klavye: **Enter** seçili kartı (ya da grubu) ekranda gösterir, **Delete** seçili kartı / grubu siler (onay istenir).
@@ -214,6 +217,16 @@ Her kartın komut satırının sağında bir **hızlı komut** düğmesi (şimş
 - Kart bağlı değilken düğme pasiftir. Çift tıklama komutu iki kez göndermez.
 - Kart penceresi daraldığında düğme yalnız simge olarak görünür (ipucunda komut yazar); çok dar kartlarda gizlenir.
 
+### Sentinel düğmesi
+
+Hızlı komutun solundaki **nabız çizgisi** simgeli düğme, kartın içindeki **Sentinel** web sunucusunu (kartın CPU, task ve socket durumunu gösteren sayfa) başlatır ve durdurur. Düğmede yazı yoktur; ne yapacağı üzerine gelince ipucunda yazar.
+
+- Simgenin rengi sunucunun durumunu gösterir: **soluk** = çalışmıyor, **sarı** = başlatılıyor / durduruluyor, **yeşil** = çalışıyor.
+- Çalışmıyorken tıklamak karta `SentinelWebServerBaslat` gönderir. Sunucu açılınca simge yeşile döner ve *"Sentinel çalışıyor — görüntülemek için tıklayın"* bildirimi çıkar; bildirime tıklamak **Sentinel** sekmesini o kartla açar.
+- Çalışırken tıklamak karta `SentinelWebServerBitir` gönderir; sunucu kapanınca simge solar.
+- Komutlar dönüş değeri basmadığı için Vision sunucunun durumunu kartın **8080** portuna bağlanmayı deneyerek anlar (5 sn'de bir; başlatma / durdurma sonrasında 1 sn'de bir). Sunucu meşgulken cevap vermeyen denemeler "durdu" sayılmaz; "durdu" demek için kartın portu 8 sn boyunca reddetmesi gerekir. Kart reboot olursa ya da sunucu terminalden başlatılıp durdurulursa düğme kendiliğinden doğru duruma geçer. Sunucu 20 sn içinde açılmazsa uyarı çıkar.
+- **Sağ tık**: Sentinel sekmesinde aç. Kart bağlı değilken düğme pasiftir.
+
 ### reboot / reboot 2
 
 Hızlı komutun yanındaki düğme iki bölmelidir:
@@ -269,6 +282,23 @@ Akan loglar arasında bir kelimeyi (ör. `error`) kolayca görmek için:
 - Kaldırmak için metnin üzerinde sağ tık → **Renklendirmeyi kaldır**, ya da **Renklendirmeler** alt menüsünden tek tek / **Tüm renklendirmeleri kaldır**.
 - Renklendirmeler **o karta** aittir ve yalnız ekrandaki görünümü değiştirir (karta bir şey gönderilmez, kayıt dosyalarına renk yazılmaz). Kart penceresi kapatılıp yeniden açılsa da korunur; uygulama kapanınca silinir.
 - Seçim tek satırda olmalıdır (en fazla 200 karakter); baştaki ve sondaki boşluklar yok sayılır.
+
+### Boot ayarları penceresi (bspBootChange / bootChange)
+
+Kart terminalinden (komut satırı, hızlı komut ya da genel komut çubuğu) `bspBootChange` veya `bootChange` gönderdiğinizde **Boot ayarları** penceresi açılır. Kart boot ayarlarını tek tek sorar; kart çalışırken gelen loglar bu soruların arasına karıştığı için terminalde hangi alanda olduğunuz kayabilir. Pencere kartın sorduğu alanları loglardan ayırarak bir listede gösterir:
+
+- Üstte **şu an sorulan alan** ve kartın o alandaki değeri yazar; listede o satır vurgulanır (▶).
+- **Yeni değer** kutusuna yazıp **Enter** (ya da **Gönder**): değer karta gider, kart bir sonraki alana geçer. Kutu boşken Enter ya da **Değiştirmeden geç**: alan aynen kalır.
+- **Değeri düzenle** (F2): kartın değerini kutuya kopyalar; küçük bir değişiklik yapıp Enter'a basın.
+- **Temizle (.)**: alanı boşaltır. **◀ Önceki alan**: bir önceki alana döner (karta `-` gönderilir).
+- Listede bir alana **çift tıklayın**: kart o alana gelene kadar alanlar değiştirilmeden geçilir (geri gitmek için `-` gönderilir).
+- **Kalanları geçip bitir**: kalan alanların hepsi değiştirilmeden geçilir; girdiğiniz değerler kaydedilir. **Çık (Ctrl+D)**: komuttan hemen çıkar (kartın imajına göre değişiklikler kaydedilmeyebilir).
+- Kart bir alanı sorarken aynı anda log gelirse ve alanın değeri logdan güvenle ayrılamazsa, değer yerine sarı **"okunamadı (araya log girdi) — terminale bakın"** yazar. Bu yalnız görüntüdür; karta bir şey yazılmaz. Kartın gerçek değerini terminalde görebilirsiniz.
+- Değiştirdiğiniz alanlar listede `eski → yeni` olarak görünür. Komut bitince kaç alanın değiştiği yazar; yeni boot ayarları genellikle kart yeniden başlatılınca geçerli olur.
+- **Araya giren kart logları** (alt şerit, tıklayınca açılır): bu sırada gelen loglar kaybolmaz, burada toplanır. Kartın tüm çıktısı terminalde de görünmeye devam eder.
+- Pencere kart bitirmeden kapatılırsa sorulur: **Kalanları geçip bitir**, **Yalnız pencereyi kapat** (terminalden devam edersiniz) ya da **Vazgeç**.
+- Pencere açıkken o kartta Dosya Gezgini gibi arka plan komutları gönderilmez (gönderilseler alan değeri olarak yazılırdı); pencere bitince yeniden çalışır.
+- Genel komut çubuğundan gönderildiyse bağlı her kart için ayrı pencere açılır.
 
 ### Bağlı olmayan kart
 
@@ -370,9 +400,10 @@ Ayar çubuğundaki **− %100 +** tüm kart terminallerinin yazı boyutunu **bir
 
 **Kart Dosya Gezgini** sekmesi (**Ctrl+2**), kartın cihazlarını, klasörlerini ve dosyalarını `devs` ve `ls` komutlarını elle yazmadan gezmenizi sağlar. Karta sağ tıklayıp **Dosya Gezgininde aç** ile de açılır.
 
-1. Üstten **kartı seçin**. Kart bağlıysa `devs` çalışır ve cihazlar listelenir. Yalnız `devs` çıktısındaki **name** sütunu kullanılır (`drv refs name` ve `drv name` biçimleri desteklenir).
-   - Listede yalnız **içine girilebilen** cihazlar görünür: her cihaz `ll "cihaz"` ile denenir ve dönüş değeri **0** olanlar gösterilir. `/null`, `/tyCo/0` gibi girilemeyen cihazlar gizlenir; adları alttaki durum satırında yazar (ör. *içine girilemeyen 2 cihaz gizlendi (/null, /tyCo/0)*).
-   - Denetim yalnız ilk açılışta yapılır; Cihazlar'a geri dönünce tekrarlanmaz. Kartta bir cihaz sonradan kullanılabilir olduysa Cihazlar'dayken **Yenile** (F5) ile yeniden denetleyin.
+1. Üstten **kartı seçin**. Kart bağlıysa `devs` çalışır ve cihazlar **hemen** listelenir. Yalnız `devs` çıktısındaki **name** sütunu kullanılır (`drv refs name` ve `drv name` biçimleri desteklenir).
+   - `devs`in listelediği **tüm cihazlar** görünür; cihazlar önceden tek tek denenmez, bu yüzden liste beklemeden gelir.
+   - İçine girilip girilemeyeceği, cihaza **girmek istediğinizde** anlaşılır: `ll "cihaz"` dönüş değeri **0** ise içerik açılır. 0 dışındaysa (ör. `/null`, `/tyCo/0`) sarı uyarı şeridinde *"/tyCo/0" cihazının içine girilemiyor (dönüş değeri -1)* yazar, liste değişmez ve cihaz soluk görünür; türü **Cihaz · girilemiyor (-1)** olur.
+   - İşaret, Cihazlar'dayken **Yenile** (F5) ya da kart değişince sıfırlanır; cihaz sonradan açılırsa işaret kendiliğinden kalkar.
 2. Bir cihaza ya da klasöre **çift tıklayın** (veya Enter): `ll "/yol"` çalışır ve içerik **tür, boyut ve tarihle** listelenir. Kartın imajında `ll` yoksa otomatik olarak `ls` kullanılır (bu durumda boyut / tarih görünmez).
 3. Üstteki **yol çubuğundan** (breadcrumb) üst klasörlere doğrudan dönebilirsiniz.
 4. **Geri** (sol ok simgesi, Backspace) önceki klasöre, **Yenile** (dönen ok simgesi, F5) mevcut klasörü yeniden yükler.
@@ -495,6 +526,19 @@ Bağlantı başarılı olsa da yazma izni yoksa ya da kartın gördüğü yol FT
 
 > Dosya Gezgini ayrı bağlantı açmaz; kartın mevcut bağlantısını kullanır. Kart bağlı değilse bu belirtilir ve **Bağlantı Kur** düğmesi gösterilir. Gezginin komutları ve cevapları terminale yazılmaz; terminal komutlarıyla sırayla çalışır, cevaplar birbirine karışmaz.
 
+## Sentinel
+
+**Sentinel** sekmesi (**Ctrl+4**), kartın içindeki Sentinel web sunucusunun sayfasını (`http://kartIP:8080`) **uygulamanın içinde** gösterir; ayrı bir tarayıcı açılmaz.
+
+- **Solda** bağlı kartlar listelenir; Sentinel'i çalışanlar üstte ve yeşil nabız simgesiyle görünür. Bir karta tıklayın.
+- **Sağda** seçilen kartın sayfası görünür. Sayfa kendini kendisi yeniler; elle yenilemek için **Yenile** (F5).
+- Sayfa yenilenmiyorsa üst çubuktaki seçimden Vision'ın sayfayı **her 2 / 5 / 10 / 30 sn'de** yeniden yüklemesini seçebilirsiniz (varsayılan: *Sayfanın kendi yenilemesi*).
+- Sunucu çalışmıyorsa sayfanın yerine açıklama çıkar; sağ üstteki **Başlat** ile buradan da başlatabilirsiniz (çalışırken **Durdur**).
+- Sunucu sayfa açıkken kapanırsa (ör. kart reboot oldu) sayfa kapanır ve açıklama görünür; yeniden açılınca sayfa kendiliğinden gelir.
+- Başka sekmeye geçince sayfa **arka planda açık kalır**: bağlantı kopmaz, sayfadaki "bağlı kalma süresi" gibi sayaçlar sıfırlanmaz; sekmeye dönünce kaldığı yerden görünür. Listeden başka bir kart seçilince o kartın sayfası açılır. Sekme hiç açılmadıysa hiçbir karta bağlanılmaz.
+- Sayfa **Microsoft Edge (WebView2)** motoruyla gösterilir; sayfadaki düğmeler, veri çekme ve kendi yenilemesi tarayıcıdaki gibi çalışır. Edge WebView2 Runtime Windows 11'de ve güncel Windows 10'da hazır gelir.
+- Bilgisayarda Edge WebView2 Runtime yoksa sayfa Windows'un eski görüntüleyicisiyle açılır; üst çubukta sarı **"Edge görüntüleyicisi yok"** uyarısı çıkar ve sayfa her 2 sn'de yeniden yüklenir. Bu durumda sayfadaki betikler (düğmeler) çalışmayabilir; Microsoft'un **WebView2 Runtime** kurulumu yapılınca sayfa tam çalışır.
+
 ## Komut Kütüphanesi
 
 **Komut Kütüphanesi** sekmesi (**Ctrl+3**), VxWorks 6.4 kart komutlarının açıklamalarını, yazılışlarını ve örnek çıktılarını tek yerde toplar. Kütüphane **Vision'a gömülüdür ve salt okunurdur**: uygulamadan komut ya da modül eklenemez, düzenlenemez, silinemez, taşınamaz; exe'nin yanında ayrı bir komut dosyası da yoktur. Yeni komutlar ve düzeltmeler Vision'ın sonraki sürümleriyle gelir.
@@ -598,14 +642,16 @@ Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındak
 |---|---|
 | Ctrl+N | Kart ekle |
 | Ctrl+G | Genel komut çubuğuna odaklan (Telnet sekmesine geçer) |
-| Ctrl+1 / 2 / 3 | Telnet / Kart Dosya Gezgini / Komut Kütüphanesi sekmesi |
+| Ctrl+1 / 2 / 3 / 4 | Telnet / Kart Dosya Gezgini / Komut Kütüphanesi / Sentinel sekmesi |
+| F5 | Sentinel sekmesinde sayfayı yenile |
 | Ctrl+B | Kart Gezgini kenar çubuğunu gizle / göster |
 | Tab / ↓ / → | Komut satırında otomatik tamamlama önerisini kabul et (çalıştırmaz) |
 | Esc | Komut satırında öneriyi gizle |
-| F2 | Kart Gezgini'nde kartın adını değiştir |
+| F2 | Kart Gezgini'nde kartın ya da grubun adını değiştir |
 | Ctrl+W | Seçili kart penceresini kapat |
 | F1 | Kullanım Kılavuzu (ayrıca sekme şeridinin sağındaki **Yardım** düğmesi) |
 | Ctrl+Shift+L | Sonraki tema |
+| Enter / F2 / Ctrl+D / Esc | Boot ayarları penceresinde: gönder (boşsa değiştirmeden geç) / kartın değerini düzenle / çık / kapat |
 | Ctrl+S / Esc | Komut Kütüphanesi'nde kaydet / iptal |
 | Ctrl+F | Komut Kütüphanesi'nde ara |
 | Enter | Komut gönder · Kart Gezgini'nde seçili kartı göster · Dosya Gezgini'nde aç |

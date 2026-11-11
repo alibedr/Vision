@@ -17,3 +17,6 @@ Konfig/
 Komutlar/*.yedek
 Komutlar/*.bozuk
 Komutlar/*.tmp
+
+# NuGet paketleri (packages.config; derlemede indirilir)
+packages/

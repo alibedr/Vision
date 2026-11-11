@@ -22,6 +22,7 @@ namespace Vision
                 Theme.Initialize(st.UiThemeId, st.EffectiveThemeColors());
             }
             catch { Theme.Initialize(ThemeMode.Dark); }
+            SentinelView.EnableModernPageMode();   // Sentinel sayfası uygulama içinde IE11 kipinde gösterilsin
             try { Application.Run(new MainForm()); }
             finally { ReadOnlyCopies.CleanupSession(); }
         }

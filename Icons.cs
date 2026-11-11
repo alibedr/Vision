@@ -11,7 +11,7 @@ namespace Vision
         Back, Refresh, NewFolder, Upload, Settings, SidebarHide, SidebarShow, Folder,
         Plus, Search, Edit, Trash, Copy, Check, ChevronRight, ChevronDown, Module, ExpandAll, CollapseAll,
         ChevronUp, Warning, Info, Terminal, Book, Home, Clock, Dot,
-        Save, Bolt, Power, Swap, Minus, Return, Sun, Moon, History, Palette,
+        Save, Bolt, Power, Swap, Minus, Return, Sun, Moon, History, Palette, Pulse,
     }
 
     /// <summary>
@@ -252,6 +252,10 @@ namespace Vision
                         g.DrawPolygon(pen, new[] { P(9.4f, 1.6f), P(3.4f, 9f), P(7.6f, 9f), P(6.6f, 14.4f), P(12.6f, 7f), P(8.4f, 7f) });
                         break;
 
+                    case IconKind.Pulse:     // nabız çizgisi (Sentinel: kartın sağlık sayfası)
+                        g.DrawLines(pen, new[] { P(1.2f, 8.6f), P(4.4f, 8.6f), P(6f, 4.6f), P(8.2f, 12.6f), P(10.2f, 3f), P(11.8f, 8.6f), P(14.8f, 8.6f) });
+                        break;
+
                     case IconKind.Power:     // güç (yeniden başlat)
                         g.DrawArc(pen, 2.6f, 3f, 10.8f, 10.8f, -50, 280);
                         g.DrawLine(pen, 8f, 1.8f, 8f, 7.8f);
@@ -436,6 +440,15 @@ namespace Vision
         /// <summary>İkon boyutu (px).</summary>
         public int IconSize { get; set; } = 16;
 
+        private Color _iconColor = Color.Empty;
+
+        /// <summary>Doluysa (ve düğme etkinse) ikon bu renkle çizilir; düğmenin zemini tonuna göre kalır (ör. Sentinel durumu).</summary>
+        public Color IconColor
+        {
+            get { return _iconColor; }
+            set { if (_iconColor != value) { _iconColor = value; Invalidate(); } }
+        }
+
         /// <summary>İpucunu ve ekran okuyucu adını birlikte ayarlar.</summary>
         public void SetTip(ToolTip tips, string text)
         {
@@ -460,6 +473,7 @@ namespace Vision
 
             Color back, fore;
             Colors(out back, out fore);
+            Color iconFore = !_iconColor.IsEmpty && Enabled ? _iconColor : fore;
             var box = new RectangleF(Inset + 0.5f, Inset + 0.5f, Width - 2 * Inset - 1, Height - 2 * Inset - 1);
             if (back.A > 0)
                 using (var path = IconRenderer.RoundRect(box, 5))
@@ -477,7 +491,7 @@ namespace Vision
             int size = Math.Min(IconSize, Math.Min(Width, Height) - 6);
             if (_label.Length == 0)
             {
-                IconRenderer.Draw(g, _icon, new RectangleF((Width - size) / 2f, (Height - size) / 2f, size, size), fore);
+                IconRenderer.Draw(g, _icon, new RectangleF((Width - size) / 2f, (Height - size) / 2f, size, size), iconFore);
             }
             else
             {
@@ -488,7 +502,7 @@ namespace Vision
                 float x = left ? 8 + Padding.Left : Math.Max(8, (Width - total) / 2f);
                 if (_icon == IconKind.None) size = 0;
                 if (_icon != IconKind.None)
-                    IconRenderer.Draw(g, _icon, new RectangleF(x, (Height - size) / 2f, size, size), fore);
+                    IconRenderer.Draw(g, _icon, new RectangleF(x, (Height - size) / 2f, size, size), iconFore);
                 var textRect = new Rectangle((int)(x + size + gap), 0, Math.Max(1, Width - (int)(x + size + gap) - 4), Height);
                 TextRenderer.DrawText(g, _label, Font, textRect, fore,
                     TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.Left);

@@ -65,6 +65,8 @@ namespace Vision
         public event Action<CardConfig> BrowseFilesRequested;
         /// <summary>Kartın görünen adı değiştirilmek isteniyor.</summary>
         public event Action<CardConfig> RenameCardRequested;
+        /// <summary>Grubun adı değiştirilmek isteniyor.</summary>
+        public event Action<CardGroup> RenameGroupRequested;
 
         private CardConfig _highlighted;
 
@@ -444,6 +446,12 @@ namespace Vision
                 var h = RenameCardRequested;
                 if (h != null) h((CardConfig)n.Tag);
             }
+            else if (e.KeyCode == Keys.F2 && n.Tag is CardGroup)
+            {
+                e.SuppressKeyPress = true;
+                var h = RenameGroupRequested;
+                if (h != null) h((CardGroup)n.Tag);
+            }
             else if (e.KeyCode == Keys.Delete)
             {
                 e.SuppressKeyPress = true;
@@ -476,6 +484,7 @@ namespace Vision
                 AddItem("Tümünün bağlantısını kes", () => RaiseConnect(group.Cards.ToList(), false), group.Cards.Count > 0);
                 _menu.Items.Add(new ToolStripSeparator());
                 AddItem("Gruba kart ekle…", () => { var h = AddCardsRequested; if (h != null) h(group); }, true);
+                AddItem("Grubun adını değiştir…", () => { var h = RenameGroupRequested; if (h != null) h(group); }, true);
                 ToolStripItem del = AddItem("Grubu sil", () => { var h = RemoveGroupRequested; if (h != null) h(group); }, true);
                 del.ForeColor = Theme.Danger;
             }

@@ -111,10 +111,15 @@ namespace Vision
             new ThemeDefinition("monokai", "Monokai", "Kod düzenleyicilerden tanıdık sıcak koyu tema",
                 C(39,40,34), C(49,50,43), C(73,72,62), C(248,248,242), C(102,217,239),
                 C(166,226,46), C(230,219,116), C(249,38,114), C(30,31,26), C(248,248,240)),
+            // Visual Studio Code "Dark Modern" (varsayılan koyu tema) renkleri
+            new ThemeDefinition("vscode-dark-modern", "VS Code Dark Modern", "Visual Studio Code'un varsayılan koyu teması (Dark Modern)",
+                C(24,24,24), C(31,31,31), C(43,43,43), C(204,204,204), C(0,120,212),
+                C(46,160,67), C(204,167,0), C(248,81,73), C(24,24,24), C(204,204,204)),
             new ThemeDefinition("yuksek-kontrast", "Yüksek kontrast", "En yüksek okunabilirlik: siyah zemin, parlak yazı",
                 C(8,8,8), C(20,20,20), C(170,170,170), C(255,255,254), C(26,188,255),
                 C(0,230,118), C(255,214,0), C(255,82,82), C(3,3,3), C(240,240,240)),
-            new ThemeDefinition("klasik-terminal", "Klasik terminal", "Siyah zemin üzerinde yeşil fosforlu terminal görünümü",
+            // Kimlik "klasik-terminal" kalır: bu temayı seçip kaydetmiş kullanıcıların ayarı bozulmaz
+            new ThemeDefinition("klasik-terminal", "Matrix", "Siyah zemin üzerinde yeşil fosforlu, Matrix tarzı görünüm",
                 C(14,19,14), C(22,30,22), C(44,66,44), C(196,232,196), C(46,204,64),
                 C(140,240,140), C(230,200,60), C(240,90,80), C(5,9,5), C(51,255,51)),
         };

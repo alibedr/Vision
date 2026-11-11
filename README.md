@@ -13,19 +13,21 @@ Geliştiren: **Ali Bedir**
 - Grup tabanlı kart yönetimi (Kart Gezgini), kartlara isteğe bağlı ad
 - Aynı anda en fazla 24 kart terminali; bağlantı ve görünüm birbirinden bağımsız
 - Bağlantı süresi, kaydırma koruması ve yeni satır göstergesi, kalıcı komut geçmişi (geçmiş penceresi, Ctrl+R ile geriye doğru arama) ve otomatik tamamlama, kart ekranında sağ tıkla renklendirme
+- Boot ayarları penceresi: `bspBootChange` / `bootChange` alanları araya giren loglardan ayrı, tek ekranda izlenir ve düzenlenir
 - Genel komut çubuğu: ekrandaki tüm kartlara aynı komut
 - Periyodik bağlantı izleme ve otomatik yeniden bağlanma
-- Kart Dosya Gezgini: `devs` / `ll`, klasör ve dosya işlemleri, FTP üzerinden karta yükleme, salt okunur "Birlikte aç"
+- Kart Dosya Gezgini: `devs` ile hızlı cihaz listesi, `ll`, klasör ve dosya işlemleri, FTP üzerinden karta yükleme, salt okunur "Birlikte aç"
+- Sentinel: kartın içindeki web sunucusunu tek tıkla başlatma / durdurma ve kartın sağlık sayfasını (CPU, task, socket) tarayıcı açmadan uygulama içinde görüntüleme
 - Komut Kütüphanesi: exe'ye gömülü, salt okunur 113 VxWorks 6.4 kabuk komutu (açıklama, örnek kullanım, örnek çıktı), modüllerde gruplama ve komutu tek tıkla bir kartın komut satırına aktarma
-- 6 hazır tema (Koyu, Açık, Solarized, Monokai, Yüksek kontrast, Klasik terminal) ve tema düzenleyici: renk değiştirme, anlık önizleme, kaydetme, varsayılana dönme (sekme şeridindeki Temalar menüsü; Ctrl+Shift+L sonraki tema)
+- 7 hazır tema (Koyu, Açık, Solarized, Monokai, VS Code Dark Modern, Yüksek kontrast, Matrix) ve tema düzenleyici: renk değiştirme, anlık önizleme, kaydetme, varsayılana dönme (sekme şeridindeki Temalar menüsü; Ctrl+Shift+L sonraki tema)
 - Türkçe arayüz ve hata mesajları, uygulama içi yardım (F1)
 
 ## Gereksinimler
 
 | | |
 |---|---|
-| Çalıştırma | Windows 10 / 11, .NET Framework 4.6.1 veya üstü |
-| Geliştirme | Visual Studio 2019 (16.11), C# 7.3; NuGet paketi gerekmez |
+| Çalıştırma | Windows 10 / 11, .NET Framework 4.6.1 veya üstü; Sentinel sayfası için Microsoft Edge WebView2 Runtime (Windows 11 ve güncel Windows 10'da hazır) |
+| Geliştirme | Visual Studio 2019 (16.11), C# 7.3; tek NuGet paketi `Microsoft.Web.WebView2` (derlemede otomatik indirilir) |
 
 ## Derleme
 

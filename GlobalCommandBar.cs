@@ -250,10 +250,24 @@ namespace Vision
             if (targets.Count == 0) { ShowResult("Ekranda açık kart yok — komut gönderilmedi.", Theme.Warning, null); return; }
             _sending = true;
             UpdateTargets();
+            OpenBootChangeWindows(targets, cmd);
             BroadcastResult r;
             try { r = await CommandBroadcaster.SendToAllAsync(targets, cmd, source); }
             finally { _sending = false; UpdateTargets(); }
             ReportBroadcast(cmd, r, fromInput);
+        }
+
+        /// <summary>bspBootChange / bootChange: bağlı her hedef kart için ayrı Boot ayarları penceresi açılır (G27).</summary>
+        private void OpenBootChangeWindows(IList<CardSession> targets, string cmd)
+        {
+            if (!BootChangeParser.IsBootChangeCommand(cmd)) return;
+            int i = 0;
+            foreach (CardSession s in targets.Where(t => t != null).Distinct())
+            {
+                if (s.State != CardState.Connected || s.InteractiveInputActive) continue;
+                try { BootChangeDialog.Begin(s, FindForm(), cmd, i++); }
+                catch (Exception ex) { ErrorText.LogTechnical(s.Card.DisplayName + " boot ayarları penceresi", ex); }
+            }
         }
 
         private async void Input_KeyDown(object sender, KeyEventArgs e)
@@ -319,6 +333,7 @@ namespace Vision
 
             _sending = true;
             UpdateTargets();
+            OpenBootChangeWindows(targets, cmd);
             BroadcastResult r;
             try
             {

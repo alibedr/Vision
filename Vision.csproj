@@ -40,6 +40,13 @@
     <Reference Include="System.Xml" />
     <Reference Include="System.Security" />
     <Reference Include="System.Windows.Forms" />
+    <!-- Sentinel sayfası için Edge WebView2 (packages.config; Visual Studio derlerken otomatik indirir) -->
+    <Reference Include="Microsoft.Web.WebView2.Core">
+      <HintPath>packages\Microsoft.Web.WebView2.1.0.1072.54\lib\net45\Microsoft.Web.WebView2.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Web.WebView2.WinForms">
+      <HintPath>packages\Microsoft.Web.WebView2.1.0.1072.54\lib\net45\Microsoft.Web.WebView2.WinForms.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Program.cs" />
@@ -68,6 +75,15 @@
     <Compile Include="DarkControls.cs" />
     <Compile Include="ReadOnlyOpen.cs" />
     <Compile Include="CardFtp.cs" />
+    <Compile Include="BootChange.cs" />
+    <Compile Include="Sentinel.cs" />
+    <Compile Include="SentinelPage.cs" />
+    <Compile Include="SentinelView.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="BootChangeDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="CommandResponses.cs" />
     <Compile Include="TerminalSnapshot.cs" />
     <Compile Include="FileExplorerLogic.cs" />
@@ -102,6 +118,10 @@
       <DependentUpon>CardView.cs</DependentUpon>
       <SubType>UserControl</SubType>
     </Compile>
+    <Compile Include="CardView.Sentinel.cs">
+      <DependentUpon>CardView.cs</DependentUpon>
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="CardView.Highlights.cs">
       <DependentUpon>CardView.cs</DependentUpon>
       <SubType>UserControl</SubType>
@@ -132,6 +152,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Vision.ico" />
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <!-- Komut kütüphanesi exe'ye GÖMÜLÜDÜR ve salt okunurdur: dışarıda Komutlar klasörü / dosyası yoktur.
@@ -141,4 +162,6 @@
     </EmbeddedResource>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- WebView2Loader.dll'yi çıktı klasörüne kopyalar (runtimes\win-*\native) -->
+  <Import Project="packages\Microsoft.Web.WebView2.1.0.1072.54\build\Microsoft.Web.WebView2.targets" Condition="Exists('packages\Microsoft.Web.WebView2.1.0.1072.54\build\Microsoft.Web.WebView2.targets')" />
 </Project>
