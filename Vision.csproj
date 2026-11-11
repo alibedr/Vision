@@ -147,11 +147,9 @@
   <ItemGroup>
     <EmbeddedResource Include="Yardim\KullanimKilavuzu.md">
       <LogicalName>Yardim.KullanimKilavuzu.md</LogicalName>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </EmbeddedResource>
     <EmbeddedResource Include="Yardim\Gereksinimler.md">
       <LogicalName>Yardim.Gereksinimler.md</LogicalName>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>

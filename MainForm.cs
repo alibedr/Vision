@@ -830,8 +830,6 @@ namespace Vision
             item("Kullanım Kılavuzu", "F1", () => ShowHelp(HelpPage.Guide));
             item("Gereksinimler", null, () => ShowHelp(HelpPage.Requirements));
             _helpMenu.Items.Add(new ToolStripSeparator());
-            item("Yardım klasörünü aç", null, () => HelpDialog.OpenHelpFolder(this));
-            _helpMenu.Items.Add(new ToolStripSeparator());
             item("Hakkında", null, () => ShowHelp(HelpPage.About));
 
             _helpBtn.Dock = DockStyle.Right;
