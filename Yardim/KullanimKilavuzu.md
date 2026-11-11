@@ -423,7 +423,7 @@ Ayar çubuğundaki **− %100 +** tüm kart terminallerinin yazı boyutunu **bir
 
 **Kart Dosya Gezgini** sekmesi (**Ctrl+2**), kartın cihazlarını, klasörlerini ve dosyalarını `devs` ve `ls` komutlarını elle yazmadan gezmenizi sağlar. Karta sağ tıklayıp **Dosya Gezgininde aç** ile de açılır.
 
-1. Üstten **kartı seçin**. Kart bağlıysa `devs` çalışır ve cihazlar **hemen** listelenir. Yalnız `devs` çıktısındaki **name** sütunu kullanılır (`drv refs name` ve `drv name` biçimleri desteklenir).
+1. Üstten **kartı seçin**. Listede yalnız **bağlı** kartlar görünür; bir karta bağlandığınızda listeye kendiliğinden eklenir. Seçili kartın bağlantısı koparsa (ör. reboot) kart listede kalır, **Bağlan** ile devam edebilirsiniz. Kart bağlıysa `devs` çalışır ve cihazlar **hemen** listelenir. Yalnız `devs` çıktısındaki **name** sütunu kullanılır (`drv refs name` ve `drv name` biçimleri desteklenir).
    - `devs`in listelediği **tüm cihazlar** görünür; cihazlar önceden tek tek denenmez, bu yüzden liste beklemeden gelir.
    - İçine girilip girilemeyeceği, cihaza **girmek istediğinizde** anlaşılır: `ll "cihaz"` dönüş değeri **0** ise içerik açılır. 0 dışındaysa (ör. `/null`, `/tyCo/0`) sarı uyarı şeridinde *"/tyCo/0" cihazının içine girilemiyor (dönüş değeri -1)* yazar, liste değişmez ve cihaz soluk görünür; türü **Cihaz · girilemiyor (-1)** olur.
    - İşaret, Cihazlar'dayken **Yenile** (F5) ya da kart değişince sıfırlanır; cihaz sonradan açılırsa işaret kendiliğinden kalkar.

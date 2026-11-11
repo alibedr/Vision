@@ -321,6 +321,8 @@ namespace Vision
             _explorer.OpenRequested += OpenCards;
             _explorer.ShowExactlyRequested += ShowExactly;
             _explorer.BrowseFilesRequested += card => { _fileExplorer.ShowCard(card); ShowTab(MainTab.Files); };
+            _fileExplorer.StateOf = StateOf;   // kart listesinde yalnız bağlı kartlar (G33.5)
+            _fileExplorer.RefreshCards();
             _explorer.RenameCardRequested += RenameCard;
             _explorer.RenameGroupRequested += RenameGroup;
             // Dosya Gezgini'nde gezilen kart, Kart Gezgini'nde vurgulanır (yalnız o sekmedeyken)

@@ -194,11 +194,37 @@ namespace Vision
             return item != null ? item.Card : null;
         }
 
-        /// <summary>Yapılandırılmış kart listesi değişince çağrılır; seçim mümkünse korunur.</summary>
+        /// <summary>
+        /// Kartın bağlantı durumu (oturum yoksa bağlı değil). Ayarlanırsa kart listesinde yalnız bağlı kartlar görünür.
+        /// Oturum oluşturmadan sorar.
+        /// </summary>
+        public Func<CardConfig, CardState> StateOf { get; set; }
+
+        private string _listedSignature;
+
+        /// <summary>
+        /// Kart listesinde gösterilecek kartlar (G33.5): yalnız bağlı / bağlanmakta olanlar. O an seçili kart bağlantısı
+        /// kopsa da listede kalır (ör. reboot sırasında açık klasör kaybolmasın; "Bağlan" ile devam edilir).
+        /// </summary>
+        private List<CardConfig> ListedCards(List<CardConfig> all)
+        {
+            if (StateOf == null) return all;
+            return all.Where(c => c == _card || SelectionLogic.IsLive(StateOf(c))).ToList();
+        }
+
+        private string ListedSignature(List<CardConfig> listed)
+        {
+            return string.Join("|", listed.Select(c => c.GetHashCode() + ":" + c.Label + ":" + (c.Group != null ? c.Group.Name : "")));
+        }
+
+        /// <summary>Yapılandırılmış kart listesi ya da bağlantılar değişince çağrılır; seçim mümkünse korunur.</summary>
         public void RefreshCards()
         {
-            List<CardConfig> cards = _cards();
-            foreach (var gone in _browsers.Keys.Where(k => !cards.Contains(k)).ToList()) _browsers.Remove(gone);
+            List<CardConfig> all = _cards();
+            foreach (var gone in _browsers.Keys.Where(k => !all.Contains(k)).ToList()) _browsers.Remove(gone);
+            if (_card != null && !all.Contains(_card)) { _card = null; _browser = null; }   // kart silindi
+            List<CardConfig> cards = ListedCards(all);
+            _listedSignature = ListedSignature(cards);
 
             _suppressComboEvent = true;
             _cardCombo.BeginUpdate();
@@ -215,12 +241,17 @@ namespace Vision
             else RefreshUi();
         }
 
-        /// <summary>Başka bir yerden (ör. sağ tık menüsü) belirli bir kartı seçmek için.</summary>
+        /// <summary>
+        /// Başka bir yerden (ör. Kart Gezgini'nde "Dosyalarını gez") belirli bir kartı seçmek için. Kart bağlı değilse de
+        /// seçilir ve listeye eklenir (seçili kart her zaman listede durur); "Bağlan" ile bağlanılabilir.
+        /// </summary>
         public void ShowCard(CardConfig card)
         {
-            for (int i = 0; i < _cardCombo.Items.Count; i++)
+            if (card == null) return;
+            if (card != _card)
             {
-                if (((CardItem)_cardCombo.Items[i]).Card == card) { _cardCombo.SelectedIndex = i; return; }
+                SelectCard(card);
+                RefreshCards();
             }
         }
 
@@ -285,6 +316,12 @@ namespace Vision
         /// <summary>Seçili kartın bağlantı durumu değişirse arayüzü günceller; bağlanınca cihazları yükler.</summary>
         public void Tick()
         {
+            // Bağlanan / kopan kartlar: liste yalnız bağlı kartları gösterir (değişince yenilenir)
+            if (StateOf != null)
+            {
+                List<CardConfig> listed = ListedCards(_cards());
+                if (ListedSignature(listed) != _listedSignature) RefreshCards();
+            }
             if (_card == null || !Visible) return;
             CardState st = _sessionOf(_card).State;
             if (st == _shownState) return;
@@ -329,7 +366,9 @@ namespace Vision
             // Boş / yükleniyor / bağlı değil katmanı
             string overlay = null;
             if (_card == null)
-                overlay = "Henüz kart yok.\n\nSoldaki Kart Gezgini'nden \"Kart Ekle\" ile kart ekleyin.";
+                overlay = _cards().Count == 0
+                    ? "Henüz kart yok.\n\nSoldaki Kart Gezgini'nden \"Kart Ekle\" ile kart ekleyin."
+                    : "Bağlı kart yok.\n\nKart Gezgini'nden bir karta bağlanın; bağlanan kartlar yukarıdaki listede görünür.";
             else if (!connected)
                 overlay = (st == CardState.Recovering
                               ? "Bu kartın bağlantısı kesildi (" + (_sessionOf(_card).LastError ?? ErrorText.ConnectionLost) + ").\n" +
