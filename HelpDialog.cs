@@ -9,16 +9,15 @@ using System.Windows.Forms;
 
 namespace Vision
 {
-    public enum HelpPage { Guide, Requirements, About }
+    public enum HelpPage { Guide, About }
 
     /// <summary>
-    /// Yardım penceresi (F1): Kullanım Kılavuzu, Gereksinimler ve Hakkında.
+    /// Yardım penceresi (F1): Kullanım Kılavuzu ve Hakkında. Gereksinimler belgesi yalnız depoda durur (geliştirici için, G33.2).
     /// Belgeler exe'nin içine gömülüdür (G32); her sürüm kendi kılavuzunu gösterir, ayrı Yardim klasörü gerekmez.
     /// </summary>
     public sealed class HelpDialog : Form
     {
         public const string GuideFile = "KullanimKilavuzu.md";
-        public const string RequirementsFile = "Gereksinimler.md";
 
         private readonly Panel _nav = new Panel { Dock = DockStyle.Left, Width = 250, BackColor = Theme.Sidebar };
         private readonly FlowLayoutPanel _toc = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoScroll = true, BackColor = Theme.Sidebar };
@@ -82,9 +81,9 @@ namespace Vision
             _nav.Controls.Add(title);
 
             int y = 42;
-            foreach (var p in new[] { HelpPage.Guide, HelpPage.Requirements, HelpPage.About })
+            foreach (var p in new[] { HelpPage.Guide, HelpPage.About })
             {
-                string text = p == HelpPage.Guide ? "Kullanım Kılavuzu" : p == HelpPage.Requirements ? "Gereksinimler" : "Hakkında";
+                string text = p == HelpPage.Guide ? "Kullanım Kılavuzu" : "Hakkında";
                 var b = Theme.MakeButton(text, Theme.ButtonKind.Ghost);
                 b.TextAlign = ContentAlignment.MiddleLeft;
                 b.Padding = new Padding(8, 0, 0, 0);
@@ -141,7 +140,7 @@ namespace Vision
             }
             else
             {
-                string file = page == HelpPage.Guide ? GuideFile : RequirementsFile;
+                string file = GuideFile;
                 string source;
                 string md = HelpMarkdown.LoadDocument(file, out source);
                 if (md == null)

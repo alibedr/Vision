@@ -93,7 +93,7 @@ namespace Vision
             // FTP bilgisi artık her karttan otomatik alınır: eski sürümlerde elle girilmiş parola dosyada tutulmaz
             if (_config.Settings.Transfer != null) _config.Settings.Transfer.ClearLegacyCredentials();
 
-            Text = AppInfo.Name + "  —  " + AppInfo.Author;
+            Text = AppInfo.Name;   // geliştirici adı Hakkında'da ve durum çubuğunda yazar (G33.1)
             if (Theme.AppIcon != null) Icon = Theme.AppIcon;
             Size = new Size(1360, 820);
             MinimumSize = new Size(900, 560);
@@ -828,7 +828,6 @@ namespace Vision
                 _helpMenu.Items.Add(it);
             };
             item("Kullanım Kılavuzu", "F1", () => ShowHelp(HelpPage.Guide));
-            item("Gereksinimler", null, () => ShowHelp(HelpPage.Requirements));
             _helpMenu.Items.Add(new ToolStripSeparator());
             item("Hakkında", null, () => ShowHelp(HelpPage.About));
 

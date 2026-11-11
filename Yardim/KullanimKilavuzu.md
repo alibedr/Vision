@@ -9,7 +9,7 @@ Vision; donanım kartlarına telnet ile bağlanmak, kartlara komut göndermek, b
 | Bölüm | Konum | Ne işe yarar |
 |---|---|---|
 | Kart Gezgini | Sol kenar | Grupları ve kartları listeler; kart ekleme, seçme, bağlanma ve gösterme buradan yapılır. Sekme şeridinin en solundaki kenar çubuğu düğmesi (Ctrl+B) ile gizlenip gösterilir. |
-| Sekmeler | Sağ alanın üstü | **Telnet** (kart terminalleri), **Kart Dosya Gezgini**, **Komut Kütüphanesi** ve **Sentinel** arasında geçiş (Ctrl+1 / 2 / 3 / 4). Aynı şeridin en sağında **Yardım** (Kullanım Kılavuzu, Gereksinimler, Hakkında) ve **Temalar** menüsü (hazır temalar ve özelleştirme; aşağıya bakın) bulunur. |
+| Sekmeler | Sağ alanın üstü | **Telnet** (kart terminalleri), **Kart Dosya Gezgini**, **Komut Kütüphanesi** ve **Sentinel** arasında geçiş (Ctrl+1 / 2 / 3 / 4). Aynı şeridin en sağında **Yardım** (Kullanım Kılavuzu, Hakkında) ve **Temalar** menüsü (hazır temalar ve özelleştirme; aşağıya bakın) bulunur. |
 | Telnet sekmesi | Sağ alan | Seçilen kartların terminal pencereleri ızgara düzeninde görünür (en fazla 24 kart). |
 | Terminal ayarları | Telnet sekmesinin üst çubuğu | Satır sonu, yerel eko, zaman damgası, dosyaya kaydet, satır sınırı ve "Tümünü kapat". |
 | Genel komut çubuğu | Telnet sekmesinin altı | Bir komutu ekrandaki tüm kartlara aynı anda gönderir. |
@@ -99,7 +99,7 @@ Terminal ayarlarındaki **Yerel eko**, **Zaman damgası** ve **Dönüş değerle
 
 ### Renkler ve okunabilirlik
 
-Arayüz renkleri WCAG 2.1 AA kontrast ölçütüne göre ölçülüp ayarlanmıştır: normal metin her zeminde en az **4.5:1**, pasif düğme yazıları en az **3:1**. Ölçülen 41 metin / zemin çiftinin hepsi bu sınırı geçer (önceki sürümde 11 çift geçmiyordu). Ayrıntı: Gereksinimler → G12.
+Arayüz renkleri WCAG 2.1 AA kontrast ölçütüne göre ölçülüp ayarlanmıştır: normal metin her zeminde en az **4.5:1**, pasif düğme yazıları en az **3:1**. Ölçülen 41 metin / zemin çiftinin hepsi bu sınırı geçer (önceki sürümde 11 çift geçmiyordu).
 
 ## Kart ekleme
 
@@ -392,9 +392,9 @@ Her kartın terminalinde tutulan en fazla satır sayısı (100 – 100.000). Sı
 
 Yazdığınız komutu, kart cevap vermeden önce kartın ekranına yazar; komut istemin yanına düşer (`-> ls "/ata0a"`). Kart da komutu geri ekolarsa ikinci kopya otomatik ayıklanır. Kapalıyken ekranda yalnız kartın gönderdikleri görünür. Komutlar ekranda iki kez görünüyorsa kapatın.
 
-### Zaman damgası (varsayılan: kapalı)
+### Zaman damgası (varsayılan: açık)
 
-Ekrana düşen her yeni satırın başına `[14:32:05.123]` biçiminde saat ekler. Saat, satırın bilgisayara ulaştığı andır (kartın saati değil). Yalnız açıldıktan sonra gelen satırlara eklenir; anlık kayıtta da görünür.
+Ekrana düşen her yeni satırın başına `[14:32:05.123]` biçiminde saat ekler. Varsayılan olarak açıktır; kapatırsanız tercihiniz hatırlanır. Saat, satırın bilgisayara ulaştığı andır (kartın saati değil). Yalnız açıldıktan sonra gelen satırlara eklenir; anlık kayıtta da görünür.
 
 ### Dönüş değerlerini ayır (varsayılan: açık)
 

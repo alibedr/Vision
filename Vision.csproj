@@ -148,12 +148,11 @@
     <EmbeddedResource Include="Yardim\KullanimKilavuzu.md">
       <LogicalName>Yardim.KullanimKilavuzu.md</LogicalName>
     </EmbeddedResource>
-    <EmbeddedResource Include="Yardim\Gereksinimler.md">
-      <LogicalName>Yardim.Gereksinimler.md</LogicalName>
-    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <None Include="Vision.ico" />
+    <!-- Geliştirici belgesi: depoda durur, exe'ye gömülmez (G33.2) -->
+    <None Include="Yardim\Gereksinimler.md" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
