@@ -681,6 +681,7 @@ namespace Vision
         /// <summary>Kartın görünen adı değişince başlığı günceller ("IP" ya da "IP (Ad)").</summary>
         public void RefreshTitle()
         {
+            if (IsHandleCreated) RefreshState();   // alt satırdaki grup adı (grup yeniden adlandırılmış olabilir)
             _title.Text = Session.Card.Label;
             _tips.SetToolTip(_title, Session.Card.Label + "  ·  " + Session.Card.DisplayName);
             if (_dropBanner.Visible) _shownDrop = null;   // uyarı kutusu yeni adla yeniden kurulsun

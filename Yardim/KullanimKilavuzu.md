@@ -82,12 +82,14 @@ Arayüz renkleri WCAG 2.1 AA kontrast ölçütüne göre ölçülüp ayarlanmı�
 
 1. Kart Gezgini'nde **+ Kart Ekle** düğmesine basın (ya da **Ctrl+N**).
 2. **Grup adı**, **Port** (varsayılan 23), **Başlangıç IP adresi** ve **Kart sayısı** alanlarını doldurun.
-3. Kart sayısı kadar IP alanı otomatik oluşur ve başlangıç IP'sinden sırayla doldurulur (ör. 192.168.1.10, .11, .12). Alanları elle değiştirebilirsiniz; **Sıralı doldur** tüm alanları yeniden sıralar.
+3. Kart sayısı kadar IP alanı otomatik oluşur ve başlangıç IP'sinden sırayla doldurulur (ör. 192.168.1.10, .11, .12). Başlangıç IP'sini değiştirdikçe **Kart 1 dahil** tüm alanlar kendiliğinden güncellenir; düğmeye basmak gerekmez. Bir alanı elle değiştirirseniz o alan artık kendiliğinden değişmez; **Sıralı doldur** elle değiştirilenler dahil tüm alanları yeniden sıralar.
 4. **Grubu Oluştur** ile kaydedin.
 
 Doğrulama kuralları: grup adı boş ya da var olan bir grupla aynı olamaz; IP'ler dört bölümlü geçerli IPv4 olmalı ve listede tekrar etmemelidir. Hatalı alanlar kırmızıyla işaretlenir.
 
 Var olan bir gruba kart eklemek için gruba sağ tıklayıp **Gruba kart ekle…** seçin.
+
+Grubun adını değiştirmek için gruba sağ tıklayıp **Grubun adını değiştir…** seçin (ya da grubu seçip **F2**). Kartlar, bağlantılar ve port olduğu gibi kalır; yeni ad her yerde hemen görünür. Aynı adda iki grup olamaz.
 
 ### Kartlara ad verme
 
@@ -130,7 +132,7 @@ Gruplar, kartlar ve tüm ayarlar bilgisayarınızda, **`%APPDATA%\TelnetCards\co
 
 | Öğe | Seçenekler |
 |---|---|
-| Grup | Tümünü ekranda göster · Seçilileri ekranda göster · Tümünü bağla · Tümünün bağlantısını kes · Gruba kart ekle… · Grubu sil |
+| Grup | Tümünü ekranda göster · Seçilileri ekranda göster · Tümünü bağla · Tümünün bağlantısını kes · Gruba kart ekle… · Grubun adını değiştir… · Grubu sil |
 | Kart | Ekranda göster · Bağlan / Bağlantıyı kes · Dosya Gezgininde aç · Kartı kaldır |
 
 Klavye: **Enter** seçili kartı (ya da grubu) ekranda gösterir, **Delete** seçili kartı / grubu siler (onay istenir).
@@ -645,7 +647,7 @@ Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındak
 | Ctrl+B | Kart Gezgini kenar çubuğunu gizle / göster |
 | Tab / ↓ / → | Komut satırında otomatik tamamlama önerisini kabul et (çalıştırmaz) |
 | Esc | Komut satırında öneriyi gizle |
-| F2 | Kart Gezgini'nde kartın adını değiştir |
+| F2 | Kart Gezgini'nde kartın ya da grubun adını değiştir |
 | Ctrl+W | Seçili kart penceresini kapat |
 | F1 | Kullanım Kılavuzu (ayrıca sekme şeridinin sağındaki **Yardım** düğmesi) |
 | Ctrl+Shift+L | Sonraki tema |

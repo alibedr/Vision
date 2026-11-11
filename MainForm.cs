@@ -322,6 +322,7 @@ namespace Vision
             _explorer.ShowExactlyRequested += ShowExactly;
             _explorer.BrowseFilesRequested += card => { _fileExplorer.ShowCard(card); ShowTab(MainTab.Files); };
             _explorer.RenameCardRequested += RenameCard;
+            _explorer.RenameGroupRequested += RenameGroup;
             // Dosya Gezgini'nde gezilen kart, Kart Gezgini'nde vurgulanır (yalnız o sekmedeyken)
             _fileExplorer.SelectedCardChanged += card => { if (_activeTab == MainTab.Files) _explorer.HighlightedCard = card; };
             _explorer.ConnectRequested += ConnectCards;
@@ -775,6 +776,31 @@ namespace Vision
             if (name == null) return;   // iptal
             string trimmed = name.Trim();
             card.Name = trimmed.Length == 0 ? null : trimmed;
+            SaveConfig();
+            _explorer.Rebuild();
+            _grid.RefreshTitles();
+            _fileExplorer.RefreshCards();
+            _statesDirty = true;
+        }
+
+        /// <summary>
+        /// Grubun adını değiştirir (sağ tık "Grubun adını değiştir…" ya da F2). Kartlar, bağlantılar ve port olduğu gibi
+        /// kalır; ad her yerde (kart başlıkları, Dosya Gezgini, Sentinel, Komut Kütüphanesi) hemen güncellenir.
+        /// </summary>
+        private void RenameGroup(CardGroup group)
+        {
+            string name = InputDialog.Ask(this, "Grup adı", "\"" + group.Name + "\" grubunun yeni adı:", group.Name ?? "", text =>
+            {
+                string t = (text ?? "").Trim();
+                if (t.Length == 0) return "Grup adı boş olamaz.";
+                if (_config.Groups.Any(g => g != group && string.Equals(g.Name, t, StringComparison.OrdinalIgnoreCase)))
+                    return "\"" + t + "\" adında bir grup zaten var.";
+                return null;
+            });
+            if (name == null) return;   // iptal
+            string trimmed = name.Trim();
+            if (trimmed == group.Name) return;
+            group.Name = trimmed;
             SaveConfig();
             _explorer.Rebuild();
             _grid.RefreshTitles();

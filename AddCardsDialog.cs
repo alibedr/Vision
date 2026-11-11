@@ -20,6 +20,9 @@ namespace Vision
         private readonly TextBox _startIp = new TextBox { Text = "192.168.1.10" };
         private readonly NumericUpDown _count = new NumericUpDown { Minimum = 1, Maximum = MaxCards, Value = 1 };
         private readonly Button _fillBtn = Theme.MakeButton("Sıralı doldur", Theme.ButtonKind.Secondary);
+        // Otomatik doldurulmuş (kullanıcının elle değiştirmediği) IP alanları: başlangıç IP'si değişince güncellenir
+        private readonly HashSet<TextBox> _autoFilled = new HashSet<TextBox>();
+        private bool _filling;
         private readonly FlowLayoutPanel _ipList = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
@@ -75,7 +78,12 @@ namespace Vision
 
             _count.ValueChanged += (s, e) => SyncIpRows(false);
             _fillBtn.Click += (s, e) => SyncIpRows(true);
-            _startIp.TextChanged += (s, e) => { MarkValid(_startIp, true); };
+            _startIp.TextChanged += (s, e) =>
+            {
+                MarkValid(_startIp, true);
+                // Elle değiştirilmemiş tüm alanlar (Kart 1 dahil) yeni başlangıç IP'sinden sıralı güncellenir
+                if (IpUtil.IsValidIPv4(_startIp.Text.Trim())) SyncIpRows(false);
+            };
             _okBtn.Click += OkBtn_Click;
 
             SyncIpRows(true);
@@ -220,6 +228,7 @@ namespace Vision
             {
                 TextBox box = _ipBoxes[_ipBoxes.Count - 1];
                 _ipBoxes.RemoveAt(_ipBoxes.Count - 1);
+                _autoFilled.Remove(box);
                 _ipList.Controls.Remove(box.Parent);
                 box.Parent.Dispose();
             }
@@ -228,12 +237,20 @@ namespace Vision
                 int index = _ipBoxes.Count;
                 _ipBoxes.Add(CreateIpRow(index));
             }
-            for (int i = 0; i < _ipBoxes.Count; i++)
+            _filling = true;
+            try
             {
-                TextBox box = _ipBoxes[i];
-                if (startValid && (overwrite || box.Text.Length == 0))
-                    box.Text = IpUtil.Increment(start, i) ?? "";
+                for (int i = 0; i < _ipBoxes.Count; i++)
+                {
+                    TextBox box = _ipBoxes[i];
+                    if (startValid && (overwrite || box.Text.Length == 0 || _autoFilled.Contains(box)))
+                    {
+                        box.Text = IpUtil.Increment(start, i) ?? "";
+                        _autoFilled.Add(box);
+                    }
+                }
             }
+            finally { _filling = false; }
             _ipList.ResumeLayout(true);
 
             _ipHeader.Text = "KART IP ADRESLERİ  (" + target + ")";
@@ -249,7 +266,11 @@ namespace Vision
             Theme.StyleTextBox(box);
             box.Font = new Font("Consolas", 10f);
             box.BackColor = Theme.Surface;
-            box.TextChanged += (s, e) => MarkValid(box, true);
+            box.TextChanged += (s, e) =>
+            {
+                MarkValid(box, true);
+                if (!_filling) _autoFilled.Remove(box);   // kullanıcı elle yazdı: artık otomatik güncellenmez
+            };
             row.Controls.Add(label);
             row.Controls.Add(box);
             _ipList.Controls.Add(row);
