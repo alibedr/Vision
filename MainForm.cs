@@ -868,8 +868,16 @@ namespace Vision
             foreach (Image img in _themeMenuImages) img.Dispose();
             _themeMenuImages.Clear();
             List<ThemeCustomization> custom = _config.Settings.ThemeCustomizations;
+            string group = null;
             foreach (ThemeDefinition def in ThemeCatalog.All)
             {
+                if (def.Group != group)
+                {
+                    // Başlık: Vision temaları / Popüler editör temaları
+                    if (group != null) _themeMenu.Items.Add(new ToolStripSeparator());
+                    group = def.Group;
+                    _themeMenu.Items.Add(new ToolStripMenuItem(group.ToUpper(new System.Globalization.CultureInfo("tr-TR"))) { Enabled = false, Font = Theme.SectionHeader });
+                }
                 bool customized = ThemeCatalog.IsCustomized(custom, def.Id);
                 var it = new ToolStripMenuItem(def.Name + (customized ? "   (özelleştirildi)" : ""))
                 {
