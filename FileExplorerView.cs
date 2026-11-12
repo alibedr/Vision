@@ -41,7 +41,9 @@ namespace Vision
         private readonly Label _banner = new GlyphLabel { Closable = true, Dock = DockStyle.Top, Height = 34, Visible = false, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(14, 0, 8, 0), Cursor = Cursors.Hand };
         private readonly DarkListView _list = new DarkListView();
         private readonly Label _overlay = new Label { AutoSize = false, TextAlign = ContentAlignment.MiddleCenter, ForeColor = Theme.TextMuted, BackColor = Theme.Input, Visible = false };
-        private readonly ImageList _icons = new ImageList { ColorDepth = ColorDepth.Depth32Bit, ImageSize = new Size(20, 20) };
+        // Satır yüksekliği simge yüksekliğinden gelir: 24 px (simge 20×20, üstte / altta 2 px) — disk satırında boyut yazısı
+        // ile doluluk çubuğu üst üste binmesin (G34.2)
+        private readonly ImageList _icons = new ImageList { ColorDepth = ColorDepth.Depth32Bit, ImageSize = new Size(20, 24) };
 
         // Alt çubuk + ham çıktı
         private readonly Label _status = Theme.MakeLabel("", Theme.UiSmall, Theme.TextMuted);
@@ -561,10 +563,11 @@ namespace Vision
 
         private static Bitmap DrawIcon(Action<Graphics> draw)
         {
-            var bmp = new Bitmap(20, 20);
+            var bmp = new Bitmap(20, 24);
             using (Graphics g = Graphics.FromImage(bmp))
             {
                 g.SmoothingMode = SmoothingMode.AntiAlias;
+                g.TranslateTransform(0, 2);   // 20×20 simge, 24 px yüksek satırın ortasında
                 g.Clear(Color.Transparent);
                 draw(g);
             }
@@ -691,7 +694,7 @@ namespace Vision
                 if (SmallImageList != null && e.Item.ImageKey != null && SmallImageList.Images.ContainsKey(e.Item.ImageKey))
                 {
                     Image img = SmallImageList.Images[e.Item.ImageKey];
-                    e.Graphics.DrawImage(img, x, e.Bounds.Y + (e.Bounds.Height - 20) / 2, 20, 20);
+                    e.Graphics.DrawImage(img, x, e.Bounds.Y + (e.Bounds.Height - img.Height) / 2, img.Width, img.Height);
                 }
                 x += 28;
                 bool notEnterable = entry != null && entry.NotEnterable;   // içine girilemeyen cihaz soluk çizilir
@@ -706,13 +709,16 @@ namespace Vision
                 bool pathColumn = e.ColumnIndex == Columns.Count - 1;
                 Color fore = pathColumn ? Theme.TextFaint
                            : e.ColumnIndex == 1 && entry != null && entry.NotEnterable ? Theme.Warning : Theme.TextMuted;
-                TextRenderer.DrawText(e.Graphics, e.SubItem.Text, pathColumn ? Theme.Mono : Font, r, fore,
+                bool spaceBar = e.ColumnIndex == 2 && entry != null && entry.Kind == FsKind.Device && entry.Space != null && entry.Space.HasFree;
+                // Doluluk çubuğu olan hücrede yazı çubuğun üstündeki alana ortalanır (üst üste binmesin)
+                Rectangle textRect = spaceBar ? new Rectangle(r.X, r.Y, r.Width, Math.Max(10, r.Height - 6)) : r;
+                TextRenderer.DrawText(e.Graphics, e.SubItem.Text, pathColumn ? Theme.Mono : Font, textRect, fore,
                     TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
-                // Cihazın doluluk çubuğu (Boyut sütunu): %90 üstü sarı, %97 üstü kırmızı
-                if (e.ColumnIndex == 2 && entry != null && entry.Kind == FsKind.Device && entry.Space != null && entry.Space.HasFree)
+                // Cihazın doluluk çubuğu (Boyut sütunu): satırın en altında; %90 üstü sarı, %97 üstü kırmızı
+                if (spaceBar)
                 {
                     double ratio = entry.Space.UsedRatio;
-                    var track = new Rectangle(r.X, e.Bounds.Bottom - 6, Math.Max(10, r.Width - 8), 3);
+                    var track = new Rectangle(r.X, e.Bounds.Bottom - 5, Math.Max(10, r.Width - 8), 3);
                     using (var tb = new SolidBrush(Theme.Border)) e.Graphics.FillRectangle(tb, track);
                     Color fill = ratio >= 0.97 ? Theme.Danger : ratio >= 0.90 ? Theme.Warning : Theme.Accent;
                     int w = (int)Math.Round(track.Width * ratio);
