@@ -997,78 +997,7 @@ namespace Vision
             _sessions.Clear();
             base.OnFormClosing(e);
         }
-    }
 
-    /// <summary>Sekme şeridindeki düz sekme düğmesi (etkin sekmenin altında vurgu çizgisi).</summary>
-    internal sealed class TabStripButton : Control
-    {
-        private bool _active, _hover;
-        private IconKind _icon;
-
-        public TabStripButton(string text, IconKind icon)
-        {
-            Text = text;
-            _icon = icon;
-            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
-            Font = new Font("Segoe UI Semibold", 9.5f);
-            BackColor = Theme.Sidebar;
-            Cursor = Cursors.Hand;
-            Width = TextRenderer.MeasureText(text, Font, Size.Empty, TextFormatFlags.NoPadding).Width + 16 + 8 + 32;
-        }
-
-        public bool Active
-        {
-            get { return _active; }
-            set { _active = value; Invalidate(); }
-        }
-
-        /// <summary>false: sekme değil, şeritteki bir düğme (Yardım, tema) — etkin çizgisi yok.</summary>
-        public bool IsTab { get; set; } = true;
-
-        public IconKind Icon
-        {
-            get { return _icon; }
-            set { _icon = value; Invalidate(); }
-        }
-
-        /// <summary>Simge rengi (boşsa yazı rengi).</summary>
-        public Color IconColor { get; set; }
-
-        /// <summary>Genişliği yazıya göre yeniden hesaplar (metin değişince).</summary>
-        public void FitToText()
-        {
-            Width = TextRenderer.MeasureText(Text, Font, Size.Empty, TextFormatFlags.NoPadding).Width + 16 + 8 + 32;
-            Invalidate();
-        }
-
-        protected override void OnMouseEnter(EventArgs e) { base.OnMouseEnter(e); _hover = true; Invalidate(); }
-        protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); _hover = false; Invalidate(); }
-
-        protected override void OnPaint(PaintEventArgs e)
-        {
-            Graphics g = e.Graphics;
-            using (var bg = new SolidBrush(Theme.Sidebar)) g.FillRectangle(bg, ClientRectangle);
-            if (_hover && !_active)
-            {
-                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-                using (var path = IconRenderer.RoundRect(new RectangleF(4.5f, 6.5f, Width - 9, Height - 14), 5))
-                using (var b = new SolidBrush(Theme.Hover)) g.FillPath(b, path);
-            }
-            Color fore = _active || _hover ? Theme.Text : Theme.TextMuted;
-            Size ts = TextRenderer.MeasureText(Text, Font, Size.Empty, TextFormatFlags.NoPadding);
-            int x = (Width - (16 + 8 + ts.Width)) / 2;
-            Color iconColor = _active ? Theme.Accent : !IconColor.IsEmpty ? IconColor : fore;
-            IconRenderer.Draw(g, _icon, new RectangleF(x, (Height - 16) / 2f - 1, 16, 16), iconColor);
-            TextRenderer.DrawText(g, Text, Font, new Rectangle(x + 24, 0, ts.Width + 4, Height - 2), fore,
-                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding);
-            if (_active && IsTab)
-            {
-                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-                using (var path = IconRenderer.RoundRect(new RectangleF(12, Height - 3, Width - 24, 4), 1.5f))
-                using (var line = new SolidBrush(Theme.Accent)) g.FillPath(line, path);
-            }
-        }
-    
         // =====================================================================
         // Uygulama turu (G36)
         // =====================================================================
@@ -1372,6 +1301,77 @@ namespace Vision
                 int x = r.X + 10 + (i % 2) * colW, y = r.Y + 8 + (i / 2) * 26;
                 TextRenderer.DrawText(g, rows[i][0], Theme.UiBold, new Point(x, y), Theme.Accent);
                 TextRenderer.DrawText(g, rows[i][1], Theme.UiSmall, new Point(x + 96, y + 2), Theme.Text);
+            }
+        }
+    }
+
+    /// <summary>Sekme şeridindeki düz sekme düğmesi (etkin sekmenin altında vurgu çizgisi).</summary>
+    internal sealed class TabStripButton : Control
+    {
+        private bool _active, _hover;
+        private IconKind _icon;
+
+        public TabStripButton(string text, IconKind icon)
+        {
+            Text = text;
+            _icon = icon;
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
+            Font = new Font("Segoe UI Semibold", 9.5f);
+            BackColor = Theme.Sidebar;
+            Cursor = Cursors.Hand;
+            Width = TextRenderer.MeasureText(text, Font, Size.Empty, TextFormatFlags.NoPadding).Width + 16 + 8 + 32;
+        }
+
+        public bool Active
+        {
+            get { return _active; }
+            set { _active = value; Invalidate(); }
+        }
+
+        /// <summary>false: sekme değil, şeritteki bir düğme (Yardım, tema) — etkin çizgisi yok.</summary>
+        public bool IsTab { get; set; } = true;
+
+        public IconKind Icon
+        {
+            get { return _icon; }
+            set { _icon = value; Invalidate(); }
+        }
+
+        /// <summary>Simge rengi (boşsa yazı rengi).</summary>
+        public Color IconColor { get; set; }
+
+        /// <summary>Genişliği yazıya göre yeniden hesaplar (metin değişince).</summary>
+        public void FitToText()
+        {
+            Width = TextRenderer.MeasureText(Text, Font, Size.Empty, TextFormatFlags.NoPadding).Width + 16 + 8 + 32;
+            Invalidate();
+        }
+
+        protected override void OnMouseEnter(EventArgs e) { base.OnMouseEnter(e); _hover = true; Invalidate(); }
+        protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); _hover = false; Invalidate(); }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            using (var bg = new SolidBrush(Theme.Sidebar)) g.FillRectangle(bg, ClientRectangle);
+            if (_hover && !_active)
+            {
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                using (var path = IconRenderer.RoundRect(new RectangleF(4.5f, 6.5f, Width - 9, Height - 14), 5))
+                using (var b = new SolidBrush(Theme.Hover)) g.FillPath(b, path);
+            }
+            Color fore = _active || _hover ? Theme.Text : Theme.TextMuted;
+            Size ts = TextRenderer.MeasureText(Text, Font, Size.Empty, TextFormatFlags.NoPadding);
+            int x = (Width - (16 + 8 + ts.Width)) / 2;
+            Color iconColor = _active ? Theme.Accent : !IconColor.IsEmpty ? IconColor : fore;
+            IconRenderer.Draw(g, _icon, new RectangleF(x, (Height - 16) / 2f - 1, 16, 16), iconColor);
+            TextRenderer.DrawText(g, Text, Font, new Rectangle(x + 24, 0, ts.Width + 4, Height - 2), fore,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding);
+            if (_active && IsTab)
+            {
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                using (var path = IconRenderer.RoundRect(new RectangleF(12, Height - 3, Width - 24, 4), 1.5f))
+                using (var line = new SolidBrush(Theme.Accent)) g.FillPath(line, path);
             }
         }
     }
