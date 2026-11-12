@@ -7,3 +7,6 @@
 *.xml     text eol=crlf
 *.ico     binary
 *.png     binary
+*.zip     binary
+*.exe     binary
+*.dll     binary

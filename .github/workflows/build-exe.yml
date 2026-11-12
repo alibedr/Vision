@@ -6,7 +6,7 @@ name: Vision exe derle
 on:
   push:
     branches: ["**"]
-    paths-ignore: ["**.md", "docs/**"]
+    paths-ignore: ["**.md", "docs/**", "release/**"]
   workflow_dispatch:
     inputs:
       release_ref:

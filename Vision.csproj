@@ -124,6 +124,7 @@
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Include="TourAccessors.cs" />
+    <Compile Include="UploadProgress.cs" />
     <Compile Include="Tour.cs">
       <SubType>Form</SubType>
     </Compile>
