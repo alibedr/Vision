@@ -518,6 +518,7 @@ Yükleme, kartlara dosya atarken elle izlediğiniz yolun aynısını otomatik ya
 
 **Büyük dosyalar:**
 - Hedef `/ata…` ya da `/bd…` diskiyse yüklemeden önce diskin boş alanı (`dosFsShow`) okunur. Yüklenecek toplam boyut sığmıyorsa hiçbir şey gönderilmeden bildirilir. Aynı adla üzerine yazılacak dosyaların boyutu hesaba katılır. Boş alan okunamazsa yükleme engellenmez.
+- **1 GB'tan büyük dosyalar parça parça aktarılır:** tek `copy` ile 2,5 GB'lık dosya kartın FTP sürücüsünü zorlayıp telnet bağlantısını düşürüyordu. Vision kartta hedef dosyayı bir kez açar (`open`), dosyayı 256 MB'lık parçalar halinde FTP'ye gönderir, her parçayı kartta açıp hedefin sonuna ekler (`copyStreams`), parçayı kapatıp FTP'den siler; sonunda hedefi kapatır. Durum şeridinde "parça 3/10" gibi görünür. Bir parça aktarılamazsa kartta yarım kalan dosya silinir ve kaç parçanın aktarıldığı yazılır.
 - Bu disklerde (FAT) bir dosya en fazla 4 GB'tan biraz küçük olabilir. 4 GB ve üstü dosyalar yüklenmez, nedeni yazılır.
 - Kart `copy` bitene kadar hiçbir şey yazmaz. Vision bu yüzden kartı dosyanın boyutuna göre bekler: 5 dakikaya ek olarak her MB için 1 saniye (2,5 GB'lık dosyada yaklaşık 48 dakikaya kadar). Kopyalama daha önce biterse hemen devam edilir. Durum şeridinde dosyanın boyutu ve "kartta kopyalama dakikalar sürebilir" notu görünür. Aynı bekleme karttan bilgisayara alırken de geçerlidir.
 

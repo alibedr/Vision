@@ -213,6 +213,8 @@ namespace Vision
         /// <summary>FTP'deki çalışma klasörünü (…/Vision) yoksa oluşturur; varsa bir şey yapmaz.</summary>
         Task EnsureWorkFolderAsync();
         Task UploadFileAsync(string localPath, string remoteName);
+        /// <summary>Dosyanın bir bölümünü (offset'ten length bayt) ayrı bir dosya olarak gönderir (büyük dosya parçaları).</summary>
+        Task UploadFileRangeAsync(string localPath, long offset, long length, string remoteName);
         Task UploadDirectoryAsync(string localDir, string remoteName);
         Task DeleteAsync(string remoteName, bool isDirectory);
         /// <summary>FTP klasöründeki dosyayı bilgisayara indirir.</summary>
@@ -317,6 +319,33 @@ namespace Vision
                     req.ContentLength = src.Length;
                     using (Stream dst = await req.GetRequestStreamAsync().ConfigureAwait(false))
                         await src.CopyToAsync(dst).ConfigureAwait(false);
+                }
+                await Complete(req).ConfigureAwait(false);
+            }).ConfigureAwait(false);
+        }
+
+        public async Task UploadFileRangeAsync(string localPath, long offset, long length, string remoteName)
+        {
+            if (!File.Exists(localPath)) throw new FtpOperationException("gönderme", DisplayUrl(remoteName), "Yerel dosya bulunamadı: " + localPath, null);
+            await WithModeFallback("gönderme", remoteName, async passive =>
+            {
+                FtpWebRequest req = Create(remoteName, WebRequestMethods.Ftp.UploadFile, passive);
+                using (var src = new FileStream(localPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                {
+                    src.Seek(offset, SeekOrigin.Begin);
+                    req.ContentLength = length;
+                    var buffer = new byte[1024 * 1024];
+                    using (Stream dst = await req.GetRequestStreamAsync().ConfigureAwait(false))
+                    {
+                        long left = length;
+                        while (left > 0)
+                        {
+                            int n = await src.ReadAsync(buffer, 0, (int)Math.Min(buffer.Length, left)).ConfigureAwait(false);
+                            if (n <= 0) throw new IOException("Dosya beklenenden kısa: " + localPath);
+                            await dst.WriteAsync(buffer, 0, n).ConfigureAwait(false);
+                            left -= n;
+                        }
+                    }
                 }
                 await Complete(req).ConfigureAwait(false);
             }).ConfigureAwait(false);
