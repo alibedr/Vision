@@ -51,7 +51,7 @@ Gruplar, kartlar ve ayarlar kullanıcının bilgisayarında `%APPDATA%\TelnetCar
 
 ## Sürümler
 
-İlk resmî yayın **v1.0**. `main`'e her birleştirmede küçük sürüm bir artırılır (v1.1, v1.2, …); her sürüm main derlemesinden kendiliğinden GitHub Releases'ta `Vision.zip` ile yayınlanır.
+İlk resmî yayın **v1.0**. `main`'e her birleştirmede küçük sürüm bir artırılır (v1.1, v1.2, …); her sürüm main derlemesinden kendiliğinden GitHub Releases'ta `Vision.zip` ile yayınlanır. Ayrıca her sürümün derlenmiş hali depoda [`release/`](release/) klasöründe `release/vX.Y/Vision.zip` olarak tutulur (v1.1 ile başladı).
 
 ## Ayrıntılı belgeler
 

@@ -400,6 +400,7 @@ Ana metin (≈ 14:1), terminal metni (≈ 13:1) ve başarı / uyarı renkleri za
 | No | Gereksinim | Durum | Nasıl karşılandı |
 |---|---|---|---|
 | G38.1 | main'e her birleştirmede küçük sürüm artırılmalı ve o sürüm GitHub'da etiket + release olarak kendiliğinden yayınlanmalı | Karşılandı | `build-exe.yml`, "Resmî sürümü yayınla" adımı: main derlemesinde `AppInfo.cs`'teki `Version` okunur, `vX.Y` release'i yoksa derlenen commit'e etiketlenip `Vision.zip` ekiyle oluşturulur (kurulum notu + GitHub'ın otomatik değişiklik listesi, "latest"). Release zaten varsa dokunulmaz, uyarı yazılır (sürüm artırılmamış demektir). Dal ön sürümleri (`build-<dal>`) eskisi gibi sürer. |
+| G38.3 | Her sürümün derlenmiş, kullanılabilir hali depoda da tutulmalı (depo başka yere aktarıldığında sürümler izlenebilsin) | Karşılandı | `release/vX.Y/Vision.zip` (v1.1 ile başladı) ve `release/README.md` (kullanım + sürüm tablosu). Zip, birleştirmeden önce dalın son kod derlemesinden (aynı kod main'de derlenir) alınıp aynı dala eklenir. `release/**` derlemeyi tetiklemez (`paths-ignore`); `.gitattributes`'ta `*.zip binary`. |
 | G38.2 | Önceden birleştirilmiş bir commit (ör. v1.0) sonradan yayınlanabilmeli | Karşılandı | Actions → "Vision exe derle" → Run workflow, `release_ref` = commit SHA'sı: o commit derlenir ve sürümü yayınlanır (ön sürüm güncellenmez). |
 
 ### G39 — Büyük dosya yükleme
@@ -419,7 +420,7 @@ Ana metin (≈ 14:1), terminal metni (≈ 13:1) ve başarı / uyarı renkleri za
 
 ## Sürüm notları
 
-İlk resmî yayın **1.0**'dır (G1–G38). Bundan sonra `main`'e her birleştirmede küçük sürüm bir artırılır (1.1, 1.2, …); yayın GitHub'da `vX.Y` etiketiyle, `Vision.zip` ekiyle, main derlemesinden kendiliğinden yapılır (G38).
+İlk resmî yayın **1.0**'dır (G1–G38). Bundan sonra `main`'e her birleştirmede küçük sürüm bir artırılır (1.1, 1.2, …); yayın GitHub'da `vX.Y` etiketiyle, `Vision.zip` ekiyle, main derlemesinden kendiliğinden yapılır (G38); derlenmiş hali ayrıca depoda `release/vX.Y/Vision.zip` olarak tutulur.
 
 | Sürüm | Değişiklikler |
 |---|---|
