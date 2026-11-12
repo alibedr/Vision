@@ -1009,6 +1009,21 @@ namespace Vision
             try
             {
                 string modeNote = null;
+                // Yüklenecek toplam boyut (klasör planları burada bir kez çıkarılır, aşağıda yeniden kullanılır)
+                var plans = new FolderPlan[localPaths.Count];
+                long needBytes = 0;
+                for (int i = 0; i < localPaths.Count; i++)
+                {
+                    try
+                    {
+                        string local = localPaths[i].TrimEnd('\\', '/');
+                        if (System.IO.Directory.Exists(local)) { plans[i] = FolderPlan.Build(local); needBytes += plans[i].TotalBytes; }
+                        else if (System.IO.File.Exists(local)) needBytes += new System.IO.FileInfo(local).Length;
+                    }
+                    catch (Exception ex) { ErrorText.LogTechnical("yükleme boyutu", ex); }
+                }
+                OpResult noSpace = await CheckFreeSpaceAsync(destDir, needBytes, localPaths);
+                if (noSpace != null) { SetError(noSpace); return noSpace; }
                 // Dosyalar FTP'nin kendisine değil, içindeki Vision çalışma klasörüne gönderilir (yarım kalan kopyalar
                 // sunucudaki diğer dosyalarla karışmasın); klasör yoksa oluşturulur
                 PendingCommand = "FTP'de " + TransferSettings.WorkFolderName + " klasörü hazırlanıyor";
@@ -1033,9 +1048,16 @@ namespace Vision
                     FolderPlan plan = null;
                     if (nameProblem == null && isDir)
                     {
-                        plan = FolderPlan.Build(local);
+                        plan = plans[i] ?? FolderPlan.Build(local);
                         nameProblem = plan.Problem;
                     }
+                    long fileBytes = 0;
+                    if (nameProblem == null && !isDir)
+                    {
+                        try { fileBytes = new System.IO.FileInfo(local).Length; } catch { }
+                    }
+                    if (nameProblem == null && IsFatDisk(destDir) && (isDir ? plan.LargestFile : fileBytes) >= FatMaxFileBytes)
+                        nameProblem = "4 GB ve üstü dosyalar kartın diskine (FAT) yazılamaz";
                     if (nameProblem != null) { failures.Add(name + ": " + nameProblem); continue; }
                     if (tracker != null) tracker.Add(name, isDir);
 
@@ -1078,10 +1100,10 @@ namespace Vision
                         continue;
                     }
                     string cmd = "copy " + FsPath.Quote(src) + ", " + FsPath.Quote(dst);
-                    PendingCommand = "Kartta kopyalanıyor " + step + "  ·  " + cmd;
+                    PendingCommand = "Kartta kopyalanıyor " + step + SizeNote(fileBytes) + "  ·  " + cmd;
                     Raise();
                     if (progress != null) progress.Report(PendingCommand);
-                    ShellResponse resp = await Exec(cmd, LongTimeoutSec);
+                    ShellResponse resp = await Exec(cmd, CopyTimeoutSec(fileBytes));
                     OpResult bad = CheckReturn(resp, name + ": FTP'ye gönderildi ama kartta kopyalanamadı (kaynak " + src + ")",
                         "Kart bu yolu göremiyor olabilir: FTP ayarlarında \"Bağlantıyı sına\" kartın FTP klasörünü görüp görmediğini denetler.");
                     if (bad != null) { failures.Add(bad.Message); if (bad.MissingCommand != null) { SetError(bad); break; } continue; }
@@ -1144,7 +1166,8 @@ namespace Vision
 
             string temp = "_tkt_" + Guid.NewGuid().ToString("N").Substring(0, 8) + "_" + entry.Name;
             string cmd = "copy " + FsPath.Quote(entry.FullPath) + ", " + FsPath.Quote(FsPath.Join(settings.CardPathPrefix, temp));
-            BeginWork("Kartta FTP konumuna kopyalanıyor  ·  " + cmd);
+            long entryBytes = entry.Size ?? 0;
+            BeginWork("Kartta FTP konumuna kopyalanıyor" + SizeNote(entryBytes) + "  ·  " + cmd);
             bool onFtp = false;
             try
             {
@@ -1157,7 +1180,7 @@ namespace Vision
                     SetError(r);
                     return r;
                 }
-                ShellResponse resp = await Exec(cmd, LongTimeoutSec);
+                ShellResponse resp = await Exec(cmd, CopyTimeoutSec(entryBytes));
                 OpResult bad = CheckReturn(resp, "\"" + entry.Name + "\" FTP konumuna kopyalanamadı", null);
                 if (bad != null) { SetError(bad); return bad; }
                 onFtp = true;
@@ -1323,7 +1346,12 @@ namespace Vision
         {
             public readonly List<string> Dirs = new List<string>();
             public readonly List<string> Files = new List<string>();
+            /// <summary>Files ile aynı sırada dosya boyutları (bayt).</summary>
+            public readonly List<long> Sizes = new List<long>();
             public string Problem;
+
+            public long TotalBytes { get { long t = 0; foreach (long s in Sizes) t += s; return t; } }
+            public long LargestFile { get { long m = 0; foreach (long s in Sizes) m = Math.Max(m, s); return m; } }
 
             public static FolderPlan Build(string localDir)
             {
@@ -1353,6 +1381,9 @@ namespace Vision
                     string r = rel.Length == 0 ? n : rel + "/" + n;
                     if (!ShellSafeName(n)) { bad.Add(r); continue; }
                     plan.Files.Add(r);
+                    long size = 0;
+                    try { size = new System.IO.FileInfo(f).Length; } catch { }
+                    plan.Sizes.Add(size);
                 }
             }
 
@@ -1396,10 +1427,11 @@ namespace Vision
                 string src = FsPath.Join(srcRoot, rel);
                 string dst = FsPath.Join(dstRoot, rel);
                 string cmd = "copy " + FsPath.Quote(src) + ", " + FsPath.Quote(dst);
-                PendingCommand = "Kartta kopyalanıyor " + step + "  ·  dosya " + (k + 1) + "/" + plan.Files.Count + "  ·  " + cmd;
+                long size = k < plan.Sizes.Count ? plan.Sizes[k] : 0;
+                PendingCommand = "Kartta kopyalanıyor " + step + "  ·  dosya " + (k + 1) + "/" + plan.Files.Count + SizeNote(size) + "  ·  " + cmd;
                 Raise();
                 if (progress != null) progress.Report(PendingCommand);
-                ShellResponse resp = await Exec(cmd, LongTimeoutSec);
+                ShellResponse resp = await Exec(cmd, CopyTimeoutSec(size));
                 OpResult bad = CheckReturn(resp, rel, null);
                 if (bad == null) continue;
                 if (resp.Failure != null || bad.MissingCommand != null)
@@ -1412,6 +1444,80 @@ namespace Vision
             if (failed.Count == 0) return null;
             return "FTP'ye gönderildi ama kartta " + failed.Count + "/" + plan.Files.Count + " dosya kopyalanamadı: " +
                    string.Join(", ", failed.Take(5)) + (failed.Count > 5 ? " …" : "") + " (kaynak " + srcRoot + ")";
+        }
+
+        // ---------- Büyük dosya yükleme (G39) ----------
+
+        /// <summary>FAT32'de bir dosya en fazla 4 GB - 1 bayt olabilir.</summary>
+        public const long FatMaxFileBytes = 4L * 1024 * 1024 * 1024;
+
+        /// <summary>Kartta kopyalama için varsayılan en düşük hız (yavaş disk / ağ payıyla): 1 MB/s.</summary>
+        private const double AssumedCardCopyBytesPerSec = 1024 * 1024;
+
+        /// <summary>
+        /// Kartta "copy" için bekleme süresi. copy iş bitene kadar hiçbir şey yazmaz; büyük dosyada sabit süre dolunca
+        /// kart kopyalamaya devam ederken Vision vazgeçiyordu. Süre dosya boyutuyla artar (en az LongTimeoutSec).
+        /// </summary>
+        public static int CopyTimeoutSec(long bytes)
+        {
+            double sec = LongTimeoutSec + Math.Max(0, bytes) / AssumedCardCopyBytesPerSec;
+            return (int)Math.Min(24 * 3600, sec);
+        }
+
+        /// <summary>Durum metni için boyut notu: "  ·  2,5 GB" (büyük dosyada "birkaç dakika sürebilir" ile).</summary>
+        private static string SizeNote(long bytes)
+        {
+            if (bytes <= 0) return "";
+            string s = "  ·  " + DeviceSpace.FormatBytes(bytes);
+            if (bytes >= 100L * 1024 * 1024) s += " (büyük dosya: kartta kopyalama dakikalar sürebilir)";
+            return s;
+        }
+
+        /// <summary>Yolun cihazı: "/ata0a/logs" → "/ata0a".</summary>
+        public static string DeviceOf(string path)
+        {
+            if (string.IsNullOrEmpty(path) || path[0] != '/') return path;
+            int k = path.IndexOf('/', 1);
+            return k < 0 ? path : path.Substring(0, k);
+        }
+
+        /// <summary>Hedef kartın FAT diski mi (/ata…, /bd…)?</summary>
+        public static bool IsFatDisk(string path)
+        {
+            return WantsSpace(DeviceOf(path));
+        }
+
+        /// <summary>
+        /// Yüklemeden önce hedef diskte yer var mı? Boş alan dosyaları FTP'ye göndermeden önce dosFsShow ile güncel
+        /// olarak okunur. Hedefte aynı adla duran dosyaların boyutu (üzerine yazılacak) boş alana eklenir. Boş alan
+        /// öğrenilemezse yükleme engellenmez. Yer yetmiyorsa hata, yoksa null.
+        /// </summary>
+        private async Task<OpResult> CheckFreeSpaceAsync(string destDir, long needBytes, IList<string> localPaths)
+        {
+            string device = DeviceOf(destDir);
+            if (needBytes <= 0 || !WantsSpace(device)) return null;
+            PendingCommand = "Kartta boş alan denetleniyor (" + device + ")";
+            Raise();
+            DeviceSpace sp = null;
+            try
+            {
+                ShellResponse r = await _exec("dosFsShow " + FsPath.Quote(device), SpaceTimeoutSec);
+                if (r != null && r.Failure == null) sp = DosFsShowParser.Parse(r.OutputLines);
+            }
+            catch (Exception ex) { ErrorText.LogTechnical("dosFsShow " + device, ex); }
+            if (sp == null || !sp.HasFree) return null;
+            _space[device] = sp;
+
+            long reclaim = 0;
+            if (destDir == Current.Path)
+            {
+                var names = new HashSet<string>(localPaths.Select(p => System.IO.Path.GetFileName(p.TrimEnd('\\', '/'))), StringComparer.OrdinalIgnoreCase);
+                foreach (FsEntry e in Entries)
+                    if (e.Kind == FsKind.File && e.Size.HasValue && names.Contains(e.Name)) reclaim += e.Size.Value;
+            }
+            if (needBytes <= sp.Free + reclaim) return null;
+            return OpResult.Fail("Kartın diskinde yeterli boş alan yok: yüklenecek " + DeviceSpace.FormatBytes(needBytes) + ", " +
+                                 device + " üzerinde boş " + DeviceSpace.FormatBytes(sp.Free) + ". Hiçbir şey gönderilmedi.");
         }
 
         /// <summary>Yüklenecek öğenin adı / varlığıyla ilgili sorun (yoksa null). Kartın kabuğu ASCII dışı adları güvenle işleyemez.</summary>

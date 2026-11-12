@@ -516,6 +516,11 @@ Yükleme, kartlara dosya atarken elle izlediğiniz yolun aynısını otomatik ya
 2. Kartta `copy "FTP-konumu/Vision/dosya", "hedef/dosya"` çalıştırılır. Klasörlerde `xcopy` **kullanılmaz** (FTP üzerinden `xcopy` kartın telnet bağlantısını düşürebiliyordu): kartta önce klasör ve alt klasörler `mkdir` ile açılır, sonra her dosya ayrı `copy` ile kopyalanır. İlerleme "dosya 3/12" gibi gösterilir; bir dosya kopyalanamazsa diğerleri devam eder ve sonunda hangilerinin kopyalanamadığı yazılır. Klasörün içindeki öğelerden birinin adında Türkçe / özel karakter varsa yükleme başlamadan bildirilir.
 3. Dönüş değeri kontrol edilir.
 
+**Büyük dosyalar:**
+- Hedef `/ata…` ya da `/bd…` diskiyse yüklemeden önce diskin boş alanı (`dosFsShow`) okunur. Yüklenecek toplam boyut sığmıyorsa hiçbir şey gönderilmeden bildirilir. Aynı adla üzerine yazılacak dosyaların boyutu hesaba katılır. Boş alan okunamazsa yükleme engellenmez.
+- Bu disklerde (FAT) bir dosya en fazla 4 GB'tan biraz küçük olabilir. 4 GB ve üstü dosyalar yüklenmez, nedeni yazılır.
+- Kart `copy` bitene kadar hiçbir şey yazmaz. Vision bu yüzden kartı dosyanın boyutuna göre bekler: 5 dakikaya ek olarak her MB için 1 saniye (2,5 GB'lık dosyada yaklaşık 48 dakikaya kadar). Kopyalama daha önce biterse hemen devam edilir. Durum şeridinde dosyanın boyutu ve "kartta kopyalama dakikalar sürebilir" notu görünür. Aynı bekleme karttan bilgisayara alırken de geçerlidir.
+
 Yüklemek için: Windows Gezgini'nden dosyaları listeye **sürükleyip bırakın** (bir klasörün üzerine bırakırsanız o klasöre; boş bir klasöre de bırakılabilir) ya da **Yükle** (yukarı ok simgesi) düğmesini kullanın. Hedefte aynı adlı öğe varsa üzerine yazmadan önce sorulur.
 
 ### Karttan bilgisayara (sürükle-bırak ya da "Bilgisayara kaydet…")
