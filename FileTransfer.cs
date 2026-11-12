@@ -212,10 +212,12 @@ namespace Vision
     {
         /// <summary>FTP'deki çalışma klasörünü (…/Vision) yoksa oluşturur; varsa bir şey yapmaz.</summary>
         Task EnsureWorkFolderAsync();
-        Task UploadFileAsync(string localPath, string remoteName);
+        /// <param name="sent">İsteğe bağlı: bu aktarımda o ana kadar gönderilen bayt (ilerleme penceresi için).</param>
+        Task UploadFileAsync(string localPath, string remoteName, Action<long> sent = null);
         /// <summary>Dosyanın bir bölümünü (offset'ten length bayt) ayrı bir dosya olarak gönderir (büyük dosya parçaları).</summary>
-        Task UploadFileRangeAsync(string localPath, long offset, long length, string remoteName);
-        Task UploadDirectoryAsync(string localDir, string remoteName);
+        Task UploadFileRangeAsync(string localPath, long offset, long length, string remoteName, Action<long> sent = null);
+        /// <param name="sent">İsteğe bağlı: klasördeki tüm dosyalar için toplam gönderilen bayt.</param>
+        Task UploadDirectoryAsync(string localDir, string remoteName, Action<long> sent = null);
         Task DeleteAsync(string remoteName, bool isDirectory);
         /// <summary>FTP klasöründeki dosyayı bilgisayara indirir.</summary>
         Task DownloadFileAsync(string remoteName, string localPath);
@@ -307,29 +309,20 @@ namespace Vision
             }
         }
 
-        public async Task UploadFileAsync(string localPath, string remoteName)
+        public async Task UploadFileAsync(string localPath, string remoteName, Action<long> sent = null)
         {
             if (!File.Exists(localPath)) throw new FtpOperationException("gönderme", DisplayUrl(remoteName), "Yerel dosya bulunamadı: " + localPath, null);
-            await WithModeFallback("gönderme", remoteName, async passive =>
-            {
-                FtpWebRequest req = Create(remoteName, WebRequestMethods.Ftp.UploadFile, passive);
-                // Dosya başka programda açık olsa da okunabilsin (FileShare.ReadWrite)
-                using (var src = new FileStream(localPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
-                {
-                    req.ContentLength = src.Length;
-                    using (Stream dst = await req.GetRequestStreamAsync().ConfigureAwait(false))
-                        await src.CopyToAsync(dst).ConfigureAwait(false);
-                }
-                await Complete(req).ConfigureAwait(false);
-            }).ConfigureAwait(false);
+            await UploadFileRangeAsync(localPath, 0, new FileInfo(localPath).Length, remoteName, sent).ConfigureAwait(false);
         }
 
-        public async Task UploadFileRangeAsync(string localPath, long offset, long length, string remoteName)
+        public async Task UploadFileRangeAsync(string localPath, long offset, long length, string remoteName, Action<long> sent = null)
         {
             if (!File.Exists(localPath)) throw new FtpOperationException("gönderme", DisplayUrl(remoteName), "Yerel dosya bulunamadı: " + localPath, null);
             await WithModeFallback("gönderme", remoteName, async passive =>
             {
                 FtpWebRequest req = Create(remoteName, WebRequestMethods.Ftp.UploadFile, passive);
+                if (sent != null) sent(0);
+                // Dosya başka programda açık olsa da okunabilsin (FileShare.ReadWrite)
                 using (var src = new FileStream(localPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
                 {
                     src.Seek(offset, SeekOrigin.Begin);
@@ -344,6 +337,7 @@ namespace Vision
                             if (n <= 0) throw new IOException("Dosya beklenenden kısa: " + localPath);
                             await dst.WriteAsync(buffer, 0, n).ConfigureAwait(false);
                             left -= n;
+                            if (sent != null) sent(length - left);
                         }
                     }
                 }
@@ -414,13 +408,24 @@ namespace Vision
                 || ex.Status == WebExceptionStatus.Timeout || ex.Status == WebExceptionStatus.ReceiveFailure;
         }
 
-        public async Task UploadDirectoryAsync(string localDir, string remoteName)
+        public async Task UploadDirectoryAsync(string localDir, string remoteName, Action<long> sent = null)
+        {
+            await UploadDirectoryAsync(localDir, remoteName, sent, new long[1]).ConfigureAwait(false);
+        }
+
+        private async Task UploadDirectoryAsync(string localDir, string remoteName, Action<long> sent, long[] doneBefore)
         {
             await MakeDirectoryAsync(remoteName).ConfigureAwait(false);
             foreach (string dir in Directory.GetDirectories(localDir))
-                await UploadDirectoryAsync(dir, remoteName + "/" + Path.GetFileName(dir)).ConfigureAwait(false);
+                await UploadDirectoryAsync(dir, remoteName + "/" + Path.GetFileName(dir), sent, doneBefore).ConfigureAwait(false);
             foreach (string file in Directory.GetFiles(localDir))
-                await UploadFileAsync(file, remoteName + "/" + Path.GetFileName(file)).ConfigureAwait(false);
+            {
+                long before = doneBefore[0];
+                Action<long> fileSent = null;
+                if (sent != null) fileSent = n => sent(before + n);
+                await UploadFileAsync(file, remoteName + "/" + Path.GetFileName(file), fileSent).ConfigureAwait(false);
+                try { doneBefore[0] = before + new FileInfo(file).Length; } catch { }
+            }
         }
 
         private async Task MakeDirectoryAsync(string remoteName)

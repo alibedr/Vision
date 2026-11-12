@@ -439,7 +439,12 @@ namespace Vision
             CardFtpCredentials creds = await EnsureCardFtpAsync(false);
             if (creds == null || card != _card || b != _browser) return;
             TransferSettings eff = CardTransfer(creds);
-            await b.UploadAsync(paths, new FtpUploader(eff), eff, null, target, _sessionOf(card).FtpCopies);
+            // Büyük yüklemede ilerleme penceresi (G40): boyut hesaplanınca gerekiyorsa açılır, bitince kapanır
+            var tp = new TransferProgress();
+            string title = paths.Count == 1 ? "\"" + Path.GetFileName(paths[0].TrimEnd('\\', '/')) + "\" → " + (card.Label ?? card.Ip) + ":" + target
+                                            : paths.Count + " öğe → " + (card.Label ?? card.Ip) + ":" + target;
+            UploadProgressDialog.Watch(FindForm(), title, tp);
+            await b.UploadAsync(paths, new FtpUploader(eff), eff, null, target, _sessionOf(card).FtpCopies, tp);
         }
 
         // ---------- Sürükle-bırak ----------
