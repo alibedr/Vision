@@ -151,11 +151,14 @@ namespace Vision
         public bool NotEnterable { get; set; }
         /// <summary>NotEnterable ise kartın döndürdüğü değer (biliniyorsa).</summary>
         public int? NotEnterableCode { get; set; }
+        /// <summary>Yalnız cihazlar için: birimin toplam / boş alanı (dosFsShow ile, arka planda öğrenilir — G34).</summary>
+        public DeviceSpace Space { get; set; }
 
         public string SizeText
         {
             get
             {
+                if (Kind == FsKind.Device) return Space != null ? Space.Text : "";
                 if (!Size.HasValue || Kind == FsKind.Folder) return "";
                 long b = Size.Value;
                 if (b < 1024) return b + " B";
@@ -179,6 +182,79 @@ namespace Vision
                     default: return "Klasör / dosya";
                 }
             }
+        }
+    }
+
+    /// <summary>Birimin kapasitesi: toplam = sektör sayısı × sektör boyutu, kullanılan = toplam − boş (Windows'taki gibi).</summary>
+    public sealed class DeviceSpace
+    {
+        public long Total;
+        /// <summary>Boş alan (bayt); kart yazmadıysa -1.</summary>
+        public long Free = -1;
+
+        public bool HasFree { get { return Free >= 0; } }
+        public long Used { get { return HasFree ? Math.Max(0, Total - Free) : -1; } }
+        public double UsedRatio { get { return HasFree && Total > 0 ? Math.Min(1.0, Math.Max(0.0, (double)Used / Total)) : -1; } }
+
+        /// <summary>Boyut sütunu: "226 MB boş / 250 MB".</summary>
+        public string Text
+        {
+            get { return HasFree ? FormatBytes(Free) + " boş / " + FormatBytes(Total) : FormatBytes(Total); }
+        }
+
+        /// <summary>Durum satırı: "250 MB · 24 MB kullanılan (%10) · 226 MB boş".</summary>
+        public string Detail
+        {
+            get
+            {
+                if (!HasFree) return FormatBytes(Total) + " toplam";
+                return FormatBytes(Total) + " toplam  ·  " + FormatBytes(Used) + " kullanılan (%" + Math.Round(UsedRatio * 100) + ")  ·  " +
+                       FormatBytes(Free) + " boş";
+            }
+        }
+
+        public static string FormatBytes(long b)
+        {
+            if (b < 1024) return b + " B";
+            if (b < 1024L * 1024) return (b / 1024.0).ToString("0.#") + " KB";
+            if (b < 1024L * 1024 * 1024) return (b / (1024.0 * 1024.0)).ToString("0.#") + " MB";
+            return (b / (1024.0 * 1024.0 * 1024.0)).ToString("0.##") + " GB";
+        }
+    }
+
+    /// <summary>
+    /// dosFsShow çıktısından birimin kapasitesi (G34). Örnek (VxWorks 6.4):
+    /// <code>
+    ///  - total number of sectors:            512,000
+    ///  - bytes per sector:                   512
+    ///  - free space on volume:              237,449,216 bytes
+    /// </code>
+    /// Sayılardaki binlik ayırıcılar (virgül / nokta) yok sayılır. Toplam bulunamazsa null.
+    /// </summary>
+    public static class DosFsShowParser
+    {
+        private static readonly Regex Sectors = new Regex(@"total\s+number\s+of\s+sectors\s*:\s*([\d,\.]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex BytesPerSector = new Regex(@"bytes\s+per\s+sector\s*:\s*([\d,\.]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex FreeSpace = new Regex(@"free\s+space\s+on\s+volume\s*:\s*([\d,\.]+)\s*bytes", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        public static DeviceSpace Parse(IEnumerable<string> lines)
+        {
+            if (lines == null) return null;
+            string text = string.Join("\n", lines);
+            long sectors = Number(Sectors, text), bps = Number(BytesPerSector, text), free = Number(FreeSpace, text);
+            if (sectors <= 0 || bps <= 0) return null;
+            var s = new DeviceSpace { Total = sectors * bps, Free = free };
+            if (s.Free > s.Total) s.Free = s.Total;
+            return s;
+        }
+
+        private static long Number(Regex re, string text)
+        {
+            Match m = re.Match(text);
+            if (!m.Success) return -1;
+            string digits = m.Groups[1].Value.Replace(",", "").Replace(".", "");
+            long v;
+            return long.TryParse(digits, out v) ? v : -1;
         }
     }
 
@@ -481,7 +557,7 @@ namespace Vision
 
         public Task<bool> LoadDevicesAsync()
         {
-            if (!Busy) _notEnterable.Clear();   // kart yeniden seçildi / bağlandı: işaretler sıfırlanır
+            if (!Busy) { _notEnterable.Clear(); ClearSpace(); }   // kart yeniden seçildi / bağlandı: işaretler ve boyutlar sıfırlanır
             return NavigateAsync(FsLocation.Root, true, null);
         }
 
@@ -509,7 +585,7 @@ namespace Vision
 
         public Task<bool> RefreshAsync()
         {
-            if (Current.IsRoot && !Busy) _notEnterable.Clear();   // Cihazlar'da Yenile: "girilemiyor" işaretleri sıfırlanır
+            if (Current.IsRoot && !Busy) { _notEnterable.Clear(); ClearSpace(); }   // Cihazlar'da Yenile: işaretler ve boyutlar yeniden
             return NavigateAsync(Current, false, null);
         }
 
@@ -628,11 +704,93 @@ namespace Vision
             return new OpResult { Ok = true };
         }
 
+        // ---------- Cihaz boyutları (G34) ----------
+
+        private const int SpaceTimeoutSec = 20;   // dosFsShow boş alanı hesaplamak için FAT'i tarayabilir
+        private readonly Dictionary<string, DeviceSpace> _space = new Dictionary<string, DeviceSpace>(StringComparer.Ordinal);
+        private readonly HashSet<string> _spaceTried = new HashSet<string>(StringComparer.Ordinal);
+        private bool _spaceRunning;
+
+        /// <summary>Boyutu sorgulanan cihazlar: yalnız /ata… ve /bd… (diskler).</summary>
+        public static bool WantsSpace(string device)
+        {
+            return device != null && (device.StartsWith("/ata", StringComparison.OrdinalIgnoreCase) ||
+                                      device.StartsWith("/bd", StringComparison.OrdinalIgnoreCase));
+        }
+
+        private void ClearSpace()
+        {
+            _space.Clear();
+            _spaceTried.Clear();
+        }
+
+        /// <summary>Yolun bulunduğu cihazın kapasitesi (biliniyorsa), ör. "/ata0a/logs" → /ata0a.</summary>
+        public DeviceSpace SpaceForPath(string path, out string device)
+        {
+            device = null;
+            if (string.IsNullOrEmpty(path)) return null;
+            DeviceSpace best = null;
+            foreach (KeyValuePair<string, DeviceSpace> kv in _space)
+            {
+                if (path.StartsWith(kv.Key, StringComparison.Ordinal) &&
+                    (path.Length == kv.Key.Length || path[kv.Key.Length] == '/') &&
+                    (device == null || kv.Key.Length > device.Length))
+                {
+                    device = kv.Key;
+                    best = kv.Value;
+                }
+            }
+            return best;
+        }
+
+        /// <summary>
+        /// Arka planda bir cihazın boyutunu öğrenir (dosFsShow). Liste hemen gösterilir; boyutlar geldikçe "Boyut"
+        /// sütununa yazılır. Yalnız Cihazlar görünürken ve başka işlem yokken, her çağrıda en fazla bir cihaz; her cihaz
+        /// bir kez denenir (Yenile / kart değişince yeniden). Kullanıcının komutları kartın komut sırasında bunu bekler,
+        /// reddedilmez. "Son cevap" panelini değiştirmez. Bir şey yapıldıysa true.
+        /// </summary>
+        public async Task<bool> QueryNextSpaceAsync()
+        {
+            if (_spaceRunning || Busy || !Loaded || !Current.IsRoot) return false;
+            string dev = Entries.Where(e => e.Kind == FsKind.Device && WantsSpace(e.FullPath) && !_spaceTried.Contains(e.FullPath))
+                                .Select(e => e.FullPath).FirstOrDefault();
+            if (dev == null) return false;
+            _spaceTried.Add(dev);
+            _spaceRunning = true;
+            try
+            {
+                ShellResponse r = await _exec("dosFsShow " + FsPath.Quote(dev), SpaceTimeoutSec);
+                if (r != null && r.Failure == null)
+                {
+                    DeviceSpace sp = DosFsShowParser.Parse(r.OutputLines);
+                    if (sp != null)
+                    {
+                        _space[dev] = sp;
+                        foreach (FsEntry e in Entries) if (e.Kind == FsKind.Device && e.FullPath == dev) e.Space = sp;
+                        if (_lastListing != null)
+                            foreach (FsEntry e in _lastListing) if (e.Kind == FsKind.Device && e.FullPath == dev) e.Space = sp;
+                        Raise();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ErrorText.LogTechnical("dosFsShow " + dev, ex);
+            }
+            finally
+            {
+                _spaceRunning = false;
+            }
+            return true;
+        }
+
         private FsEntry DeviceEntry(string device)
         {
             int? code;
             bool bad = _notEnterable.TryGetValue(device, out code);
-            return new FsEntry { Name = device, FullPath = device, Kind = FsKind.Device, NotEnterable = bad, NotEnterableCode = bad ? code : null };
+            DeviceSpace space;
+            _space.TryGetValue(device, out space);
+            return new FsEntry { Name = device, FullPath = device, Kind = FsKind.Device, NotEnterable = bad, NotEnterableCode = bad ? code : null, Space = space };
         }
 
         // ---------- Dosya / klasör işlemleri ----------

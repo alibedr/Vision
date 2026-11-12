@@ -110,7 +110,7 @@ namespace Vision
             _list.SmallImageList = _icons;
             _list.Columns.Add("Ad", 300);
             _list.Columns.Add("Tür", 100);
-            _list.Columns.Add("Boyut", 90);
+            _list.Columns.Add("Boyut", 160);   // cihazlarda "226 MB boş / 250 MB" + doluluk çubuğu
             _list.Columns.Add("Değiştirilme", 130);
             _list.Columns.Add("Yol", 300);
             var listHost = new Panel { Dock = DockStyle.Fill, BackColor = Theme.Input, Padding = new Padding(0) };
@@ -323,6 +323,11 @@ namespace Vision
                 if (ListedSignature(listed) != _listedSignature) RefreshCards();
             }
             if (_card == null || !Visible) return;
+            // Cihaz boyutları: Cihazlar görünürken ve boştayken arka planda birer birer (G34)
+            if (_browser != null && !_browser.Busy && _sessionOf(_card).State == CardState.Connected)
+            {
+                var ignored = _browser.QueryNextSpaceAsync();
+            }
             CardState st = _sessionOf(_card).State;
             if (st == _shownState) return;
             RefreshUi();
@@ -419,7 +424,15 @@ namespace Vision
             if (bad > 0) count += "  ·  " + bad + " cihazın içine girilemedi";
             string rc = b.LastResponse != null && b.LastResponse.ReturnCode.HasValue && !b.Current.IsRoot
                 ? "  ·  son dönüş değeri " + b.LastResponse.ReturnCode.Value : "";
-            return count + "  ·  " + where + rc;
+            // Bir diskin içindeyken o diskin doluluğu (G34)
+            string space = "";
+            if (!b.Current.IsRoot)
+            {
+                string dev;
+                DeviceSpace sp = b.SpaceForPath(b.Current.Path, out dev);
+                if (sp != null) space = "  ·  " + dev + ": " + sp.Detail;
+            }
+            return count + "  ·  " + where + rc + space;
         }
 
         private void ShowBanner(string text, Color back, Color fore)
@@ -441,7 +454,7 @@ namespace Vision
         {
             // Aynı içerik yeniden çizilmesin (seçim ve kaydırma korunur)
             string signature = (b.Current.Path ?? "<root>") + "|" + string.Join("|", b.Entries.Select(e => e.Name + ":" + e.KindText));
-            if (_list.Tag as string == signature) return;
+            if (_list.Tag as string == signature) { UpdateSizeCells(); return; }
             _list.Tag = signature;
 
             _list.BeginUpdate();
@@ -458,6 +471,21 @@ namespace Vision
             _list.EndUpdate();
             if (_list.Items.Count > 0) { _list.Items[0].Selected = true; _list.Items[0].Focused = true; }
             FitLastColumn();
+        }
+
+        /// <summary>
+        /// Cihaz boyutları arka planda geldikçe yalnız Boyut hücreleri güncellenir (liste baştan çizilmez; seçim ve
+        /// kaydırma korunur).
+        /// </summary>
+        private void UpdateSizeCells()
+        {
+            foreach (ListViewItem item in _list.Items)
+            {
+                var e = item.Tag as FsEntry;
+                if (e == null || item.SubItems.Count < 3) continue;
+                string text = e.SizeText;
+                if (item.SubItems[2].Text != text) item.SubItems[2].Text = text;
+            }
         }
 
         private void RebuildCrumbs(FileBrowser b, bool clickable)
@@ -680,6 +708,16 @@ namespace Vision
                            : e.ColumnIndex == 1 && entry != null && entry.NotEnterable ? Theme.Warning : Theme.TextMuted;
                 TextRenderer.DrawText(e.Graphics, e.SubItem.Text, pathColumn ? Theme.Mono : Font, r, fore,
                     TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+                // Cihazın doluluk çubuğu (Boyut sütunu): %90 üstü sarı, %97 üstü kırmızı
+                if (e.ColumnIndex == 2 && entry != null && entry.Kind == FsKind.Device && entry.Space != null && entry.Space.HasFree)
+                {
+                    double ratio = entry.Space.UsedRatio;
+                    var track = new Rectangle(r.X, e.Bounds.Bottom - 6, Math.Max(10, r.Width - 8), 3);
+                    using (var tb = new SolidBrush(Theme.Border)) e.Graphics.FillRectangle(tb, track);
+                    Color fill = ratio >= 0.97 ? Theme.Danger : ratio >= 0.90 ? Theme.Warning : Theme.Accent;
+                    int w = (int)Math.Round(track.Width * ratio);
+                    if (w > 0) using (var fb = new SolidBrush(fill)) e.Graphics.FillRectangle(fb, new Rectangle(track.X, track.Y, w, track.Height));
+                }
             }
         }
 
