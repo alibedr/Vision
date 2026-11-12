@@ -6,12 +6,24 @@ Vision; donanım kartlarına telnet ile bağlanmak, kartlara komut göndermek, b
 
 ## Uygulama turu
 
-Vision ilk açıldığında kısa bir **uygulama turu** başlar: ekran kararır, anlatılan bölüm aydınlık kalıp çerçevelenir ve yanında bir açıklama balonu çıkar. Tur sırayla şunları gösterir: sekmeler, kart ekleme, Kart Gezgini ve sağ tık menüsü, birden çok karta bağlanma, kart ekranları ve durum renkleri, kart penceresinin başlığı (süre, RX / TX, anlık kayıt…), komut satırı (geçmiş, Ctrl+R, otomatik tamamlama, bspBootChange penceresi), Sentinel / hızlı komut / reboot düğmeleri, ekranda renklendirme, akan çıktı, terminal ayarları, genel komut çubuğu, Kart Dosya Gezgini ve sürükle-bırak, Komut Kütüphanesi, Sentinel, temalar, yardım ve kısayollar.
+Vision ilk açıldığında **uygulama turu** başlar: ekran kararır, anlatılan bölüm aydınlık kalıp çerçevelenir ve yanında bir açıklama balonu çıkar. Tur uygulamayı **adım adım, sizinle birlikte** gezer:
 
-- **İleri / Geri** (ya da → / ←, Enter) ile adım değiştirin; **Turu atla** ya da **Esc** ile çıkın. Tur gerektiğinde ilgili sekmeye kendisi geçer, bitince bulunduğunuz sekmeye döner.
-- **Bir daha gösterme** işaretlenirse ya da tur sonuna kadar izlenirse bir daha kendiliğinden açılmaz. İşaretlemeden atlarsanız sonraki açılışta yeniden gelir.
+1. **Kart ekleme:** Kart Ekle'ye basmanız istenir; açılan pencerede grup adı, Telnet portu, başlangıç IP'si, kart sayısı, Sıralı doldur ve IP listesi tek tek anlatılır; alanları kendi kartınıza göre doldurup **Grubu Oluştur**'a basarsınız.
+2. **Bağlanma:** Kart Gezgini anlatılır, eklediğiniz karta çift tıklayıp bağlanmanız istenir.
+3. **Kart penceresi:** ad / grup, bağlı kalma süresi, RX / TX ışıkları, durum şeridi, Bağlan / Kes, Dosyaya kaydet, Temizle, Büyüt, Kapat, çıktı alanı, dönüş değerleri, komut satırı, komut geçmişi, Gönder, hızlı komut, reboot ve Sentinel düğmeleri tek tek gösterilir.
+4. **Boot ayarları:** kartınıza uygun olarak `bspBootChange` ya da `bootChange` yazmanız istenir; açılan Boot ayarları penceresinin bölümleri (durum, sorulan alan, yeni değer, alan düğmeleri, alan listesi, araya giren loglar) anlatılır, pencereyi kapatınca tur sürer.
+5. **Renklendirme:** terminalde bir kelime seçip sağ tık → Renklendir ile bir renk seçmeniz istenir.
+6. Terminal ayarları ve genel komut çubuğu.
+7. **Kart Dosya Gezgini** bağlandığınız kartla açılır: kart seçimi, adres çubuğu / Geri / Yenile, cihaz listesi ve disk alanı, Yeni klasör, Yükle, FTP ayarları, Ham cevap; bir öğeye sağ tıklamanız istenir ve **Yeniden adlandır / Sil / Bilgisayara kaydet** anlatılır; karta ve bilgisayara sürükle-bırak açıklanır.
+8. **Komut Kütüphanesi:** liste, arama, komut sayfası ve Karta aktar.
+9. **Sentinel:** kartınızdaki güncel imajın **Voltran** olup olmadığı sorulur. **Evet** derseniz nabız düğmesiyle Sentinel web sunucusunu başlatmanız istenir ve Sentinel sekmesi (kartlar, sayfa çubuğu, sayfa) kendi kartınızın sayfasıyla anlatılır; **Hayır** derseniz Sentinel genel hatlarıyla anlatılır.
+10. Temalar, yardım ve kısayollar.
+
+- Sizden bir işlem beklenen adımlarda balonda **▶ Şimdi siz:** ile ne yapacağınız yazar; işlemi yapınca tur **kendiliğinden ilerler**. Yapmak istemezseniz (ör. kart şu an erişilemiyor) **Bu adımı geç**. Karta bağlanılmadıysa bağlantı gerektiren adımlar atlanır.
+- Diğer adımlarda **İleri / Geri** (ya da → / ←, Enter); **Turu kapat** ya da **Esc** ile çıkılır. Tur gerektiğinde ilgili sekmeye kendisi geçer, bitince bulunduğunuz sekmeye döner. Kart Ekle ve Boot ayarları pencerelerinde balon pencerenin yanında durur.
+- **Bir daha gösterme** işaretlenirse ya da tur sonuna kadar izlenirse bir daha kendiliğinden açılmaz. İşaretlemeden kapatırsanız sonraki açılışta yeniden gelir.
 - Turu istediğiniz zaman **Yardım → Uygulama turu** ile yeniden açabilirsiniz.
-- Tur yalnız gösterir; hiçbir ayarı, kartı ya da bağlantıyı değiştirmez. Vurgulanan bölüm tur sırasında da kullanılabilir.
+- Tur kendisi hiçbir ayarı değiştirmez; kart ekleme, bağlanma, renklendirme, Sentinel'i başlatma gibi işlemleri yalnız siz yaparsınız. Vurgulanan bölüm tur sırasında kullanılabilir.
 - Henüz açık kart yoksa kart penceresine ait adımlar kart ızgarasını gösterir ve bu bölümün kart açınca görüneceğini söyler.
 
 ## Ekranın bölümleri
@@ -578,7 +590,6 @@ Bağlantı başarılı olsa da yazma izni yoksa ya da kartın gördüğü yol FT
 
 - **Solda** bağlı kartlar listelenir; Sentinel'i çalışanlar üstte ve yeşil nabız simgesiyle görünür. Bir karta tıklayın.
 - **Sağda** seçilen kartın sayfası görünür. Sayfa kendini kendisi yeniler; elle yenilemek için **Yenile** (F5).
-- Sayfa yenilenmiyorsa üst çubuktaki seçimden Vision'ın sayfayı **her 2 / 5 / 10 / 30 sn'de** yeniden yüklemesini seçebilirsiniz (varsayılan: *Sayfanın kendi yenilemesi*).
 - Sunucu çalışmıyorsa sayfanın yerine açıklama çıkar; sağ üstteki **Başlat** ile buradan da başlatabilirsiniz (çalışırken **Durdur**).
 - Sunucu sayfa açıkken kapanırsa (ör. kart reboot oldu) sayfa kapanır ve açıklama görünür; yeniden açılınca sayfa kendiliğinden gelir.
 - Başka sekmeye geçince sayfa **arka planda açık kalır**: bağlantı kopmaz, sayfadaki "bağlı kalma süresi" gibi sayaçlar sıfırlanmaz; sekmeye dönünce kaldığı yerden görünür. Listeden başka bir kart seçilince o kartın sayfası açılır. Sekme hiç açılmadıysa hiçbir karta bağlanılmaz.

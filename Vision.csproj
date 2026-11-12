@@ -123,6 +123,7 @@
       <DependentUpon>CardView.cs</DependentUpon>
       <SubType>UserControl</SubType>
     </Compile>
+    <Compile Include="TourAccessors.cs" />
     <Compile Include="Tour.cs">
       <SubType>Form</SubType>
     </Compile>

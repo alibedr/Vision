@@ -14,7 +14,7 @@ namespace Vision
     /// Pencere kartı yalnız izler: gönderilenler kartın kendi bootChange girişine gider ("" = değiştirmeden geç,
     /// "." = temizle, "-" = önceki alan, Ctrl+D = çık).
     /// </summary>
-    public sealed class BootChangeDialog : DarkDialog
+    public sealed partial class BootChangeDialog : DarkDialog
     {
         private static readonly Dictionary<CardSession, BootChangeDialog> OpenDialogs = new Dictionary<CardSession, BootChangeDialog>();
         private const int MaxAutoSteps = 80;

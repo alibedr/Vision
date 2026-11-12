@@ -241,7 +241,7 @@ namespace Vision
         /// açılır. Tura yeni adımlar eklendiğinde CurrentTourVersion artırılırsa tur yeniden gösterilir.
         /// </summary>
         public int TourVersionSeen { get; set; }
-        public const int CurrentTourVersion = 1;
+        public const int CurrentTourVersion = 2;
         private const int CurrentDefaultsRevision = 1;
 
         /// <summary>"Birlikte aç (salt okunur)" açıklama penceresi bir daha gösterilmesin.</summary>

@@ -6,11 +6,20 @@ using System.Windows.Forms;
 
 namespace Vision
 {
+    /// <summary>Soru adımında bir seçenek: tıklanınca <see cref="Target"/> kimlikli adıma gidilir.</summary>
+    public sealed class TourChoice
+    {
+        public string Label;
+        public string Target;
+    }
+
     /// <summary>Uygulama turunun bir adımı (G36).</summary>
     public sealed class TourStep
     {
+        /// <summary>Atlama hedefi olarak kullanılan kimlik (isteğe bağlı).</summary>
+        public string Id;
         public string Title;
-        /// <summary>Açıklama (adım gösterilirken hesaplanır: ör. açık kart yoksa ek not).</summary>
+        /// <summary>Açıklama (adım gösterilirken hesaplanır).</summary>
         public Func<string> Body;
         /// <summary>Vurgulanacak alan (ekran koordinatı); null: alan yok, balon ortada.</summary>
         public Func<Rectangle?> Target;
@@ -19,79 +28,214 @@ namespace Vision
         /// <summary>İsteğe bağlı küçük çizim (durum renkleri, renklendirme örneği, kısayollar…).</summary>
         public Action<Graphics, Rectangle> Illustration;
         public int IllustrationHeight;
+        /// <summary>Adımın gösterildiği pencere (null: ana pencere). Pencere yoksa adım atlanır.</summary>
+        public Func<Form> Host;
+        /// <summary>
+        /// Doluysa adım kullanıcının bir işlemini bekler (ör. "Kart Ekle'ye basın"): koşul yanlıştan doğruya dönünce tur
+        /// kendiliğinden ilerler. Adıma girildiğinde koşul zaten doğruysa normal "İleri" gösterilir.
+        /// </summary>
+        public Func<bool> WaitFor;
+        /// <summary>Bekleme adımında kullanıcıya verilen görev ("Şimdi siz: …").</summary>
+        public string Task;
+        /// <summary>false: adım atlanır (ör. bağlı kart yok).</summary>
+        public Func<bool> Available;
+        /// <summary>Doluysa İleri yerine seçenek düğmeleri gösterilir.</summary>
+        public IList<TourChoice> Choices;
+        /// <summary>İleri bu kimlikli adıma gider (dallanmanın sonunda ortak adıma dönmek için).</summary>
+        public string NextId;
     }
 
     /// <summary>
-    /// Uygulama turu (G36): ana pencerenin üzerine yarı saydam bir katman koyar, anlatılan bölümü bu katmanda açık bırakıp
-    /// vurgular ve yanına açıklama balonu yerleştirir. Geri / İleri / Turu atla; Esc atlar, ← → adım değiştirir.
-    /// "Bir daha gösterme" işaretlenirse ya da tur sonuna kadar izlenirse bir daha kendiliğinden açılmaz
-    /// (Yardım → Uygulama turu ile her zaman yeniden açılır). Tur hiçbir ayarı / kartı değiştirmez, yalnız gösterir.
+    /// Uygulama turu (G36): anlatılan pencerenin üzerine yarı saydam bir katman koyar, anlatılan bölümü bu katmanda açık
+    /// bırakıp vurgular ve yanına açıklama balonu yerleştirir. Adımlar kullanıcıdan bir işlem bekleyebilir (Kart Ekle'ye
+    /// basmak, karta bağlanmak, komut yazmak…); işlem yapılınca tur kendiliğinden ilerler, "Bu adımı geç" ile atlanabilir.
+    /// Açılan pencerelerde (Kart Ekle, boot ayarları) katman ve balon o pencereye taşınır. Esc turu kapatır.
     /// </summary>
     public sealed class TourController : IDisposable
     {
-        private readonly Form _owner;
+        private readonly Form _main;
         private readonly IList<TourStep> _steps;
-        private readonly TourOverlay _overlay = new TourOverlay();
-        private readonly TourBalloon _balloon;
         private readonly Timer _follow = new Timer { Interval = 250 };
+        private readonly Stack<int> _history = new Stack<int>();
+        private Form _host;
+        private TourOverlay _overlay;
+        private TourBalloon _balloon;
         private int _index = -1;
+        private bool _waitPrev;
+        private bool _dontShow;
         private Rectangle? _shownHole;
-        private Rectangle _shownOwner;
+        private Rectangle _shownHost;
+        private Size _shownBalloon;
         private bool _closed;
 
         /// <summary>Tur kapandı: (sonuna kadar izlendi mi, "bir daha gösterme" işaretli mi).</summary>
         public event Action<bool, bool> Closed;
 
-        public TourController(Form owner, IList<TourStep> steps)
+        public TourController(Form main, IList<TourStep> steps)
         {
-            _owner = owner;
+            _main = main;
             _steps = steps;
-            _balloon = new TourBalloon();
-            _balloon.NextClicked += () => Go(_index + 1);
-            _balloon.BackClicked += () => Go(_index - 1);
-            _balloon.SkipClicked += () => Finish(false);
-            _follow.Tick += (s, e) => Reposition(false);
-            _owner.Move += OwnerChanged;
-            _owner.Resize += OwnerChanged;
-            _owner.FormClosing += OwnerClosing;
+            _follow.Tick += (s, e) => Tick();
+            _main.FormClosing += MainClosing;
         }
 
         public bool IsOpen { get { return !_closed && _index >= 0; } }
 
         public void Start()
         {
-            _overlay.Show(_owner);
-            _balloon.Show(_overlay);
             _follow.Start();
-            Go(0);
+            GoTo(0, +1, false);
         }
 
-        private void Go(int index)
+        // ---------- Gezinme ----------
+
+        private Form HostOf(TourStep step)
+        {
+            if (step.Host == null) return _main;
+            try { Form f = step.Host(); return f != null && !f.IsDisposed && f.Visible ? f : null; }
+            catch { return null; }
+        }
+
+        private bool IsAvailable(TourStep step)
+        {
+            if (HostOf(step) == null) return false;
+            if (step.Available == null) return true;
+            try { return step.Available(); } catch { return false; }
+        }
+
+        private static bool Eval(Func<bool> f)
+        {
+            try { return f != null && f(); } catch { return false; }
+        }
+
+        private int IndexOf(string id)
+        {
+            for (int i = 0; i < _steps.Count; i++)
+                if (_steps[i].Id == id) return i;
+            return -1;
+        }
+
+        /// <summary>Adıma gider; kullanılamayan adımlar <paramref name="dir"/> yönünde atlanır.</summary>
+        private void GoTo(int target, int dir, bool record)
         {
             if (_closed) return;
-            if (index >= _steps.Count) { Finish(true); return; }
-            if (index < 0) index = 0;
-            _index = index;
-            TourStep step = _steps[index];
+            int i = target;
+            while (i >= 0 && i < _steps.Count && !IsAvailable(_steps[i])) i += dir;
+            if (i >= _steps.Count) { Finish(true); return; }
+            if (i < 0) return;
+            if (record && _index >= 0) _history.Push(_index);
+            _index = i;
+            TourStep step = _steps[i];
             try { if (step.Enter != null) step.Enter(); }
             catch (Exception ex) { ErrorText.LogTechnical("tur adımı", ex); }
+            Form host = HostOf(step) ?? _main;
+            EnsureHost(host);
+            _waitPrev = step.WaitFor != null && Eval(step.WaitFor);
             string body = "";
             try { body = step.Body != null ? step.Body() : ""; } catch { }
-            _balloon.SetStep(index, _steps.Count, step.Title, body, step.Illustration, step.IllustrationHeight);
+            bool waiting = step.WaitFor != null && !_waitPrev;
+            _balloon.SetStep(i, _steps.Count, step.Title, body, waiting ? step.Task : null, step.Illustration, step.IllustrationHeight,
+                             waiting ? "Bu adımı geç" : (i == _steps.Count - 1 ? "Bitir" : "İleri"), step.Choices,
+                             _history.Count > 0, waiting);
             // Sekme değişince yerleşim bir sonraki iletide oturur: konum o zaman hesaplanır
-            _owner.BeginInvoke(new Action(() => Reposition(true)));
+            if (host.IsHandleCreated) host.BeginInvoke(new Action(() => Reposition(true)));
         }
 
-        private void OwnerChanged(object sender, EventArgs e) { Reposition(true); }
-
-        private void OwnerClosing(object sender, FormClosingEventArgs e) { Finish(false); }
-
-        /// <summary>Katmanı pencereye, deliği hedefe, balonu deliğin yanına yerleştirir.</summary>
-        private void Reposition(bool force)
+        private void Next()
         {
             if (_closed || _index < 0) return;
-            if (_owner.WindowState == FormWindowState.Minimized) return;
-            Rectangle client = _owner.RectangleToScreen(_owner.ClientRectangle);
+            string next = _steps[_index].NextId;
+            int target = next != null ? IndexOf(next) : -1;
+            GoTo(target >= 0 ? target : _index + 1, +1, true);
+        }
+
+        private void Back()
+        {
+            while (_history.Count > 0)
+            {
+                int h = _history.Pop();
+                if (IsAvailable(_steps[h])) { GoTo(h, -1, false); return; }
+            }
+        }
+
+        private void Choose(TourChoice choice)
+        {
+            int target = choice != null ? IndexOf(choice.Target) : -1;
+            if (target < 0) Next();
+            else GoTo(target, +1, true);
+        }
+
+        private void Tick()
+        {
+            if (_closed || _index < 0) return;
+            TourStep step = _steps[_index];
+            if (step.WaitFor != null)
+            {
+                bool now = Eval(step.WaitFor);
+                if (now && !_waitPrev) { Next(); return; }
+                _waitPrev = now;
+            }
+            // Adımın penceresi kapandı (ör. Kart Ekle iptal edildi): sıradaki uygun adıma geç
+            Form host = HostOf(step);
+            if (host == null || host != _host || _balloon == null || _balloon.IsDisposed || _overlay == null || _overlay.IsDisposed)
+            {
+                if (host == null) { GoTo(_index + 1, +1, true); return; }
+                GoTo(_index, +1, false);
+                return;
+            }
+            Reposition(false);
+        }
+
+        // ---------- Pencereler ----------
+
+        /// <summary>
+        /// Katmanı ve balonu adımın penceresine bağlar. Pencere değişince ikisi de yeniden oluşturulur: kalıcı (modal)
+        /// bir pencere açıkken önceden açılmış pencereler devre dışı kalır, sonradan açılanlar kullanılabilir.
+        /// </summary>
+        private void EnsureHost(Form host)
+        {
+            if (host == _host && _overlay != null && !_overlay.IsDisposed && _balloon != null && !_balloon.IsDisposed) return;
+            CloseUi();
+            _host = host;
+            _host.Move += HostChanged;
+            _host.Resize += HostChanged;
+            _overlay = new TourOverlay();
+            _balloon = new TourBalloon { DontShowAgain = _dontShow };
+            _balloon.NextClicked += Next;
+            _balloon.BackClicked += Back;
+            _balloon.SkipClicked += () => Finish(false);
+            _balloon.ChoiceClicked += Choose;
+            _balloon.DontShowChanged += v => _dontShow = v;
+            _shownHole = null;
+            _shownHost = Rectangle.Empty;
+            _shownBalloon = Size.Empty;
+            _overlay.Show(_host);
+            _balloon.Show(_overlay);
+        }
+
+        private void CloseUi()
+        {
+            if (_host != null)
+            {
+                _host.Move -= HostChanged;
+                _host.Resize -= HostChanged;
+            }
+            if (_balloon != null) { try { _balloon.Close(); _balloon.Dispose(); } catch { } _balloon = null; }
+            if (_overlay != null) { try { _overlay.Close(); _overlay.Dispose(); } catch { } _overlay = null; }
+            _host = null;
+        }
+
+        private void HostChanged(object sender, EventArgs e) { Reposition(true); }
+
+        private void MainClosing(object sender, FormClosingEventArgs e) { Finish(false); }
+
+        /// <summary>Katmanı pencereye, deliği hedefe, balonu deliğin (ya da açılan pencerenin) yanına yerleştirir.</summary>
+        private void Reposition(bool force)
+        {
+            if (_closed || _index < 0 || _host == null || _host.IsDisposed) return;
+            if (_overlay == null || _overlay.IsDisposed || _balloon == null || _balloon.IsDisposed) return;
+            if (_host.WindowState == FormWindowState.Minimized) return;
+            Rectangle client = _host.RectangleToScreen(_host.ClientRectangle);
             Rectangle? hole = null;
             try { hole = _steps[_index].Target != null ? _steps[_index].Target() : null; } catch { hole = null; }
             if (hole.HasValue)
@@ -100,13 +244,23 @@ namespace Vision
                 h.Intersect(client);
                 hole = h.Width > 8 && h.Height > 8 ? h : (Rectangle?)null;
             }
-            if (!force && hole == _shownHole && client == _shownOwner) return;
+            if (!force && hole == _shownHole && client == _shownHost && _balloon.Size == _shownBalloon) return;
             _shownHole = hole;
-            _shownOwner = client;
+            _shownHost = client;
+            _shownBalloon = _balloon.Size;
 
             _overlay.Bounds = client;
             _overlay.SetHole(hole.HasValue ? new Rectangle(hole.Value.X - client.X, hole.Value.Y - client.Y, hole.Value.Width, hole.Value.Height) : (Rectangle?)null);
-            _balloon.Location = PlaceBalloon(client, hole, _balloon.Size);
+            if (_host == _main)
+                _balloon.Location = PlaceBalloon(client, hole, _balloon.Size);
+            else
+            {
+                // Açılan pencere: balon pencerenin yanında (ekranın çalışma alanı içinde), anlatılan alanın hizasında
+                Rectangle area = Screen.FromControl(_host).WorkingArea;
+                Rectangle b = _host.Bounds;
+                Rectangle anchor = hole.HasValue ? new Rectangle(b.X, hole.Value.Y, b.Width, hole.Value.Height) : b;
+                _balloon.Location = PlaceBalloon(area, anchor, _balloon.Size);
+            }
         }
 
         private static Point PlaceBalloon(Rectangle area, Rectangle? hole, Size size)
@@ -135,23 +289,17 @@ namespace Vision
         {
             if (_closed) return;
             _closed = true;
-            bool dontShow = _balloon.DontShowAgain;
             _follow.Stop();
-            _owner.Move -= OwnerChanged;
-            _owner.Resize -= OwnerChanged;
-            _owner.FormClosing -= OwnerClosing;
-            try { _balloon.Close(); } catch { }
-            try { _overlay.Close(); } catch { }
+            _main.FormClosing -= MainClosing;
+            CloseUi();
             var h = Closed;
-            if (h != null) h(completed, dontShow);
+            if (h != null) h(completed, _dontShow);
         }
 
         public void Dispose()
         {
             Finish(false);
             _follow.Dispose();
-            _balloon.Dispose();
-            _overlay.Dispose();
         }
     }
 
@@ -222,20 +370,25 @@ namespace Vision
     /// <summary>Turun açıklama balonu.</summary>
     internal sealed class TourBalloon : Form
     {
-        private const int BalloonWidth = 430;
+        private const int BalloonWidth = 440;
         private readonly Label _progress = Theme.MakeLabel("", Theme.SectionHeader, Theme.Accent);
         private readonly Label _title = Theme.MakeLabel("", new Font("Segoe UI Semibold", 13f), Theme.Text);
         private readonly Label _body = Theme.MakeLabel("", Theme.Ui, Theme.TextMuted);
+        private readonly Label _task = Theme.MakeLabel("", new Font("Segoe UI Semibold", 10f), Theme.Accent);
         private readonly Panel _art = new Panel();
         private readonly CheckBox _dontShow = new CheckBox { Text = "Bir daha gösterme", AutoSize = true };
-        private readonly Button _skip = Theme.MakeButton("Turu atla", Theme.ButtonKind.Ghost);
+        private readonly Button _skip = Theme.MakeButton("Turu kapat", Theme.ButtonKind.Ghost);
         private readonly Button _back = Theme.MakeButton("Geri", Theme.ButtonKind.Secondary);
         private readonly Button _next = Theme.MakeButton("İleri", Theme.ButtonKind.Primary);
+        private readonly List<Button> _choiceButtons = new List<Button>();
         private Action<Graphics, Rectangle> _illustration;
+        private bool _waiting;
 
         public event Action NextClicked;
         public event Action BackClicked;
         public event Action SkipClicked;
+        public event Action<TourChoice> ChoiceClicked;
+        public event Action<bool> DontShowChanged;
 
         public TourBalloon()
         {
@@ -247,10 +400,13 @@ namespace Vision
             Font = Theme.Ui;
             SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint, true);
 
-            _body.AutoSize = true;
-            _body.MaximumSize = new Size(BalloonWidth - 44, 0);
-            _title.AutoSize = true;
-            _title.MaximumSize = new Size(BalloonWidth - 44, 0);
+            foreach (Label l in new[] { _title, _body, _task })
+            {
+                l.AutoSize = true;
+                l.MaximumSize = new Size(BalloonWidth - 44, 0);
+            }
+            _task.Padding = new Padding(10, 7, 10, 7);
+            _task.BackColor = Theme.Input;
             _art.BackColor = Theme.Input;
             _art.Paint += (s, e) =>
             {
@@ -261,8 +417,9 @@ namespace Vision
             _dontShow.ForeColor = Theme.TextMuted;
             _dontShow.BackColor = Color.Transparent;
             _dontShow.Font = Theme.UiSmall;
-            _skip.Width = 92; _back.Width = 76; _next.Width = 96;
-            Controls.AddRange(new Control[] { _progress, _title, _body, _art, _dontShow, _skip, _back, _next });
+            _dontShow.CheckedChanged += (s, e) => { var h = DontShowChanged; if (h != null) h(_dontShow.Checked); };
+            _skip.Width = 96; _back.Width = 76; _next.Width = 112;
+            Controls.AddRange(new Control[] { _progress, _title, _body, _task, _art, _dontShow, _skip, _back, _next });
 
             _next.Click += (s, e) => Raise(NextClicked);
             _back.Click += (s, e) => Raise(BackClicked);
@@ -270,12 +427,22 @@ namespace Vision
             KeyDown += (s, e) =>
             {
                 if (e.KeyCode == Keys.Escape) { e.Handled = true; Raise(SkipClicked); }
-                else if (e.KeyCode == Keys.Right || e.KeyCode == Keys.Enter) { e.Handled = true; e.SuppressKeyPress = true; Raise(NextClicked); }
-                else if (e.KeyCode == Keys.Left) { e.Handled = true; Raise(BackClicked); }
+                else if (e.KeyCode == Keys.Left && _back.Enabled) { e.Handled = true; Raise(BackClicked); }
+                else if ((e.KeyCode == Keys.Right || e.KeyCode == Keys.Enter) && !_waiting && _next.Visible)
+                {
+                    e.Handled = true; e.SuppressKeyPress = true; Raise(NextClicked);
+                }
             };
         }
 
-        public bool DontShowAgain { get { return _dontShow.Checked; } }
+        public bool DontShowAgain
+        {
+            get { return _dontShow.Checked; }
+            set { _dontShow.Checked = value; }
+        }
+
+        // Balon odak almadan açılır: açılan penceredeki alanlar (ör. Kart Ekle) odağı kaybetmesin
+        protected override bool ShowWithoutActivation { get { return true; } }
 
         protected override CreateParams CreateParams
         {
@@ -288,9 +455,11 @@ namespace Vision
             }
         }
 
-        public void SetStep(int index, int count, string title, string body, Action<Graphics, Rectangle> art, int artHeight)
+        public void SetStep(int index, int count, string title, string body, string task, Action<Graphics, Rectangle> art, int artHeight,
+                            string nextText, IList<TourChoice> choices, bool canBack, bool waiting)
         {
             SuspendLayout();
+            _waiting = waiting;
             _progress.Text = "UYGULAMA TURU  ·  " + (index + 1) + " / " + count;
             _title.Text = title ?? "";
             _body.Text = body ?? "";
@@ -300,8 +469,20 @@ namespace Vision
             y += _progress.PreferredHeight + 6;
             _title.Location = new Point(x, y);
             y += _title.PreferredHeight + 8;
-            _body.Location = new Point(x, y);
-            y += _body.PreferredHeight + 12;
+            _body.Visible = _body.Text.Length > 0;
+            if (_body.Visible)
+            {
+                _body.Location = new Point(x, y);
+                y += _body.PreferredHeight + 12;
+            }
+            _task.Visible = !string.IsNullOrEmpty(task);
+            if (_task.Visible)
+            {
+                _task.Text = "▶  Şimdi siz: " + task;
+                _task.MaximumSize = new Size(BalloonWidth - 44, 0);
+                _task.Location = new Point(x, y);
+                y += _task.PreferredHeight + 12;
+            }
             if (art != null && artHeight > 0)
             {
                 _art.SetBounds(x, y, BalloonWidth - 44, artHeight);
@@ -311,24 +492,42 @@ namespace Vision
             }
             else _art.Visible = false;
             y += 4;
-            bool last = index == count - 1;
-            _next.Text = last ? "Bitir" : "İleri";
-            _back.Enabled = index > 0;
-            _skip.Visible = !last;
-            _next.Location = new Point(BalloonWidth - 22 - _next.Width, y);
-            _back.Location = new Point(_next.Left - 8 - _back.Width, y);
-            _skip.Location = new Point(_back.Left - 8 - _skip.Width, y);
+
+            foreach (Button b in _choiceButtons) { Controls.Remove(b); b.Dispose(); }
+            _choiceButtons.Clear();
+            int right = BalloonWidth - 22;
+            if (choices != null && choices.Count > 0)
+            {
+                _next.Visible = false;
+                for (int i = choices.Count - 1; i >= 0; i--)
+                {
+                    TourChoice c = choices[i];
+                    Button b = Theme.MakeButton(c.Label, i == 0 ? Theme.ButtonKind.Primary : Theme.ButtonKind.Secondary);
+                    b.Width = Math.Max(76, TextRenderer.MeasureText(c.Label, b.Font).Width + 28);
+                    b.Location = new Point(right - b.Width, y);
+                    b.Click += (s, e) => { var h = ChoiceClicked; if (h != null) h(c); };
+                    right = b.Left - 8;
+                    _choiceButtons.Add(b);
+                    Controls.Add(b);
+                }
+            }
+            else
+            {
+                _next.Visible = true;
+                _next.Text = nextText;
+                _next.Width = Math.Max(96, TextRenderer.MeasureText(nextText, _next.Font).Width + 28);
+                _next.Location = new Point(right - _next.Width, y);
+                right = _next.Left - 8;
+            }
+            _back.Enabled = canBack;
+            _back.Location = new Point(right - _back.Width, y);
+            _skip.Location = new Point(x - 6, y);
             _dontShow.Location = new Point(x - 2, y + 40);
             Size = new Size(BalloonWidth, y + 40 + _dontShow.PreferredSize.Height + 16);
             ResumeLayout(true);
             Invalidate();
-            if (IsHandleCreated) _next.Focus();
-        }
-
-        protected override void OnShown(EventArgs e)
-        {
-            base.OnShown(e);
-            _next.Focus();
+            // Odak yalnız balon zaten etkinse taşınır (etkin olmayan pencereye odak vermek onu öne alır, açık menüleri kapatır)
+            if (IsHandleCreated && Form.ActiveForm == this) (_next.Visible ? _next : (Control)_back).Focus();
         }
 
         protected override void OnPaint(PaintEventArgs e)
