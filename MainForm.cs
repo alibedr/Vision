@@ -220,6 +220,7 @@ namespace Vision
             bar.Controls.Add(_workspaceTitle);
             bar.Controls.Add(_workspaceSub);
             bar.Controls.Add(options);
+            _optionsBar = options;   // uygulama turu
             bar.Resize += (s, e) =>
             {
                 options.Location = new Point(Math.Max(8, bar.Width - options.Width - 14), 12);
@@ -231,6 +232,7 @@ namespace Vision
 
             // Durum çubuğu
             var status = new Panel { Dock = DockStyle.Bottom, Height = 26, BackColor = Theme.Sidebar };
+            _statusBar = status;     // uygulama turu
             _statusLeft.Location = new Point(12, 6);
             _statusRight.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             status.Controls.Add(_statusLeft);
@@ -830,6 +832,7 @@ namespace Vision
                 _helpMenu.Items.Add(it);
             };
             item("Kullanım Kılavuzu", "F1", () => ShowHelp(HelpPage.Guide));
+            item("Uygulama turu", null, StartTour);
             _helpMenu.Items.Add(new ToolStripSeparator());
             item("Hakkında", null, () => ShowHelp(HelpPage.About));
 
@@ -1063,6 +1066,312 @@ namespace Vision
                 g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
                 using (var path = IconRenderer.RoundRect(new RectangleF(12, Height - 3, Width - 24, 4), 1.5f))
                 using (var line = new SolidBrush(Theme.Accent)) g.FillPath(line, path);
+            }
+        }
+    
+        // =====================================================================
+        // Uygulama turu (G36)
+        // =====================================================================
+
+        private TourController _tour;
+        private Control _optionsBar;
+        private Control _statusBar;
+
+        /// <summary>Turu başlatır (ilk açılışta kendiliğinden ya da Yardım → Uygulama turu).</summary>
+        private void StartTour()
+        {
+            if (_tour != null && _tour.IsOpen) return;
+            MainTab returnTab = _activeTab;
+            _tour = new TourController(this, BuildTourSteps());
+            _tour.Closed += (completed, dontShow) =>
+            {
+                ShowTab(returnTab);
+                if (completed || dontShow)
+                {
+                    _config.Settings.TourVersionSeen = AppSettings.CurrentTourVersion;
+                    SaveConfig();
+                }
+                TourController t = _tour;
+                _tour = null;
+                BeginInvoke(new Action(() => { if (t != null) t.Dispose(); }));
+            };
+            _tour.Start();
+        }
+
+        protected override void OnShown(EventArgs e)
+        {
+            base.OnShown(e);
+            // İlk açılış: tur kendiliğinden (yerleşim otursun diye kısa bir gecikmeyle)
+            if (_config.Settings.TourVersionSeen < AppSettings.CurrentTourVersion)
+            {
+                var t = new Timer { Interval = 700 };
+                t.Tick += (s, a) => { t.Stop(); t.Dispose(); if (!IsDisposed && WindowState != FormWindowState.Minimized) StartTour(); };
+                t.Start();
+            }
+        }
+
+        /// <summary>Denetimlerin ekrandaki birleşik alanı (görünmeyenler atlanır); hiçbiri görünmüyorsa null.</summary>
+        private static Rectangle? TourRect(params Control[] controls)
+        {
+            Rectangle? r = null;
+            foreach (Control c in controls)
+            {
+                if (c == null || c.IsDisposed || !c.Visible || !c.IsHandleCreated) continue;
+                Rectangle rr = c.Parent != null ? c.Parent.RectangleToScreen(c.Bounds) : c.RectangleToScreen(c.ClientRectangle);
+                if (rr.Width <= 0 || rr.Height <= 0) continue;
+                r = r.HasValue ? Rectangle.Union(r.Value, rr) : rr;
+            }
+            return r;
+        }
+
+        private CardView TourCard() { return _grid.Views.Count > 0 ? _grid.Views[0] : null; }
+
+        private const string NoCardNote = "\n\nŞu an açık kart yok: bir kart açtığınızda bu bölüm her kart penceresinde görünür.";
+
+        private List<TourStep> BuildTourSteps()
+        {
+            Action telnet = () => ShowTab(MainTab.Workspace);
+            Func<Func<CardView, Control[]>, Func<Rectangle?>> cardPart = pick => () =>
+            {
+                CardView v = TourCard();
+                return v != null ? TourRect(pick(v)) : TourRect(_grid);
+            };
+            Func<string, Func<string>> cardBody = text => () => text + (TourCard() == null ? NoCardNote : "");
+
+            return new List<TourStep>
+            {
+                new TourStep
+                {
+                    Title = "Vision'a hoş geldiniz",
+                    Body = () => "Vision, VxWorks kartlarına Telnet ile bağlanıp birden çok kartı aynı anda yönetmenizi sağlar: " +
+                                 "kart terminalleri yan yana, kartın dosyaları, hazır komutlar ve kartın sağlık sayfası tek pencerede.\n\n" +
+                                 "Bu kısa tur ekrandaki her bölümü sırayla gösterir. ← → ile adım değiştirin, Esc ile çıkın. " +
+                                 "Turu istediğiniz zaman Yardım → Uygulama turu'ndan yeniden açabilirsiniz.",
+                    Enter = telnet,
+                },
+                new TourStep
+                {
+                    Title = "Sekmeler",
+                    Body = () => "Telnet: kart terminalleri  ·  Kart Dosya Gezgini: kartın dosyaları  ·  Komut Kütüphanesi: hazır VxWorks komutları  ·  " +
+                                 "Sentinel: kartın sağlık sayfası.\n\nKısayollar: Ctrl+1 / 2 / 3 / 4.",
+                    Target = () => TourRect(_workspaceTab, _filesTab, _commandsTab, _sentinelTab),
+                    Enter = telnet,
+                },
+                new TourStep
+                {
+                    Title = "Kart ekleme",
+                    Body = () => "Kart Ekle ile bir grup oluşturun: grup adı, Telnet portu, kart sayısı ve başlangıç IP'si. IP'ler sırayla " +
+                                 "doldurulur (Kart 1 dahil); isterseniz tek tek değiştirin. Var olan gruba kart eklemek için gruba sağ tıklayın. (Ctrl+N)",
+                    Target = () => TourRect(_explorer.TourAdd),
+                    Enter = telnet,
+                },
+                new TourStep
+                {
+                    Title = "Kart Gezgini",
+                    Body = () => "Gruplar ve kartlar burada. Kartın yanındaki nokta bağlantı durumunu gösterir. Çift tık: kartı açıp bağlanır.\n\n" +
+                                 "Sağ tık: bağlan / kes, adını değiştir (F2), dosyalarını gez, kaldır; grupta: gruba kart ekle, grubun adını değiştir, grubu sil. " +
+                                 "Üstteki kutuyla IP ya da ada göre arayın.",
+                    Target = () => TourRect(_explorer.TourSearch, _explorer.TourTree),
+                    Enter = telnet,
+                },
+                new TourStep
+                {
+                    Title = "Birden çok karta bağlanma",
+                    Body = () => "Kartların kutularını işaretleyin: Bağlantı Kur işaretli kartların hepsine bağlanır, Seçilenleri Göster " +
+                                 "yalnız onları ekranda açar (en fazla 24 kart). Kenar çubuğunu sekme şeridinin solundaki düğmeyle daraltabilirsiniz.",
+                    Target = () => TourRect(_explorer.TourBottom),
+                    Enter = telnet,
+                },
+                new TourStep
+                {
+                    Title = "Kart ekranları ve durum renkleri",
+                    Body = () => "Açılan her kart burada kendi terminaliyle görünür; pencere genişledikçe ızgara kendiliğinden yerleşir. " +
+                                 "Kartın rengi ve şeridi bağlantı durumunu gösterir. Bağlantı koparsa Vision kendiliğinden yeniden bağlanmayı dener.",
+                    Target = () => TourRect(_grid),
+                    Enter = telnet,
+                    Illustration = DrawTourStates,
+                    IllustrationHeight = 74,
+                },
+                new TourStep
+                {
+                    Title = "Kart penceresinin başlığı",
+                    Body = cardBody("Kartın adı ve grubu, bağlı kalma süresi (⏱) ve RX / TX ışıkları (veri gelip gidince yanar). Sağdaki düğmeler: " +
+                                    "bağlan / kes, ekranı dosyaya kaydet (anlık kayıt), temizle, büyüt (çift tık da büyütür) ve kapat (bağlantı sürer)."),
+                    Target = cardPart(v => new[] { v.TourHeader }),
+                    Enter = telnet,
+                },
+                new TourStep
+                {
+                    Title = "Komut satırı",
+                    Body = cardBody("Komutu yazıp Enter. ↑ / ↓ önceki komutlar, yazarken otomatik tamamlama önerir. Ctrl+R geçmişte geriye arar; " +
+                                    "saat simgeli düğme tüm komut geçmişini açar (kalıcıdır, uygulama kapansa da durur).\n\n" +
+                                    "bspBootChange / bootChange yazınca boot ayarları araya log girmeden ayrı bir pencerede düzenlenir."),
+                    Target = cardPart(v => new[] { v.TourInput }),
+                    Enter = telnet,
+                },
+                new TourStep
+                {
+                    Title = "Sentinel, hızlı komut ve reboot",
+                    Body = cardBody("Nabız düğmesi kartın Sentinel web sunucusunu başlatır / durdurur (yeşil: çalışıyor). Şimşek: kendi tanımladığınız " +
+                                    "hızlı komutu tek tıkla gönderir. Güç düğmesi: reboot; okla reboot 2 seçilebilir (onay sorulur)."),
+                    Target = cardPart(v => v.TourActions),
+                    Enter = telnet,
+                },
+                new TourStep
+                {
+                    Title = "Ekranda renklendirme",
+                    Body = cardBody("Terminalde bir kelime ya da metin seçip sağ tıklayın → Renklendir → renk. Ekrandaki ve sonradan gelen tüm " +
+                                    "eşleşmeler o renge boyanır; akan loglar arasında \"error\" gibi aradığınız metin hemen görünür. Kurallar karta aittir; " +
+                                    "aynı menüden kaldırılır."),
+                    Target = cardPart(v => new[] { v.TourOutput }),
+                    Enter = telnet,
+                    Illustration = DrawTourHighlights,
+                    IllustrationHeight = 78,
+                },
+                new TourStep
+                {
+                    Title = "Akan çıktı",
+                    Body = cardBody("Yukarı kaydırıp eski satırlara bakarken ekran yerinde kalır; yeni satırlar gelince alttaki \"yeni satır\" " +
+                                    "balonu çıkar, tıklayınca en alta iner. Uzun çıktılarda (on binlerce satır) da kaydırma bozulmaz."),
+                    Target = cardPart(v => new[] { v.TourOutput }),
+                    Enter = telnet,
+                },
+                new TourStep
+                {
+                    Title = "Terminal ayarları",
+                    Body = () => "Tüm kartlar için: satır sonu, yerel eko, zaman damgası (satır başına saat), dönüş değerlerini ayır, " +
+                                 "kart başına en fazla satır, yazı boyutu (Ctrl + fare tekerleği) ve Tümünü kapat.",
+                    Target = () => TourRect(_optionsBar),
+                    Enter = telnet,
+                },
+                new TourStep
+                {
+                    Title = "Genel komut çubuğu",
+                    Body = () => "Buraya yazılan komut ekrandaki TÜM kartlara aynı anda gönderilir; her kartın cevabı kendi penceresinde görünür. " +
+                                 "Hızlı komut ve reboot da buradan tüm kartlara uygulanabilir.",
+                    Target = () => TourRect(_globalBar),
+                    Enter = telnet,
+                },
+                new TourStep
+                {
+                    Title = "Kart Dosya Gezgini",
+                    Body = () => "Üstten bağlı bir kart seçin: cihazları (devs) hemen listelenir. /ata ve /bd disklerinin boş / toplam alanı doluluk " +
+                                 "çubuğuyla görünür. Çift tıkla girin; adres çubuğu, Geri, Yenile (F5), Yeni klasör ve Yükle üstte.",
+                    Target = () => TourRect(_fileExplorer.TourCrumbs, _fileExplorer.TourList),
+                    Enter = () => ShowTab(MainTab.Files),
+                },
+                new TourStep
+                {
+                    Title = "Dosya işlemleri ve sürükle-bırak",
+                    Body = () => "Bilgisayardan dosya / klasörü listeye sürükleyin: karta kopyalanır. Karttan bir öğeyi masaüstüne ya da herhangi bir " +
+                                 "klasöre sürükleyin: bilgisayara kopyalanır. Liste içinde sürüklemek taşır (Ctrl ile kopyalar).\n\n" +
+                                 "Sağ tık: yeniden adlandır, sil, kopyala / taşı, birlikte aç (salt okunur), bilgisayara kaydet. EFI klasörü korunur.",
+                    Target = () => TourRect(_fileExplorer.TourList),
+                    Enter = () => ShowTab(MainTab.Files),
+                },
+                new TourStep
+                {
+                    Title = "Komut Kütüphanesi",
+                    Body = () => "VxWorks 6.4 komutları modüllere ayrılmış: açıklama, yazılış ve örnek çıktıyla. Arayın, seçin; " +
+                                 "Karta aktar komutu seçtiğiniz kartın komut satırına yazar (göndermez, düzenleyip Enter'a basarsınız).",
+                    Target = () => TourRect(_commandLibrary),
+                    Enter = () => ShowTab(MainTab.Commands),
+                },
+                new TourStep
+                {
+                    Title = "Sentinel",
+                    Body = () => "Kart penceresindeki nabız düğmesiyle Sentinel'i başlattığınız kartın sağlık sayfası (CPU, task, socket) burada, " +
+                                 "tarayıcı açmadan görünür. Sayfa kendini yeniler; başka sekmeye geçince de arka planda sürer.",
+                    Target = () => TourRect(_sentinelView),
+                    Enter = () => ShowTab(MainTab.Sentinel),
+                },
+                new TourStep
+                {
+                    Title = "Temalar",
+                    Body = () => "21 hazır tema: Vision temaları ve popüler editör temaları (Dark Modern, Dracula, Nord…). Temayı özelleştir ile " +
+                                 "renkleri değiştirip anlık görebilirsiniz. Ctrl+Shift+L sonraki temaya geçer.",
+                    Target = () => TourRect(_themeBtn),
+                    Enter = telnet,
+                },
+                new TourStep
+                {
+                    Title = "Yardım",
+                    Body = () => "Kullanım Kılavuzu (F1) her özelliği ayrıntılı anlatır. Bu turu buradan, Uygulama turu ile istediğiniz zaman yeniden açabilirsiniz.",
+                    Target = () => TourRect(_helpBtn),
+                    Enter = telnet,
+                },
+                new TourStep
+                {
+                    Title = "Kısayollar",
+                    Body = () => "Alttaki durum çubuğu son işlemi ve kısayol ipuçlarını gösterir. En çok kullanılanlar:",
+                    Target = () => TourRect(_statusBar),
+                    Enter = telnet,
+                    Illustration = DrawTourShortcuts,
+                    IllustrationHeight = 118,
+                },
+                new TourStep
+                {
+                    Title = "Hazırsınız",
+                    Body = () => "İlk iş olarak Kart Ekle ile kartlarınızı ekleyin ve çift tıkla bağlanın. İyi çalışmalar!",
+                    Enter = telnet,
+                },
+            };
+        }
+
+        // ---------- Tur çizimleri ----------
+
+        private static void DrawTourStates(Graphics g, Rectangle r)
+        {
+            var items = new[] { CardState.Connected, CardState.Connecting, CardState.Recovering, CardState.Error, CardState.Disconnected };
+            var labels = new[] { "Bağlı", "Bağlanıyor", "Yeniden bağlanıyor", "Hata", "Bağlı değil" };
+            int colW = (r.Width - 16) / 3;
+            for (int i = 0; i < items.Length; i++)
+            {
+                int x = r.X + 12 + (i % 3) * colW, y = r.Y + 12 + (i / 3) * 28;
+                using (var b = new SolidBrush(Theme.StateColor(items[i]))) g.FillEllipse(b, x, y + 3, 12, 12);
+                TextRenderer.DrawText(g, labels[i], Theme.UiSmall, new Point(x + 18, y + 1), Theme.Text);
+            }
+        }
+
+        private static void DrawTourHighlights(Graphics g, Rectangle r)
+        {
+            Font mono = Theme.Mono;
+            int y = r.Y + 8;
+            Action<string[], Color[]> line = (parts, backs) =>
+            {
+                int x = r.X + 10;
+                for (int i = 0; i < parts.Length; i++)
+                {
+                    Size sz = TextRenderer.MeasureText(g, parts[i], mono, Size.Empty, TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
+                    if (backs[i] != Color.Empty)
+                        using (var b = new SolidBrush(backs[i])) g.FillRectangle(b, x - 1, y, sz.Width + 2, sz.Height);
+                    Color fore = backs[i] != Color.Empty ? Color.FromArgb(20, 20, 20) : Theme.Terminal;
+                    TextRenderer.DrawText(g, parts[i], mono, new Point(x, y), fore, TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
+                    x += sz.Width;
+                }
+                y += 21;
+            };
+            Color none = Color.Empty, yellow = Color.FromArgb(255, 214, 0), red = Color.FromArgb(229, 57, 53);
+            line(new[] { "-> ifShow \"motetsec0\"" }, new[] { none });
+            line(new[] { "motetsec0: link ", "up", " 1000 Mbps" }, new[] { none, Color.FromArgb(67, 160, 71), none });
+            line(new[] { "tNet0: ", "ERROR", " checksum on port 2" }, new[] { none, red, none });
+        }
+
+        private static void DrawTourShortcuts(Graphics g, Rectangle r)
+        {
+            var rows = new[]
+            {
+                new[] { "Ctrl+N", "Kart ekle" }, new[] { "Ctrl+1 … 4", "Sekmeler" },
+                new[] { "Ctrl+R", "Komut geçmişinde ara" }, new[] { "F1", "Kullanım Kılavuzu" },
+                new[] { "F2", "Ad değiştir" }, new[] { "F5", "Yenile" },
+                new[] { "Ctrl + tekerlek", "Yazı boyutu" }, new[] { "Ctrl+Shift+L", "Sonraki tema" },
+            };
+            int colW = (r.Width - 12) / 2;
+            for (int i = 0; i < rows.Length; i++)
+            {
+                int x = r.X + 10 + (i % 2) * colW, y = r.Y + 8 + (i / 2) * 26;
+                TextRenderer.DrawText(g, rows[i][0], Theme.UiBold, new Point(x, y), Theme.Accent);
+                TextRenderer.DrawText(g, rows[i][1], Theme.UiSmall, new Point(x + 96, y + 2), Theme.Text);
             }
         }
     }

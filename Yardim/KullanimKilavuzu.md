@@ -4,12 +4,22 @@ Vision; donanım kartlarına telnet ile bağlanmak, kartlara komut göndermek, b
 
 > Bu belge uygulamanın içine gömülüdür; her Vision sürümü kendi kılavuzunu gösterir. Kaynağı projede `Yardim\KullanimKilavuzu.md` dosyasıdır.
 
+## Uygulama turu
+
+Vision ilk açıldığında kısa bir **uygulama turu** başlar: ekran kararır, anlatılan bölüm aydınlık kalıp çerçevelenir ve yanında bir açıklama balonu çıkar. Tur sırayla şunları gösterir: sekmeler, kart ekleme, Kart Gezgini ve sağ tık menüsü, birden çok karta bağlanma, kart ekranları ve durum renkleri, kart penceresinin başlığı (süre, RX / TX, anlık kayıt…), komut satırı (geçmiş, Ctrl+R, otomatik tamamlama, bspBootChange penceresi), Sentinel / hızlı komut / reboot düğmeleri, ekranda renklendirme, akan çıktı, terminal ayarları, genel komut çubuğu, Kart Dosya Gezgini ve sürükle-bırak, Komut Kütüphanesi, Sentinel, temalar, yardım ve kısayollar.
+
+- **İleri / Geri** (ya da → / ←, Enter) ile adım değiştirin; **Turu atla** ya da **Esc** ile çıkın. Tur gerektiğinde ilgili sekmeye kendisi geçer, bitince bulunduğunuz sekmeye döner.
+- **Bir daha gösterme** işaretlenirse ya da tur sonuna kadar izlenirse bir daha kendiliğinden açılmaz. İşaretlemeden atlarsanız sonraki açılışta yeniden gelir.
+- Turu istediğiniz zaman **Yardım → Uygulama turu** ile yeniden açabilirsiniz.
+- Tur yalnız gösterir; hiçbir ayarı, kartı ya da bağlantıyı değiştirmez. Vurgulanan bölüm tur sırasında da kullanılabilir.
+- Henüz açık kart yoksa kart penceresine ait adımlar kart ızgarasını gösterir ve bu bölümün kart açınca görüneceğini söyler.
+
 ## Ekranın bölümleri
 
 | Bölüm | Konum | Ne işe yarar |
 |---|---|---|
 | Kart Gezgini | Sol kenar | Grupları ve kartları listeler; kart ekleme, seçme, bağlanma ve gösterme buradan yapılır. Sekme şeridinin en solundaki kenar çubuğu düğmesi (Ctrl+B) ile gizlenip gösterilir. |
-| Sekmeler | Sağ alanın üstü | **Telnet** (kart terminalleri), **Kart Dosya Gezgini**, **Komut Kütüphanesi** ve **Sentinel** arasında geçiş (Ctrl+1 / 2 / 3 / 4). Aynı şeridin en sağında **Yardım** (Kullanım Kılavuzu, Hakkında) ve **Temalar** menüsü (hazır temalar ve özelleştirme; aşağıya bakın) bulunur. |
+| Sekmeler | Sağ alanın üstü | **Telnet** (kart terminalleri), **Kart Dosya Gezgini**, **Komut Kütüphanesi** ve **Sentinel** arasında geçiş (Ctrl+1 / 2 / 3 / 4). Aynı şeridin en sağında **Yardım** (Kullanım Kılavuzu, Uygulama turu, Hakkında) ve **Temalar** menüsü (hazır temalar ve özelleştirme; aşağıya bakın) bulunur. |
 | Telnet sekmesi | Sağ alan | Seçilen kartların terminal pencereleri ızgara düzeninde görünür (en fazla 24 kart). |
 | Terminal ayarları | Telnet sekmesinin üst çubuğu | Satır sonu, yerel eko, zaman damgası, dosyaya kaydet, satır sınırı ve "Tümünü kapat". |
 | Genel komut çubuğu | Telnet sekmesinin altı | Bir komutu ekrandaki tüm kartlara aynı anda gönderir. |

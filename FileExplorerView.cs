@@ -40,6 +40,8 @@ namespace Vision
         // İçerik
         private readonly Label _banner = new GlyphLabel { Closable = true, Dock = DockStyle.Top, Height = 34, Visible = false, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(14, 0, 8, 0), Cursor = Cursors.Hand };
         private readonly DarkListView _list = new DarkListView();
+        internal Control TourList { get { return _list; } }        // uygulama turu (G36)
+        internal Control TourCrumbs { get { return _crumbs; } }
         private readonly Label _overlay = new Label { AutoSize = false, TextAlign = ContentAlignment.MiddleCenter, ForeColor = Theme.TextMuted, BackColor = Theme.Input, Visible = false };
         // Satır yüksekliği simge yüksekliğinden gelir: 24 px (simge 20×20, üstte / altta 2 px) — disk satırında boyut yazısı
         // ile doluluk çubuğu üst üste binmesin (G34.2)

@@ -13,6 +13,7 @@ Geliştiren: **Ali Bedir**
 - Grup tabanlı kart yönetimi (Kart Gezgini), kartlara isteğe bağlı ad
 - Aynı anda en fazla 24 kart terminali; bağlantı ve görünüm birbirinden bağımsız
 - Bağlantı süresi, kaydırma koruması ve yeni satır göstergesi, kalıcı komut geçmişi (geçmiş penceresi, Ctrl+R ile geriye doğru arama) ve otomatik tamamlama, kart ekranında sağ tıkla renklendirme
+- İlk açılışta her özelliği ekranda tek tek gösteren uygulama turu (atlanabilir, Yardım → Uygulama turu ile yeniden açılır)
 - Boot ayarları penceresi: `bspBootChange` / `bootChange` alanları araya giren loglardan ayrı, tek ekranda izlenir ve düzenlenir
 - Genel komut çubuğu: ekrandaki tüm kartlara aynı komut
 - Periyodik bağlantı izleme ve otomatik yeniden bağlanma
