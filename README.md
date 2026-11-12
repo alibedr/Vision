@@ -49,6 +49,10 @@ Hazır paket (`Vision.zip`) düzeni: `Vision\Vision.exe` ve `Vision\lib\` (Senti
 
 Gruplar, kartlar ve ayarlar kullanıcının bilgisayarında `%APPDATA%\TelnetCards\config.xml` dosyasında tutulur (yeni sürüme geçişte korunur). Çalışırken exe'nin yanında `logs\` oluşur; depoya alınmaz.
 
+## Sürümler
+
+İlk resmî yayın **v1.0**. `main`'e her birleştirmede küçük sürüm bir artırılır (v1.1, v1.2, …); her sürüm GitHub Releases'ta `Vision.zip` ile yayınlanır.
+
 ## Ayrıntılı belgeler
 
 - [Kullanım Kılavuzu](Yardim/KullanimKilavuzu.md)
