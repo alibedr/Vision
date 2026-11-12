@@ -10,6 +10,8 @@ obj/
 # Hazır exe paketi (GitHub'da "Releases" bölümünde yayımlanır, depoda tutulmaz)
 HazirExe/
 *.zip
+# Sürümlerin derlenmiş hali depoda tutulur
+!release/**/*.zip
 
 # Çalışma sırasında oluşan dosyalar
 logs/
