@@ -10,10 +10,10 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 // Sürümleme: ilk resmî yayın 1.0 (etkileşimli uygulama turu ile). Bundan sonra main'e her birleştirmede küçük sürüm
 // bir artırılır (1.1, 1.2, …): aşağıdaki üç öznitelik ve AppInfo.Version birlikte değişir; birleştirmeden sonra
-// main derlemesi "vX.Y" etiketiyle yayınlanır.
-[assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]
-[assembly: AssemblyInformationalVersion("1.0")]
+// main derlemesi "vX.Y" etiketiyle kendiliğinden yayınlanır (.github/workflows/build-exe.yml, G38).
+[assembly: AssemblyVersion("1.1.0.0")]
+[assembly: AssemblyFileVersion("1.1.0.0")]
+[assembly: AssemblyInformationalVersion("1.1")]
 [assembly: AssemblyMetadata("GelistirmeDerlemesi", "4")]
 
 namespace Vision
@@ -29,7 +29,7 @@ namespace Vision
         public const string DataFolder = "TelnetCards";
         public const string Tagline = "Kart terminali, çoklu kart izleme ve kart dosya gezgini";
         /// <summary>Kullanıcıya görünen sürüm (main'e her birleştirmede küçük sürüm bir artar).</summary>
-        public const string Version = "1.0";
+        public const string Version = "1.1";
 
         /// <summary>
         /// İç geliştirme derleme numarası (artan). Arayüzde gösterilmez. Geçmiş: 1 = ilk sürüm (v1.0 etiketi),

@@ -2,11 +2,17 @@ name: Vision exe derle
 
 # Windows'ta Release derlemesi yapar ve hazır exe paketini (zip) GitHub Releases'a koyar.
 # Her dal kendi ön sürümünü günceller: "build-<dal-adı>".
+# main derlemesi ayrıca resmî sürümü yayınlar: AppInfo.Version'dan "vX.Y" etiketi ve release (zaten varsa dokunulmaz).
 on:
   push:
     branches: ["**"]
     paths-ignore: ["**.md", "docs/**"]
   workflow_dispatch:
+    inputs:
+      release_ref:
+        description: "Eski bir commit'i resmî sürüm olarak yayınla (commit SHA'sı; boş: normal derleme)"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -16,6 +22,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_ref || github.sha }}
 
       - uses: microsoft/setup-msbuild@v2
 
@@ -69,6 +77,7 @@ jobs:
           Compress-Archive -Path $out -DestinationPath Vision.zip -Force
 
       - name: Ön sürümü güncelle
+        if: ${{ !inputs.release_ref }}
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -87,3 +96,25 @@ jobs:
             if ($LASTEXITCODE -eq 0) { exit 0 }
           }
           exit 1
+
+      # Resmî sürüm: main'e her birleştirmede küçük sürüm artırılır (AppInfo.Version); o sürümün release'i yoksa oluşturulur
+      - name: Resmî sürümü yayınla
+        if: ${{ github.ref_name == 'main' || inputs.release_ref }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $m = Select-String -Path AppInfo.cs -Pattern 'public const string Version = "([0-9.]+)"' | Select-Object -First 1
+          if (-not $m) { Write-Output "::error::AppInfo.cs içinde sürüm bulunamadı"; exit 1 }
+          $version = $m.Matches[0].Groups[1].Value
+          $tag = "v$version"
+          $sha = (git rev-parse HEAD).Trim()
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Output "::warning::$tag zaten yayınlanmış; yeni sürüm için AppInfo.Version artırılmalı"
+            exit 0
+          }
+          $notes = "Kurulum: Vision.zip'i açın, Vision klasörünü bütün olarak kopyalayıp Vision.exe'yi çalıştırın " +
+                   "(.NET Framework 4.6.1+; Sentinel sayfası için Microsoft Edge WebView2 Runtime)."
+          gh release create $tag Vision.zip --target $sha --title "Vision $version" --notes $notes --generate-notes --latest
+          exit $LASTEXITCODE
