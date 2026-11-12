@@ -644,6 +644,16 @@ namespace Vision
     {
         public DarkMenuRenderer() : base(new DarkColors()) { RoundedEdges = false; }
 
+        /// <summary>
+        /// Bu çizimi kullanan her menü (sağ tık, Yardım, Temalar…) kaydedilir: tema değişince pencerelerin içinde
+        /// olmayan menüler de yeni renklere çevrilir (G33.4).
+        /// </summary>
+        protected override void Initialize(ToolStrip toolStrip)
+        {
+            base.Initialize(toolStrip);
+            Theme.TrackMenu(toolStrip);
+        }
+
         protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
         {
             if (!e.Item.Enabled) e.TextColor = Theme.TextFaint;

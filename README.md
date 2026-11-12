@@ -33,7 +33,7 @@ Geliştiren: **Ali Bedir**
 
 1. `Vision.sln` dosyasını Visual Studio 2019 ile açın.
 2. **Build → Build Solution** (Ctrl+Shift+B).
-3. Çıktı `bin\Debug\` (ya da `bin\Release\`) klasöründedir. Kullanım Kılavuzu, Gereksinimler ve komut kütüphanesi exe'ye gömülüdür.
+3. Çıktı `bin\Debug\` (ya da `bin\Release\`) klasöründedir. Kullanım Kılavuzu ve komut kütüphanesi exe'ye gömülüdür.
 
 Hazır paket (`Vision.zip`) düzeni: `Vision\Vision.exe` ve `Vision\lib\` (Sentinel sayfası için Edge WebView2 DLL'leri). Klasör bütün olarak kopyalanmalıdır.
 
@@ -42,7 +42,7 @@ Hazır paket (`Vision.zip`) düzeni: `Vision\Vision.exe` ve `Vision\lib\` (Senti
 | Konum | İçerik |
 |---|---|
 | `*.cs` | Kaynak kod (WinForms) |
-| `Yardim\` | Kullanım Kılavuzu ve Gereksinimler (exe'ye gömülür, uygulama içi yardımda gösterilir) |
+| `Yardim\` | Kullanım Kılavuzu (exe'ye gömülür, uygulama içi yardımda gösterilir) ve Gereksinimler (yalnız geliştirici belgesi, uygulamada yok) |
 | `Komutlar\Komutlar.xml` | Komut Kütüphanesi içeriği (VxWorks 6.4 komutları); derlemede exe'ye gömülür, dışarıya kopyalanmaz |
 | `Vision.ico` | Uygulama simgesi (`docs/simge.png`: büyük önizleme) |
 

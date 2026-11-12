@@ -147,6 +147,7 @@ namespace Vision
             MaxTerminalLines = DefaultMaxTerminalLines;
             LineEnding = "CRLF";
             LocalEcho = true;
+            Timestamp = true;   // zaman damgası varsayılan açık (G33.3)
             SeparateReturnValues = true;
             TerminalZoom = DefaultTerminalZoom;
             GlobalRebootOption = RebootOption.Reboot;
@@ -229,6 +230,13 @@ namespace Vision
             return ThemeCatalog.EffectiveColors(ThemeCatalog.FindOrDefault(UiThemeId), ThemeCustomizations);
         }
 
+        /// <summary>
+        /// Varsayılan değişikliklerinin kayıtlı ayarlara bir kez uygulanması için sürüm. 1: zaman damgası açık (G33.3).
+        /// Eski ayar dosyasında yoktur (0); yükseltme bir kez yapılır, kullanıcı sonra kapatırsa korunur.
+        /// </summary>
+        public int DefaultsRevision { get; set; }
+        private const int CurrentDefaultsRevision = 1;
+
         /// <summary>"Birlikte aç (salt okunur)" açıklama penceresi bir daha gösterilmesin.</summary>
         public bool HideReadOnlyOpenInfo { get; set; }
 
@@ -249,6 +257,8 @@ namespace Vision
             if (ThemeCustomizations == null) ThemeCustomizations = new List<ThemeCustomization>();
             ThemeCustomizations.RemoveAll(c => c == null || ThemeCatalog.Find(c.ThemeId) == null);
             LogToFile = false;   // sürekli kayıt kaldırıldı: anlık kayıt düğmeleri kullanılır
+            if (DefaultsRevision < 1) Timestamp = true;   // eski varsayılan (kapalı) kaydedilmişti: bir kez açılır
+            if (DefaultsRevision < CurrentDefaultsRevision) DefaultsRevision = CurrentDefaultsRevision;
             if (Transfer != null) Transfer.ApplyNewDefaults();
         }
 

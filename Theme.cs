@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
@@ -266,13 +267,20 @@ namespace Vision
             CurrentThemeId = def.Id;
             _colors = c;
 
-            foreach (Form f in Application.OpenForms)
+            _recolored = new HashSet<object>();   // aynı denetim / menü iki kez çevrilmesin (A→B→C olmasın)
+            try
             {
-                f.SuspendLayout();
-                Recolor(f, map);
-                f.ResumeLayout(false);
-                ApplyDarkTitleBar(f);
+                foreach (Form f in Application.OpenForms)
+                {
+                    f.SuspendLayout();
+                    Recolor(f, map);
+                    f.ResumeLayout(false);
+                    ApplyDarkTitleBar(f);
+                }
+                // Pencerelerin içinde olmayan menüler (düğmeyle açılan Yardım / Temalar, ayrı tutulan sağ tık menüleri)
+                foreach (ToolStrip ts in TrackedMenus()) Recolor(ts, map);
             }
+            finally { _recolored = null; }
             RefreshScrollBars();
             var h = Changed;
             if (h != null) h();
@@ -417,9 +425,36 @@ namespace Vision
             return c;                                                  // tema dışı renk (beyaz, simge renkleri…) olduğu gibi
         }
 
+        // ---------- Menüler ----------
+
+        private static readonly List<WeakReference> _menus = new List<WeakReference>();
+        private static HashSet<object> _recolored;
+
+        /// <summary>Menüyü tema değişikliklerinde yeniden renklendirilmek üzere kaydeder (DarkMenuRenderer çağırır).</summary>
+        public static void TrackMenu(ToolStrip menu)
+        {
+            if (menu == null) return;
+            _menus.RemoveAll(w => !w.IsAlive);
+            if (_menus.Any(w => ReferenceEquals(w.Target, menu))) return;
+            _menus.Add(new WeakReference(menu));
+        }
+
+        private static List<ToolStrip> TrackedMenus()
+        {
+            var list = new List<ToolStrip>();
+            foreach (WeakReference w in _menus.ToList())
+            {
+                var ts = w.Target as ToolStrip;
+                if (ts != null && !ts.IsDisposed) list.Add(ts);
+            }
+            _menus.RemoveAll(w => { var t = w.Target as ToolStrip; return t == null || t.IsDisposed; });
+            return list;
+        }
+
         /// <summary>Denetimi ve tüm alt denetimlerini (menü ve araç çubuğu öğeleri dahil) yeni temaya çevirir.</summary>
         public static void Recolor(Control c, Dictionary<int, Color> map)
         {
+            if (_recolored != null && !_recolored.Add(c)) return;   // bu tema geçişinde zaten çevrildi
             try
             {
                 Color back = c.BackColor, fore = c.ForeColor;
@@ -443,10 +478,12 @@ namespace Vision
 
         private static void RecolorItem(ToolStripItem it, Dictionary<int, Color> map)
         {
+            if (_recolored != null && !_recolored.Add(it)) return;
             it.ForeColor = MapColor(it.ForeColor, map);
             it.BackColor = MapColor(it.BackColor, map);
             var mi = it as ToolStripDropDownItem;
-            if (mi != null) foreach (ToolStripItem sub in mi.DropDownItems) RecolorItem(sub, map);
+            // Alt menü: açılır kutunun kendi zemini de (ör. "Karta aktar ▸") çevrilir
+            if (mi != null && mi.HasDropDownItems) Recolor(mi.DropDown, map);
         }
 
         /// <summary>Pencere zemini</summary>

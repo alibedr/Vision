@@ -9,7 +9,7 @@ Vision; donanım kartlarına telnet ile bağlanmak, kartlara komut göndermek, b
 | Bölüm | Konum | Ne işe yarar |
 |---|---|---|
 | Kart Gezgini | Sol kenar | Grupları ve kartları listeler; kart ekleme, seçme, bağlanma ve gösterme buradan yapılır. Sekme şeridinin en solundaki kenar çubuğu düğmesi (Ctrl+B) ile gizlenip gösterilir. |
-| Sekmeler | Sağ alanın üstü | **Telnet** (kart terminalleri), **Kart Dosya Gezgini**, **Komut Kütüphanesi** ve **Sentinel** arasında geçiş (Ctrl+1 / 2 / 3 / 4). Aynı şeridin en sağında **Yardım** (Kullanım Kılavuzu, Gereksinimler, Hakkında) ve **Temalar** menüsü (hazır temalar ve özelleştirme; aşağıya bakın) bulunur. |
+| Sekmeler | Sağ alanın üstü | **Telnet** (kart terminalleri), **Kart Dosya Gezgini**, **Komut Kütüphanesi** ve **Sentinel** arasında geçiş (Ctrl+1 / 2 / 3 / 4). Aynı şeridin en sağında **Yardım** (Kullanım Kılavuzu, Hakkında) ve **Temalar** menüsü (hazır temalar ve özelleştirme; aşağıya bakın) bulunur. |
 | Telnet sekmesi | Sağ alan | Seçilen kartların terminal pencereleri ızgara düzeninde görünür (en fazla 24 kart). |
 | Terminal ayarları | Telnet sekmesinin üst çubuğu | Satır sonu, yerel eko, zaman damgası, dosyaya kaydet, satır sınırı ve "Tümünü kapat". |
 | Genel komut çubuğu | Telnet sekmesinin altı | Bir komutu ekrandaki tüm kartlara aynı anda gönderir. |
@@ -99,7 +99,7 @@ Terminal ayarlarındaki **Yerel eko**, **Zaman damgası** ve **Dönüş değerle
 
 ### Renkler ve okunabilirlik
 
-Arayüz renkleri WCAG 2.1 AA kontrast ölçütüne göre ölçülüp ayarlanmıştır: normal metin her zeminde en az **4.5:1**, pasif düğme yazıları en az **3:1**. Ölçülen 41 metin / zemin çiftinin hepsi bu sınırı geçer (önceki sürümde 11 çift geçmiyordu). Ayrıntı: Gereksinimler → G12.
+Arayüz renkleri WCAG 2.1 AA kontrast ölçütüne göre ölçülüp ayarlanmıştır: normal metin her zeminde en az **4.5:1**, pasif düğme yazıları en az **3:1**. Ölçülen 41 metin / zemin çiftinin hepsi bu sınırı geçer (önceki sürümde 11 çift geçmiyordu).
 
 ## Kart ekleme
 
@@ -392,9 +392,9 @@ Her kartın terminalinde tutulan en fazla satır sayısı (100 – 100.000). Sı
 
 Yazdığınız komutu, kart cevap vermeden önce kartın ekranına yazar; komut istemin yanına düşer (`-> ls "/ata0a"`). Kart da komutu geri ekolarsa ikinci kopya otomatik ayıklanır. Kapalıyken ekranda yalnız kartın gönderdikleri görünür. Komutlar ekranda iki kez görünüyorsa kapatın.
 
-### Zaman damgası (varsayılan: kapalı)
+### Zaman damgası (varsayılan: açık)
 
-Ekrana düşen her yeni satırın başına `[14:32:05.123]` biçiminde saat ekler. Saat, satırın bilgisayara ulaştığı andır (kartın saati değil). Yalnız açıldıktan sonra gelen satırlara eklenir; anlık kayıtta da görünür.
+Ekrana düşen her yeni satırın başına `[14:32:05.123]` biçiminde saat ekler. Varsayılan olarak açıktır; kapatırsanız tercihiniz hatırlanır. Saat, satırın bilgisayara ulaştığı andır (kartın saati değil). Yalnız açıldıktan sonra gelen satırlara eklenir; anlık kayıtta da görünür.
 
 ### Dönüş değerlerini ayır (varsayılan: açık)
 
@@ -423,8 +423,9 @@ Ayar çubuğundaki **− %100 +** tüm kart terminallerinin yazı boyutunu **bir
 
 **Kart Dosya Gezgini** sekmesi (**Ctrl+2**), kartın cihazlarını, klasörlerini ve dosyalarını `devs` ve `ls` komutlarını elle yazmadan gezmenizi sağlar. Karta sağ tıklayıp **Dosya Gezgininde aç** ile de açılır.
 
-1. Üstten **kartı seçin**. Kart bağlıysa `devs` çalışır ve cihazlar **hemen** listelenir. Yalnız `devs` çıktısındaki **name** sütunu kullanılır (`drv refs name` ve `drv name` biçimleri desteklenir).
+1. Üstten **kartı seçin**. Listede yalnız **bağlı** kartlar görünür; bir karta bağlandığınızda listeye kendiliğinden eklenir. Seçili kartın bağlantısı koparsa (ör. reboot) kart listede kalır, **Bağlan** ile devam edebilirsiniz. Kart bağlıysa `devs` çalışır ve cihazlar **hemen** listelenir. Yalnız `devs` çıktısındaki **name** sütunu kullanılır (`drv refs name` ve `drv name` biçimleri desteklenir).
    - `devs`in listelediği **tüm cihazlar** görünür; cihazlar önceden tek tek denenmez, bu yüzden liste beklemeden gelir.
+   - **Disk boyutları:** `/ata…` ve `/bd…` ile başlayan cihazların **Boyut** sütununda boş ve toplam alan görünür (ör. *226 MB boş / 250 MB*), altında ince bir doluluk çubuğu (%90 üstü sarı, %97 üstü kırmızı). Liste beklemeden gelir; boyutlar arka planda `dosFsShow` ile birer birer öğrenilip geldikçe yazılır. Bu sırada bir cihaza girerseniz sorgu bitene kadar kısa bir bekleme olabilir. Bir diskin içindeyken alttaki durum satırında o diskin toplam / kullanılan / boş alanı yazar (ör. *250 MB toplam · 23.6 MB kullanılan (%9) · 226.4 MB boş*). Kullanılan alan Windows'taki gibi toplam − boş'tur (dosya sistemi tabloları dahil). Boyutlar Cihazlar'dayken **Yenile** (F5) ile yeniden sorgulanır.
    - İçine girilip girilemeyeceği, cihaza **girmek istediğinizde** anlaşılır: `ll "cihaz"` dönüş değeri **0** ise içerik açılır. 0 dışındaysa (ör. `/null`, `/tyCo/0`) sarı uyarı şeridinde *"/tyCo/0" cihazının içine girilemiyor (dönüş değeri -1)* yazar, liste değişmez ve cihaz soluk görünür; türü **Cihaz · girilemiyor (-1)** olur.
    - İşaret, Cihazlar'dayken **Yenile** (F5) ya da kart değişince sıfırlanır; cihaz sonradan açılırsa işaret kendiliğinden kalkar.
 2. Bir cihaza ya da klasöre **çift tıklayın** (veya Enter): `ll "/yol"` çalışır ve içerik **tür, boyut ve tarihle** listelenir. Kartın imajında `ll` yoksa otomatik olarak `ls` kullanılır (bu durumda boyut / tarih görünmez).

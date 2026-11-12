@@ -41,7 +41,9 @@ namespace Vision
         private readonly Label _banner = new GlyphLabel { Closable = true, Dock = DockStyle.Top, Height = 34, Visible = false, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(14, 0, 8, 0), Cursor = Cursors.Hand };
         private readonly DarkListView _list = new DarkListView();
         private readonly Label _overlay = new Label { AutoSize = false, TextAlign = ContentAlignment.MiddleCenter, ForeColor = Theme.TextMuted, BackColor = Theme.Input, Visible = false };
-        private readonly ImageList _icons = new ImageList { ColorDepth = ColorDepth.Depth32Bit, ImageSize = new Size(20, 20) };
+        // Satır yüksekliği simge yüksekliğinden gelir: 24 px (simge 20×20, üstte / altta 2 px) — disk satırında boyut yazısı
+        // ile doluluk çubuğu üst üste binmesin (G34.2)
+        private readonly ImageList _icons = new ImageList { ColorDepth = ColorDepth.Depth32Bit, ImageSize = new Size(20, 24) };
 
         // Alt çubuk + ham çıktı
         private readonly Label _status = Theme.MakeLabel("", Theme.UiSmall, Theme.TextMuted);
@@ -110,7 +112,7 @@ namespace Vision
             _list.SmallImageList = _icons;
             _list.Columns.Add("Ad", 300);
             _list.Columns.Add("Tür", 100);
-            _list.Columns.Add("Boyut", 90);
+            _list.Columns.Add("Boyut", 160);   // cihazlarda "226 MB boş / 250 MB" + doluluk çubuğu
             _list.Columns.Add("Değiştirilme", 130);
             _list.Columns.Add("Yol", 300);
             var listHost = new Panel { Dock = DockStyle.Fill, BackColor = Theme.Input, Padding = new Padding(0) };
@@ -194,11 +196,37 @@ namespace Vision
             return item != null ? item.Card : null;
         }
 
-        /// <summary>Yapılandırılmış kart listesi değişince çağrılır; seçim mümkünse korunur.</summary>
+        /// <summary>
+        /// Kartın bağlantı durumu (oturum yoksa bağlı değil). Ayarlanırsa kart listesinde yalnız bağlı kartlar görünür.
+        /// Oturum oluşturmadan sorar.
+        /// </summary>
+        public Func<CardConfig, CardState> StateOf { get; set; }
+
+        private string _listedSignature;
+
+        /// <summary>
+        /// Kart listesinde gösterilecek kartlar (G33.5): yalnız bağlı / bağlanmakta olanlar. O an seçili kart bağlantısı
+        /// kopsa da listede kalır (ör. reboot sırasında açık klasör kaybolmasın; "Bağlan" ile devam edilir).
+        /// </summary>
+        private List<CardConfig> ListedCards(List<CardConfig> all)
+        {
+            if (StateOf == null) return all;
+            return all.Where(c => c == _card || SelectionLogic.IsLive(StateOf(c))).ToList();
+        }
+
+        private string ListedSignature(List<CardConfig> listed)
+        {
+            return string.Join("|", listed.Select(c => c.GetHashCode() + ":" + c.Label + ":" + (c.Group != null ? c.Group.Name : "")));
+        }
+
+        /// <summary>Yapılandırılmış kart listesi ya da bağlantılar değişince çağrılır; seçim mümkünse korunur.</summary>
         public void RefreshCards()
         {
-            List<CardConfig> cards = _cards();
-            foreach (var gone in _browsers.Keys.Where(k => !cards.Contains(k)).ToList()) _browsers.Remove(gone);
+            List<CardConfig> all = _cards();
+            foreach (var gone in _browsers.Keys.Where(k => !all.Contains(k)).ToList()) _browsers.Remove(gone);
+            if (_card != null && !all.Contains(_card)) { _card = null; _browser = null; }   // kart silindi
+            List<CardConfig> cards = ListedCards(all);
+            _listedSignature = ListedSignature(cards);
 
             _suppressComboEvent = true;
             _cardCombo.BeginUpdate();
@@ -215,12 +243,17 @@ namespace Vision
             else RefreshUi();
         }
 
-        /// <summary>Başka bir yerden (ör. sağ tık menüsü) belirli bir kartı seçmek için.</summary>
+        /// <summary>
+        /// Başka bir yerden (ör. Kart Gezgini'nde "Dosyalarını gez") belirli bir kartı seçmek için. Kart bağlı değilse de
+        /// seçilir ve listeye eklenir (seçili kart her zaman listede durur); "Bağlan" ile bağlanılabilir.
+        /// </summary>
         public void ShowCard(CardConfig card)
         {
-            for (int i = 0; i < _cardCombo.Items.Count; i++)
+            if (card == null) return;
+            if (card != _card)
             {
-                if (((CardItem)_cardCombo.Items[i]).Card == card) { _cardCombo.SelectedIndex = i; return; }
+                SelectCard(card);
+                RefreshCards();
             }
         }
 
@@ -285,7 +318,18 @@ namespace Vision
         /// <summary>Seçili kartın bağlantı durumu değişirse arayüzü günceller; bağlanınca cihazları yükler.</summary>
         public void Tick()
         {
+            // Bağlanan / kopan kartlar: liste yalnız bağlı kartları gösterir (değişince yenilenir)
+            if (StateOf != null)
+            {
+                List<CardConfig> listed = ListedCards(_cards());
+                if (ListedSignature(listed) != _listedSignature) RefreshCards();
+            }
             if (_card == null || !Visible) return;
+            // Cihaz boyutları: Cihazlar görünürken ve boştayken arka planda birer birer (G34)
+            if (_browser != null && !_browser.Busy && _sessionOf(_card).State == CardState.Connected)
+            {
+                var ignored = _browser.QueryNextSpaceAsync();
+            }
             CardState st = _sessionOf(_card).State;
             if (st == _shownState) return;
             RefreshUi();
@@ -329,7 +373,9 @@ namespace Vision
             // Boş / yükleniyor / bağlı değil katmanı
             string overlay = null;
             if (_card == null)
-                overlay = "Henüz kart yok.\n\nSoldaki Kart Gezgini'nden \"Kart Ekle\" ile kart ekleyin.";
+                overlay = _cards().Count == 0
+                    ? "Henüz kart yok.\n\nSoldaki Kart Gezgini'nden \"Kart Ekle\" ile kart ekleyin."
+                    : "Bağlı kart yok.\n\nKart Gezgini'nden bir karta bağlanın; bağlanan kartlar yukarıdaki listede görünür.";
             else if (!connected)
                 overlay = (st == CardState.Recovering
                               ? "Bu kartın bağlantısı kesildi (" + (_sessionOf(_card).LastError ?? ErrorText.ConnectionLost) + ").\n" +
@@ -380,7 +426,15 @@ namespace Vision
             if (bad > 0) count += "  ·  " + bad + " cihazın içine girilemedi";
             string rc = b.LastResponse != null && b.LastResponse.ReturnCode.HasValue && !b.Current.IsRoot
                 ? "  ·  son dönüş değeri " + b.LastResponse.ReturnCode.Value : "";
-            return count + "  ·  " + where + rc;
+            // Bir diskin içindeyken o diskin doluluğu (G34)
+            string space = "";
+            if (!b.Current.IsRoot)
+            {
+                string dev;
+                DeviceSpace sp = b.SpaceForPath(b.Current.Path, out dev);
+                if (sp != null) space = "  ·  " + dev + ": " + sp.Detail;
+            }
+            return count + "  ·  " + where + rc + space;
         }
 
         private void ShowBanner(string text, Color back, Color fore)
@@ -402,7 +456,7 @@ namespace Vision
         {
             // Aynı içerik yeniden çizilmesin (seçim ve kaydırma korunur)
             string signature = (b.Current.Path ?? "<root>") + "|" + string.Join("|", b.Entries.Select(e => e.Name + ":" + e.KindText));
-            if (_list.Tag as string == signature) return;
+            if (_list.Tag as string == signature) { UpdateSizeCells(); return; }
             _list.Tag = signature;
 
             _list.BeginUpdate();
@@ -419,6 +473,21 @@ namespace Vision
             _list.EndUpdate();
             if (_list.Items.Count > 0) { _list.Items[0].Selected = true; _list.Items[0].Focused = true; }
             FitLastColumn();
+        }
+
+        /// <summary>
+        /// Cihaz boyutları arka planda geldikçe yalnız Boyut hücreleri güncellenir (liste baştan çizilmez; seçim ve
+        /// kaydırma korunur).
+        /// </summary>
+        private void UpdateSizeCells()
+        {
+            foreach (ListViewItem item in _list.Items)
+            {
+                var e = item.Tag as FsEntry;
+                if (e == null || item.SubItems.Count < 3) continue;
+                string text = e.SizeText;
+                if (item.SubItems[2].Text != text) item.SubItems[2].Text = text;
+            }
         }
 
         private void RebuildCrumbs(FileBrowser b, bool clickable)
@@ -494,10 +563,11 @@ namespace Vision
 
         private static Bitmap DrawIcon(Action<Graphics> draw)
         {
-            var bmp = new Bitmap(20, 20);
+            var bmp = new Bitmap(20, 24);
             using (Graphics g = Graphics.FromImage(bmp))
             {
                 g.SmoothingMode = SmoothingMode.AntiAlias;
+                g.TranslateTransform(0, 2);   // 20×20 simge, 24 px yüksek satırın ortasında
                 g.Clear(Color.Transparent);
                 draw(g);
             }
@@ -624,7 +694,7 @@ namespace Vision
                 if (SmallImageList != null && e.Item.ImageKey != null && SmallImageList.Images.ContainsKey(e.Item.ImageKey))
                 {
                     Image img = SmallImageList.Images[e.Item.ImageKey];
-                    e.Graphics.DrawImage(img, x, e.Bounds.Y + (e.Bounds.Height - 20) / 2, 20, 20);
+                    e.Graphics.DrawImage(img, x, e.Bounds.Y + (e.Bounds.Height - img.Height) / 2, img.Width, img.Height);
                 }
                 x += 28;
                 bool notEnterable = entry != null && entry.NotEnterable;   // içine girilemeyen cihaz soluk çizilir
@@ -639,8 +709,21 @@ namespace Vision
                 bool pathColumn = e.ColumnIndex == Columns.Count - 1;
                 Color fore = pathColumn ? Theme.TextFaint
                            : e.ColumnIndex == 1 && entry != null && entry.NotEnterable ? Theme.Warning : Theme.TextMuted;
-                TextRenderer.DrawText(e.Graphics, e.SubItem.Text, pathColumn ? Theme.Mono : Font, r, fore,
+                bool spaceBar = e.ColumnIndex == 2 && entry != null && entry.Kind == FsKind.Device && entry.Space != null && entry.Space.HasFree;
+                // Doluluk çubuğu olan hücrede yazı çubuğun üstündeki alana ortalanır (üst üste binmesin)
+                Rectangle textRect = spaceBar ? new Rectangle(r.X, r.Y, r.Width, Math.Max(10, r.Height - 6)) : r;
+                TextRenderer.DrawText(e.Graphics, e.SubItem.Text, pathColumn ? Theme.Mono : Font, textRect, fore,
                     TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+                // Cihazın doluluk çubuğu (Boyut sütunu): satırın en altında; %90 üstü sarı, %97 üstü kırmızı
+                if (spaceBar)
+                {
+                    double ratio = entry.Space.UsedRatio;
+                    var track = new Rectangle(r.X, e.Bounds.Bottom - 5, Math.Max(10, r.Width - 8), 3);
+                    using (var tb = new SolidBrush(Theme.Border)) e.Graphics.FillRectangle(tb, track);
+                    Color fill = ratio >= 0.97 ? Theme.Danger : ratio >= 0.90 ? Theme.Warning : Theme.Accent;
+                    int w = (int)Math.Round(track.Width * ratio);
+                    if (w > 0) using (var fb = new SolidBrush(fill)) e.Graphics.FillRectangle(fb, new Rectangle(track.X, track.Y, w, track.Height));
+                }
             }
         }
 

@@ -93,7 +93,7 @@ namespace Vision
             // FTP bilgisi artık her karttan otomatik alınır: eski sürümlerde elle girilmiş parola dosyada tutulmaz
             if (_config.Settings.Transfer != null) _config.Settings.Transfer.ClearLegacyCredentials();
 
-            Text = AppInfo.Name + "  —  " + AppInfo.Author;
+            Text = AppInfo.Name;   // geliştirici adı Hakkında'da ve durum çubuğunda yazar (G33.1)
             if (Theme.AppIcon != null) Icon = Theme.AppIcon;
             Size = new Size(1360, 820);
             MinimumSize = new Size(900, 560);
@@ -321,6 +321,8 @@ namespace Vision
             _explorer.OpenRequested += OpenCards;
             _explorer.ShowExactlyRequested += ShowExactly;
             _explorer.BrowseFilesRequested += card => { _fileExplorer.ShowCard(card); ShowTab(MainTab.Files); };
+            _fileExplorer.StateOf = StateOf;   // kart listesinde yalnız bağlı kartlar (G33.5)
+            _fileExplorer.RefreshCards();
             _explorer.RenameCardRequested += RenameCard;
             _explorer.RenameGroupRequested += RenameGroup;
             // Dosya Gezgini'nde gezilen kart, Kart Gezgini'nde vurgulanır (yalnız o sekmedeyken)
@@ -828,7 +830,6 @@ namespace Vision
                 _helpMenu.Items.Add(it);
             };
             item("Kullanım Kılavuzu", "F1", () => ShowHelp(HelpPage.Guide));
-            item("Gereksinimler", null, () => ShowHelp(HelpPage.Requirements));
             _helpMenu.Items.Add(new ToolStripSeparator());
             item("Hakkında", null, () => ShowHelp(HelpPage.About));
 
