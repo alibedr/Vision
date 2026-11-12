@@ -24,6 +24,12 @@ namespace Vision
         private readonly TextBox _search = new TextBox();
         private readonly Label _countLabel = Theme.MakeLabel("", Theme.UiSmall, Theme.TextFaint);
         private readonly Button _addBtn = Theme.MakeButton("Kart Ekle", IconKind.Plus, Theme.ButtonKind.Primary);
+
+        // Uygulama turunun vurguladığı bölümler (G36)
+        internal Control TourAdd { get { return _addBtn; } }
+        internal Control TourTree { get { return _tree; } }
+        internal Control TourSearch { get { return _search; } }
+        internal Control[] TourBottom { get { return new Control[] { _connectBtn, _showBtn }; } }
         private readonly IconButton _connectBtn = new IconButton(IconKind.Connect, IconTone.Primary) { Label = ConnectionAction.ConnectLabel };
         private readonly Button _showBtn = Theme.MakeButton("Seçilenleri Göster", IconKind.Terminal, Theme.ButtonKind.Secondary);
         private readonly IconButton _clearChecksBtn = new IconButton(IconKind.Close, IconTone.Ghost) { IconSize = 12 };

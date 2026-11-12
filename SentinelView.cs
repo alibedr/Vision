@@ -13,7 +13,7 @@ namespace Vision
     /// Sayfa kendini yeniler; Vision yalnız gösterir. Sunucu çalışmıyorsa sayfanın yerine açıklama ve Başlat düğmesi çıkar.
     /// Sekme görünmüyorken sayfa kapatılır (kart boşuna sorgulanmasın); sekmeye dönünce yeniden açılır.
     /// </summary>
-    public sealed class SentinelView : UserControl
+    public sealed partial class SentinelView : UserControl
     {
         private readonly Func<IList<CardConfig>> _cards;
         private readonly Func<CardConfig, CardSession> _sessionOf;   // oturumu olmayan kart için null
@@ -31,15 +31,14 @@ namespace Vision
         private readonly Panel _pageHost = new Panel { Dock = DockStyle.Fill, BackColor = Theme.Input };
         private readonly Label _overlay = new Label { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, ForeColor = Theme.TextMuted, BackColor = Theme.Input, Font = Theme.Ui };
         private readonly ToolTip _tips = new DarkToolTip();
-        private readonly ComboBox _reloadCombo = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 168 };
         private readonly Label _engineNote = Theme.MakeLabel("", Theme.UiSmall, Theme.Warning);
         private SentinelPage _page;
-        private bool _reloadTouched;           // kullanıcı yenileme aralığını kendisi seçti
         private DateTime _nextReloadUtc;
 
-        // Yenileme seçenekleri: 0 = sayfanın kendi yenilemesi
-        private static readonly int[] ReloadSeconds = { 0, 2, 5, 10, 30 };
-        private static readonly string[] ReloadNames = { "Sayfanın kendi yenilemesi", "Her 2 sn yenile", "Her 5 sn yenile", "Her 10 sn yenile", "Her 30 sn yenile" };
+        // Sayfa kendini yeniler (Vision ayrıca yeniden yüklemez). Yalnız eski görüntüleyicide (WebView2 yok, betikler
+        // çalışmayabilir) sayfa bu aralıkla yeniden yüklenir.
+        private const int LegacyReloadSeconds = 2;
+        private int _reloadEvery;              // 0: sayfanın kendi yenilemesi
 
         private CardConfig _selected;
         private bool _everShown;               // sekme en az bir kez açıldı (sayfa ancak ondan sonra açılır)
@@ -103,13 +102,8 @@ namespace Vision
             _toggleBtn.Height = 32;
             _toggleBtn.Width = 110;
             _toggleBtn.Click += async (s, e) => await ToggleAsync();
-            Theme.StyleCombo(_reloadCombo);
-            _reloadCombo.Items.AddRange(ReloadNames);
-            _reloadCombo.SelectedIndex = 0;
-            _reloadCombo.SelectedIndexChanged += (s, e) => { _reloadTouched = true; _nextReloadUtc = DateTime.UtcNow.AddSeconds(ReloadSeconds[Math.Max(0, _reloadCombo.SelectedIndex)]); };
-            _tips.SetToolTip(_reloadCombo, "Sayfa normalde kendini yeniler. Yenilenmiyorsa Vision'ın sayfayı belirli aralıklarla yeniden yüklemesini seçin.");
             _engineNote.Visible = false;
-            _pageBar.Controls.AddRange(new Control[] { _pageTitle, _pageUrl, _engineNote, _reloadCombo, _refreshBtn, _toggleBtn });
+            _pageBar.Controls.AddRange(new Control[] { _pageTitle, _pageUrl, _engineNote, _refreshBtn, _toggleBtn });
             _pageBar.Resize += (s, e) => LayoutPageBar();
             _pageBar.Paint += (s, e) => { using (var p = new Pen(Theme.Border)) e.Graphics.DrawLine(p, 0, _pageBar.Height - 1, _pageBar.Width, _pageBar.Height - 1); };
             _pageHost.Controls.Add(_overlay);
@@ -126,16 +120,14 @@ namespace Vision
             int w = _pageBar.ClientSize.Width;
             _toggleBtn.Location = new Point(w - 14 - _toggleBtn.Width, 8);
             _refreshBtn.Location = new Point(_toggleBtn.Left - 6 - _refreshBtn.Width, 8);
-            _reloadCombo.Location = new Point(_refreshBtn.Left - 8 - _reloadCombo.Width, 8 + (32 - _reloadCombo.Height) / 2);
             _pageTitle.Location = new Point(16, 15);
             _pageTitle.Size = _pageTitle.PreferredSize;
             _pageUrl.Location = new Point(_pageTitle.Right + 12, 15);
             _pageUrl.Size = _pageUrl.PreferredSize;
             _engineNote.Size = _engineNote.PreferredSize;
-            _engineNote.Location = new Point(_reloadCombo.Left - 12 - _engineNote.Width, 17);
-            int urlLimit = _engineNote.Visible && _engineNote.Text.Length > 0 ? _engineNote.Left : _reloadCombo.Left;
+            _engineNote.Location = new Point(_refreshBtn.Left - 12 - _engineNote.Width, 17);
+            int urlLimit = _engineNote.Visible && _engineNote.Text.Length > 0 ? _engineNote.Left : _refreshBtn.Left;
             _pageUrl.Visible = _pageUrl.Right < urlLimit - 8;
-            _reloadCombo.Visible = _reloadCombo.Left > _pageTitle.Right + 8;
         }
 
         // =====================================================================
@@ -267,8 +259,8 @@ namespace Vision
                 if (_navigatedUrl != url && now >= _retryAtUtc) Navigate(url);
                 else
                 {
-                    // İsteğe bağlı düzenli yenileme (sayfa kendini yenilemiyorsa)
-                    int every = ReloadSeconds[Math.Max(0, _reloadCombo.SelectedIndex)];
+                    // Eski görüntüleyicide düzenli yeniden yükleme (Edge'de sayfa kendini yeniler)
+                    int every = _reloadEvery;
                     if (every > 0 && _navigatedUrl != null && now >= _nextReloadUtc)
                     {
                         _page.Reload();
@@ -354,7 +346,7 @@ namespace Vision
 
         private void ShowLegacyNote(Exception ex)
         {
-            if (!_reloadTouched) { _reloadCombo.SelectedIndex = 1; _reloadTouched = false; }
+            _reloadEvery = LegacyReloadSeconds;
             _engineNote.Text = "⚠  Edge görüntüleyicisi yok — eski görüntüleyici";
             _engineNote.Visible = true;
             _tips.SetToolTip(_engineNote, "Bu bilgisayarda Microsoft Edge WebView2 Runtime bulunamadı (" + ErrorText.Describe(ex) + ").\n" +
@@ -367,8 +359,7 @@ namespace Vision
         private void Navigate(string url)
         {
             _navigatedUrl = url;
-            int every = ReloadSeconds[Math.Max(0, _reloadCombo.SelectedIndex)];
-            _nextReloadUtc = DateTime.UtcNow.AddSeconds(Math.Max(every, 1));
+            _nextReloadUtc = DateTime.UtcNow.AddSeconds(Math.Max(_reloadEvery, 1));
             _page.Navigate(url);
         }
 

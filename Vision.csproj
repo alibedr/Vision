@@ -119,6 +119,14 @@
       <DependentUpon>CardView.cs</DependentUpon>
       <SubType>UserControl</SubType>
     </Compile>
+    <Compile Include="CardView.Tour.cs">
+      <DependentUpon>CardView.cs</DependentUpon>
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="TourAccessors.cs" />
+    <Compile Include="Tour.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="CardView.Sentinel.cs">
       <DependentUpon>CardView.cs</DependentUpon>
       <SubType>UserControl</SubType>

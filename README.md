@@ -13,6 +13,7 @@ Geliştiren: **Ali Bedir**
 - Grup tabanlı kart yönetimi (Kart Gezgini), kartlara isteğe bağlı ad
 - Aynı anda en fazla 24 kart terminali; bağlantı ve görünüm birbirinden bağımsız
 - Bağlantı süresi, kaydırma koruması ve yeni satır göstergesi, kalıcı komut geçmişi (geçmiş penceresi, Ctrl+R ile geriye doğru arama) ve otomatik tamamlama, kart ekranında sağ tıkla renklendirme
+- İlk açılışta kullanıcıyla birlikte adım adım ilerleyen etkileşimli uygulama turu: kart ekletir, bağlatır, kart penceresini, boot ayarlarını, renklendirmeyi, Kart Dosya Gezgini'ni, Komut Kütüphanesi'ni ve Sentinel'i tek tek anlatır (atlanabilir, Yardım → Uygulama turu ile yeniden açılır)
 - Boot ayarları penceresi: `bspBootChange` / `bootChange` alanları araya giren loglardan ayrı, tek ekranda izlenir ve düzenlenir
 - Genel komut çubuğu: ekrandaki tüm kartlara aynı komut
 - Periyodik bağlantı izleme ve otomatik yeniden bağlanma
@@ -47,6 +48,10 @@ Hazır paket (`Vision.zip`) düzeni: `Vision\Vision.exe` ve `Vision\lib\` (Senti
 | `Vision.ico` | Uygulama simgesi (`docs/simge.png`: büyük önizleme) |
 
 Gruplar, kartlar ve ayarlar kullanıcının bilgisayarında `%APPDATA%\TelnetCards\config.xml` dosyasında tutulur (yeni sürüme geçişte korunur). Çalışırken exe'nin yanında `logs\` oluşur; depoya alınmaz.
+
+## Sürümler
+
+İlk resmî yayın **v1.0**. `main`'e her birleştirmede küçük sürüm bir artırılır (v1.1, v1.2, …); her sürüm GitHub Releases'ta `Vision.zip` ile yayınlanır.
 
 ## Ayrıntılı belgeler
 

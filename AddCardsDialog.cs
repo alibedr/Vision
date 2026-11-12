@@ -11,7 +11,7 @@ namespace Vision
     /// Kart sayısı kadar IP alanı dinamik oluşturulur; başlangıç IP'sinden sıralı doldurulur, elle düzenlenebilir.
     /// Var olan bir gruba kart eklemek için de kullanılır (grup adı ve port kilitli gelir).
     /// </summary>
-    public sealed class AddCardsDialog : Form
+    public sealed partial class AddCardsDialog : Form
     {
         private const int MaxCards = 128;
 
