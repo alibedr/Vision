@@ -166,6 +166,31 @@ namespace Vision
 
         // ---------- İndirme ----------
 
+        /// <summary>
+        /// Bilgisayarın diskinde yer var mı (G42)? Yetmiyorsa aktarım başlamadan şeritte bildirilir. Üzerine yazılacak
+        /// dosyanın boyutu hesaba katılmaz (güvenli taraf). Boş alan okunamazsa engellenmez.
+        /// </summary>
+        private bool EnoughLocalSpace(string targetDir, long bytes, string name)
+        {
+            if (bytes <= 0) return true;
+            try
+            {
+                string root = Path.GetPathRoot(Path.GetFullPath(targetDir));
+                if (string.IsNullOrEmpty(root) || root.StartsWith(@"\\")) return true;   // ağ paylaşımı: denetlenmez
+                var drive = new DriveInfo(root);
+                long free = drive.AvailableFreeSpace;
+                if (bytes <= free) return true;
+                _browser.ShowWarning("\"" + name + "\" bilgisayara alınamadı: " + root + " diskinde yeterli boş alan yok (gereken " +
+                                   DeviceSpace.FormatBytes(bytes) + ", boş " + DeviceSpace.FormatBytes(free) + "). Hiçbir şey indirilmedi.");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                ErrorText.LogTechnical("yerel boş alan " + targetDir, ex);
+                return true;
+            }
+        }
+
         /// <summary>İlerleme penceresiyle indirir; başarılıysa bilgisayardaki yol, değilse (hata / iptal) null.</summary>
         private string RunTransferDialog(FsEntry entry, string targetDir)
         {
@@ -194,6 +219,7 @@ namespace Vision
             if (entry.Kind != FsKind.Folder)
             {
                 long size = entry.Size ?? 0;
+                if (!EnoughLocalSpace(targetDir, size, entry.Name)) return null;
                 tp.Begin(size, 1);
                 tp.BeginItem(entry.Name + (size > 0 ? "  ·  " + DeviceSpace.FormatBytes(size) : ""));
                 OpResult r = await b.FetchCopyAsync(entry, top, ftp, eff, false, tp);
@@ -207,6 +233,7 @@ namespace Vision
             if (!scan.Ok || tp.CancelRequested) return null;
             long total = 0;
             foreach (KeyValuePair<string, FsEntry> f in tree.Files) total += f.Value.Size ?? 0;
+            if (!EnoughLocalSpace(targetDir, total, entry.Name)) return null;
             tp.Begin(total, tree.Files.Count);
             Directory.CreateDirectory(top);
             foreach (string f in tree.Folders) Directory.CreateDirectory(Path.Combine(top, f));

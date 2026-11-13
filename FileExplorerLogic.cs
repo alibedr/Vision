@@ -939,7 +939,15 @@ namespace Vision
         }
 
         /// <summary>Öğeyi kart içinde başka bir klasöre taşır (mv) ya da kopyalar (dosya: copy, klasör: xcopy).</summary>
-        public async Task<OpResult> TransferAsync(FsEntry entry, string destDir, bool copy)
+        public async Task<OpResult> TransferAsync(FsEntry entry, string destDir, bool copy, TransferProgress tp = null)
+        {
+            if (Busy) { if (tp != null) tp.Finished = true; return Reject("Başka bir işlem sürüyor."); }
+            _tp = tp;
+            try { return await TransferCoreAsync(entry, destDir, copy); }
+            finally { if (tp != null) tp.Finished = true; _tp = null; }
+        }
+
+        private async Task<OpResult> TransferCoreAsync(FsEntry entry, string destDir, bool copy)
         {
             if (entry.Kind == FsKind.Device) return Reject("Cihazlar taşınamaz / kopyalanamaz.");
             if (string.IsNullOrWhiteSpace(destDir)) return Reject("Hedef klasör belirtilmedi.");
@@ -961,9 +969,130 @@ namespace Vision
             if (!copy) cmd = "mv " + FsPath.Quote(entry.FullPath) + ", " + FsPath.Quote(dst);
             else if (entry.Kind == FsKind.File) cmd = "copy " + FsPath.Quote(entry.FullPath) + ", " + FsPath.Quote(dst);
             else cmd = "xcopy " + FsPath.Quote(entry.FullPath) + ", " + FsPath.Quote(dst);
-            return await RunAsync(cmd, copy ? LongTimeoutSec : ShortTimeoutSec,
+
+            // Veri gerçekten kopyalanıyor mu? Kopyalamada her zaman; taşımada yalnız diskler arasında (aynı diskte mv bir
+            // yeniden adlandırmadır, anında biter). Bekleme süresi verinin boyutuna göre (G42).
+            bool crossDevice = !string.Equals(DeviceOf(entry.FullPath), DeviceOf(destDir), StringComparison.OrdinalIgnoreCase);
+            bool movesData = copy || crossDevice;
+            int timeout = ShortTimeoutSec;
+            long bytes = 0;
+            int files = 1;
+            if (movesData)
+            {
+                if (entry.Kind == FsKind.File) bytes = entry.Size ?? 0;
+                else
+                {
+                    var tree = new FolderTree();
+                    OpResult scan = await CollectTreeAsync(entry, tree);
+                    if (scan.Ok)
+                    {
+                        foreach (KeyValuePair<string, FsEntry> f in tree.Files) bytes += f.Value.Size ?? 0;
+                        files = tree.Files.Count;
+                    }
+                    else bytes = -1;   // boyut öğrenilemedi
+                }
+                timeout = bytes >= 0 ? CopyTimeoutSec(bytes) : CopyTimeoutSec(4L * 1024 * 1024 * 1024);
+                if (entry.Kind == FsKind.File && bytes >= PartThresholdBytes)
+                    return await CardCopyLargeAsync(entry, dst, !copy, destDir, verb);
+            }
+            if (_tp != null && bytes > 0)
+            {
+                _tp.Begin(bytes, files);
+                _tp.BeginItem(entry.Name + "  ·  " + DeviceSpace.FormatBytes(bytes) + (files > 1 ? "  ·  " + files + " dosya" : ""));
+                _tp.StartCard(copy ? "Kartta kopyalanıyor" : "Kartta diskler arası taşınıyor", bytes);
+            }
+            OpResult result = await RunAsync(cmd, timeout,
                 "\"" + entry.Name + "\" " + (copy ? "kopyalanamadı" : "taşınamadı"),
                 "\"" + entry.Name + "\" → " + destDir + " " + verb + ".");
+            if (_tp != null && bytes > 0 && result.Ok) _tp.EndCard();
+            return result;
+        }
+
+        /// <summary>
+        /// Büyük dosyayı kart içinde kopyalar / taşır (G42): kaynak ve hedef açılıp 16 MB'lık read / write bloklarıyla
+        /// aktarılır; ilerleme penceresi bayt bayt ilerler, iptal en geç bir blok sonra etki eder. Taşımada kaynak ancak
+        /// hedef eksiksiz kapatıldıktan sonra silinir. Hata / iptalde yarım hedef silinir, kaynak korunur.
+        /// </summary>
+        private async Task<OpResult> CardCopyLargeAsync(FsEntry entry, string dst, bool move, string destDir, string verb)
+        {
+            if (Busy) return Reject("Başka bir işlem sürüyor.");
+            long size = entry.Size ?? 0;
+            BeginWork((move ? "Kartta taşınıyor" : "Kartta kopyalanıyor") + SizeNote(size) + "  ·  " + entry.FullPath + " → " + dst);
+            string fail = null;
+            bool dstCreated = false;
+            try
+            {
+                if (_tp != null)
+                {
+                    _tp.Begin(size, 1);
+                    _tp.BeginItem(entry.Name + "  ·  " + DeviceSpace.FormatBytes(size));
+                    _tp.Note("Kartta dosyalar açılıyor");
+                }
+                string openIn = "open " + FsPath.Quote(entry.FullPath) + ", 0, 0";
+                ShellResponse r = await Exec(openIn, ShortTimeoutSec);
+                string why = FdProblem(r, openIn);
+                if (why != null) fail = "kaynak açılamadı (" + why + ")";
+                else
+                {
+                    int inFd = r.ReturnCode.Value;
+                    string openOut = "open " + FsPath.Quote(dst) + ", 0x601, 0644";
+                    r = await Exec(openOut, ShortTimeoutSec);
+                    why = FdProblem(r, openOut);
+                    if (why != null) fail = "hedef açılamadı (" + why + ")";
+                    else
+                    {
+                        int outFd = r.ReturnCode.Value;
+                        dstCreated = true;
+                        string buf = await CardAllocAsync(w => fail = w);
+                        if (buf != null)
+                        {
+                            if (_tp != null) _tp.StartCard(move ? "Kartta taşınıyor (önce kopyalanır)" : "Kartta kopyalanıyor", size);
+                            fail = await CardCopyBytesAsync(inFd, outFd, buf, size);
+                            if (Error == null) await Exec("free " + buf, ShortTimeoutSec);
+                        }
+                        if (Error == null)
+                        {
+                            ShellResponse closed = await CardCloseAsync(outFd, ShortTimeoutSec);
+                            if (fail == null && (closed.Failure != null || closed.ReturnCode != 0))
+                                fail = "hedef kapatılamadı (" + (closed.Failure ?? ("dönüş değeri " + closed.ReturnCode)) + ")";
+                        }
+                    }
+                    if (Error == null) await CardCloseAsync(inFd, ShortTimeoutSec);
+                }
+
+                if (fail == null && move)
+                {
+                    string rm = "rm " + FsPath.Quote(entry.FullPath);
+                    ShellResponse rr = await Exec(rm, ShortTimeoutSec);
+                    OpResult bad = CheckReturn(rr, "\"" + entry.Name + "\" hedefe kopyalandı ama kaynaktan silinemedi", null);
+                    if (bad != null) { SetError(bad); return bad; }
+                }
+                if (fail == null)
+                {
+                    if (_tp != null) _tp.EndCard();
+                    await RefreshListingQuietly();
+                    Notice = "\"" + entry.Name + "\" → " + destDir + " " + verb + ".";
+                    return new OpResult { Ok = true, Message = Notice };
+                }
+
+                if (dstCreated && Error == null) await Exec("rm " + FsPath.Quote(dst), ShortTimeoutSec);
+                var f = OpResult.Fail("\"" + entry.Name + "\" " + (move ? "taşınamadı" : "kopyalanamadı") + ": " + fail +
+                                      (dstCreated ? " (hedefte yarım kalan dosya silindi" + (move ? ", kaynak yerinde" : "") + ")" : ""));
+                if (Cancelled && Error == null) { Notice = f.Message; await RefreshListingQuietly(); }
+                else SetError(f);
+                return f;
+            }
+            catch (Exception ex)
+            {
+                ErrorText.LogTechnical("kart içi büyük kopya", ex);
+                var x = OpResult.Fail("\"" + entry.Name + "\" " + (move ? "taşınamadı" : "kopyalanamadı") + ": " + ErrorText.Describe(ex));
+                SetError(x);
+                return x;
+            }
+            finally
+            {
+                EndWork();
+            }
         }
 
         /// <summary>
@@ -1093,8 +1222,9 @@ namespace Vision
                     if (progress != null) progress.Report(PendingCommand);
                     try
                     {
-                        if (!inParts) _tp.StartFtp("FTP'ye gönderiliyor", isDir ? plan.TotalBytes : fileBytes);
-                        if (isDir) await uploader.UploadDirectoryAsync(local, name, _tp.FtpBytes, _tp.Token);
+                        if (!inParts) _tp.StartFtp("FTP'ye gönderiliyor", isDir ? plan.SmallBytes : fileBytes);
+                        // Klasördeki büyük dosyalar burada gönderilmez: kartta kopyalanırken parça parça gider (G42)
+                        if (isDir) await uploader.UploadDirectoryAsync(local, name, _tp.FtpBytes, _tp.Token, f => LocalSize(f) < PartThresholdBytes);
                         else if (!inParts) await uploader.UploadFileAsync(local, name, _tp.FtpBytes, _tp.Token);
                         else await uploader.EnsureWorkFolderAsync();
                         _tp.EndFtp();
@@ -1123,7 +1253,7 @@ namespace Vision
                     string dst = FsPath.Join(destDir, name);
                     if (isDir)
                     {
-                        string dirFailure = await CopyFolderFromFtpAsync(plan, src, dst, step, progress);
+                        string dirFailure = await CopyFolderFromFtpAsync(plan, src, dst, step, progress, uploader, settings, tracker);
                         if (dirFailure != null)
                         {
                             failures.Add(name + ": " + dirFailure);
@@ -1441,12 +1571,19 @@ namespace Vision
             public readonly List<long> Sizes = new List<long>();
             public string Problem;
 
+            /// <summary>Planın çıkarıldığı yerel klasör.</summary>
+            public string Root;
+
             public long TotalBytes { get { long t = 0; foreach (long s in Sizes) t += s; return t; } }
+            /// <summary>Tek copy ile gidecek (parçalı aktarım eşiğinin altındaki) dosyaların toplamı.</summary>
+            public long SmallBytes { get { long t = 0; foreach (long s in Sizes) if (s < PartThresholdBytes) t += s; return t; } }
+
+            public string LocalPathOf(string rel) { return System.IO.Path.Combine(Root, rel.Replace('/', '\\')); }
             public long LargestFile { get { long m = 0; foreach (long s in Sizes) m = Math.Max(m, s); return m; } }
 
             public static FolderPlan Build(string localDir)
             {
-                var plan = new FolderPlan();
+                var plan = new FolderPlan { Root = localDir };
                 var bad = new List<string>();
                 Walk(localDir, "", plan, bad);
                 if (bad.Count > 0)
@@ -1490,7 +1627,8 @@ namespace Vision
         /// Bir dosya kopyalanamazsa diğerleri denenmeye devam eder; bağlantı koparsa ya da komut kartta yoksa durur.
         /// Dönüş: sorun yoksa null, varsa açıklama.
         /// </summary>
-        private async Task<string> CopyFolderFromFtpAsync(FolderPlan plan, string srcRoot, string dstRoot, string step, IProgress<string> progress)
+        private async Task<string> CopyFolderFromFtpAsync(FolderPlan plan, string srcRoot, string dstRoot, string step, IProgress<string> progress,
+                                                          IFileUploader uploader, TransferSettings settings, FtpCopyTracker tracker)
         {
             var dirs = new List<string> { "" };
             dirs.AddRange(plan.Dirs);
@@ -1521,6 +1659,18 @@ namespace Vision
                 string dst = FsPath.Join(dstRoot, rel);
                 string cmd = "copy " + FsPath.Quote(src) + ", " + FsPath.Quote(dst);
                 long size = k < plan.Sizes.Count ? plan.Sizes[k] : 0;
+                if (size >= PartThresholdBytes)
+                {
+                    // Büyük dosya FTP'ye klasörle gönderilmedi: parça parça aktarılır (G42)
+                    string partBase = "_parca_" + Guid.NewGuid().ToString("N").Substring(0, 8) + "_" + System.IO.Path.GetFileName(plan.LocalPathOf(rel));
+                    string partFailure = await UploadInPartsAsync(uploader, settings, plan.LocalPathOf(rel), partBase, size, dst,
+                        step + "  ·  dosya " + (k + 1) + "/" + plan.Files.Count + " " + rel, progress, tracker);
+                    if (partFailure == null) continue;
+                    if (Error != null || Cancelled)
+                        return rel + ": " + partFailure + "; " + k + "/" + plan.Files.Count + " dosya kopyalanmıştı";
+                    failed.Add(rel + " (" + partFailure + ")");
+                    continue;
+                }
                 PendingCommand = "Kartta kopyalanıyor " + step + "  ·  dosya " + (k + 1) + "/" + plan.Files.Count + SizeNote(size) + "  ·  " + cmd;
                 Raise();
                 if (progress != null) progress.Report(PendingCommand);
@@ -1824,6 +1974,11 @@ namespace Vision
             if (!r.ReturnCode.HasValue) return "kartın cevabında dönüş değeri bulunamadı";
             if (r.ReturnCode.Value < 0) return "dönüş değeri " + r.ReturnCode.Value;
             return null;
+        }
+
+        private static long LocalSize(string path)
+        {
+            try { return new System.IO.FileInfo(path).Length; } catch { return 0; }
         }
 
         /// <summary>Durum metni için boyut notu: "  ·  2,5 GB" (büyük dosyada "birkaç dakika sürebilir" ile).</summary>

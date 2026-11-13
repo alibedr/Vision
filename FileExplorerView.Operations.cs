@@ -347,7 +347,17 @@ namespace Vision
                 "\"" + e.Name + "\" hangi klasöre " + (copy ? "kopyalansın" : "taşınsın") + "? (kart üzerindeki tam yol)",
                 _browser.Current.Path,
                 v => string.IsNullOrWhiteSpace(v) ? "Hedef klasör boş olamaz." : v.IndexOf('"') >= 0 ? "Yol tırnak içeremez." : null);
-            if (target != null) await _browser.TransferAsync(e, target.Trim(), copy);
+            if (target != null) await InCardTransferAsync(e, target.Trim(), copy);
+        }
+
+        /// <summary>Kart içi kopyalama / taşıma; büyük işlerde ilerleme penceresi (G42).</summary>
+        private async Task InCardTransferAsync(FsEntry e, string destDir, bool copy)
+        {
+            var tp = new TransferProgress(TransferDirection.InCard);
+            UploadProgressDialog.Watch(FindForm(), copy ? "Kart içinde kopyalama" : "Kart içinde taşıma",
+                                       "\"" + e.Name + "\" → " + destDir, tp);
+            try { await _browser.TransferAsync(e, destDir, copy, tp); }
+            finally { tp.Finished = true; }
         }
 
         // ---------- Kart başına FTP ----------
@@ -508,7 +518,7 @@ namespace Vision
             }
             var dragged = e.Data.GetData(InternalDragFormat) as FsEntry;
             if (dragged != null && folderTarget != null)
-                await _browser.TransferAsync(dragged, folderTarget, (e.KeyState & 8) != 0);
+                await InCardTransferAsync(dragged, folderTarget, (e.KeyState & 8) != 0);
         }
 
         /// <summary>Breadcrumb bölümleri de bırakma hedefidir (üst klasöre taşıma / yükleme).</summary>
@@ -534,7 +544,7 @@ namespace Vision
                     return;
                 }
                 var dragged = e.Data.GetData(InternalDragFormat) as FsEntry;
-                if (dragged != null) await _browser.TransferAsync(dragged, target.Path, (e.KeyState & 8) != 0);
+                if (dragged != null) await InCardTransferAsync(dragged, target.Path, (e.KeyState & 8) != 0);
             };
         }
 
