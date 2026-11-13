@@ -490,6 +490,18 @@ namespace Vision
     /// Her komut için: komut kartta yoksa ("undefined symbol") uyarı, dönüş değeri 0 değilse hata;
     /// hata durumunda görüntülenen içerik DEĞİŞTİRİLMEZ.
     /// </summary>
+    /// <summary>
+    /// Dosya gezgininin komutları çalıştırdığı kart oturumu (G42): art arda aktarım komutları için hızlı yol, aktarım
+    /// sürerken kullanıcı komutlarının bekletilmesi ve yarım kalan aktarımın kartta bıraktıklarının temizlenmesi.
+    /// </summary>
+    public interface ITransferHost
+    {
+        Task<ShellResponse> ExecuteAsync(string command, int idleTimeoutSec, bool chained);
+        IDisposable BeginTransfer();
+        void AddCleanup(string key, string command, int order, bool sameBootOnly, uint? bootTick);
+        void RemoveCleanup(string key);
+    }
+
     public sealed class FileBrowser
     {
         /// <summary>Kısa komutlar için sessizlik zaman aşımı (sn).</summary>
@@ -507,6 +519,23 @@ namespace Vision
             _exec = exec;
             Current = FsLocation.Root;
             Entries = new List<FsEntry>();
+        }
+
+        /// <summary>Kartın oturumu üzerinden: aktarım sırasında kullanıcı komutları bekletilir, yarım kalanlar temizlenir (G42).</summary>
+        public FileBrowser(ITransferHost host)
+            : this((c, t) => host.ExecuteAsync(c, t, false))
+        {
+            _host = host;
+        }
+
+        private readonly ITransferHost _host;
+        /// <summary>Aktarım başında kartın tickGet değeri (yarım kalan kaynakları yeniden bağlanınca güvenle temizlemek için).</summary>
+        private uint? _bootTick;
+
+        private IDisposable BeginTransferScope()
+        {
+            _bootTick = null;
+            return _host != null ? _host.BeginTransfer() : null;
         }
 
         public FsLocation Current { get; private set; }
@@ -972,8 +1001,11 @@ namespace Vision
         {
             if (Busy) { if (tp != null) tp.Finished = true; return Reject("Başka bir işlem sürüyor."); }
             _tp = tp;
-            try { return await TransferCoreAsync(entry, destDir, copy); }
-            finally { if (tp != null) tp.Finished = true; _tp = null; }
+            using (BeginTransferScope())
+            {
+                try { return await TransferCoreAsync(entry, destDir, copy); }
+                finally { if (tp != null) tp.Finished = true; _tp = null; }
+            }
         }
 
         private async Task<OpResult> TransferCoreAsync(FsEntry entry, string destDir, bool copy)
@@ -1069,20 +1101,23 @@ namespace Vision
                 else
                 {
                     int inFd = r.ReturnCode.Value;
+                    await TrackFdAsync(inFd);
                     string openOut = "open " + FsPath.Quote(dst) + ", 0x601, 0644";
-                    r = await Exec(openOut, ShortTimeoutSec);
+                    r = await Exec(openOut, ShortTimeoutSec, true);
                     why = FdProblem(r, openOut);
                     if (why != null) fail = "hedef açılamadı (" + why + ")";
                     else
                     {
                         int outFd = r.ReturnCode.Value;
+                        await TrackFdAsync(outFd);
+                        TrackPartial(dst);
                         dstCreated = true;
                         string buf = await CardAllocAsync(w => fail = w);
                         if (buf != null)
                         {
                             if (_tp != null) _tp.StartCard(move ? "Kartta taşınıyor (önce kopyalanır)" : "Kartta kopyalanıyor", size);
-                            fail = await CardCopyBytesAsync(inFd, outFd, buf, size);
-                            if (Error == null) await Exec("free " + buf, ShortTimeoutSec);
+                            fail = await CardCopyBytesAsync(inFd, outFd, buf, size, 0, 0);
+                            if (Error == null) await CardFreeAsync(buf);
                         }
                         if (Error == null)
                         {
@@ -1103,13 +1138,18 @@ namespace Vision
                 }
                 if (fail == null)
                 {
+                    UntrackPartial(dst);
                     if (_tp != null) _tp.EndCard();
                     await RefreshListingQuietly();
                     Notice = "\"" + entry.Name + "\" → " + destDir + " " + verb + ".";
                     return new OpResult { Ok = true, Message = Notice };
                 }
 
-                if (dstCreated && Error == null) await Exec("rm " + FsPath.Quote(dst), ShortTimeoutSec);
+                if (dstCreated && Error == null)
+                {
+                    ShellResponse rmr = await Exec("rm " + FsPath.Quote(dst), ShortTimeoutSec);
+                    if (rmr.Failure == null) UntrackPartial(dst);
+                }
                 var f = OpResult.Fail("\"" + entry.Name + "\" " + (move ? "taşınamadı" : "kopyalanamadı") + ": " + fail +
                                       (dstCreated ? " (hedefte yarım kalan dosya silindi" + (move ? ", kaynak yerinde" : "") + ")" : ""));
                 if (Cancelled && Error == null) { Notice = f.Message; await RefreshListingQuietly(); }
@@ -1166,8 +1206,11 @@ namespace Vision
         public async Task<OpResult> UploadAsync(IList<string> localPaths, IFileUploader uploader, TransferSettings settings, IProgress<string> progress, string destDir = null, FtpCopyTracker tracker = null, TransferProgress tp = null)
         {
             _tp = tp ?? new TransferProgress(TransferDirection.ToCard);
-            try { return await UploadCoreAsync(localPaths, uploader, settings, progress, destDir, tracker); }
-            finally { _tp.Finished = true; _tp = null; }
+            using (BeginTransferScope())
+            {
+                try { return await UploadCoreAsync(localPaths, uploader, settings, progress, destDir, tracker); }
+                finally { _tp.Finished = true; _tp = null; }
+            }
         }
 
         /// <summary>Süren yüklemenin ilerlemesi (yükleme yokken null).</summary>
@@ -1181,6 +1224,7 @@ namespace Vision
             destDir = destDir ?? Current.Path;
             int ok = 0;
             var failures = new List<string>();
+            var verify = new List<KeyValuePair<string, long>>();   // tek copy ile yüklenen dosyalar: boyut doğrulaması
             BeginWork("yükleme");
             try
             {
@@ -1327,6 +1371,7 @@ namespace Vision
                         "Kart bu yolu göremiyor olabilir: FTP ayarlarında \"Bağlantıyı sına\" kartın FTP klasörünü görüp görmediğini denetler.");
                     if (bad != null) { failures.Add(bad.Message); if (bad.MissingCommand != null) { SetError(bad); break; } continue; }
                     ok++;
+                    verify.Add(new KeyValuePair<string, long>(name, fileBytes));
 
                     // 3) İsteğe bağlı: FTP'deki geçici kopyayı sil
                     if (settings.DeleteAfterCopy)
@@ -1342,6 +1387,18 @@ namespace Vision
                 }
 
                 await RefreshListingQuietly();
+                // Doğrulama (G42.11): hedef klasör listelendiyse tek copy ile giden dosyaların kartta boyutu tutuyor mu?
+                if (destDir == Current.Path)
+                {
+                    foreach (KeyValuePair<string, long> v in verify)
+                    {
+                        FsEntry e = Entries.FirstOrDefault(x => x.Kind == FsKind.File && string.Equals(x.Name, v.Key, StringComparison.OrdinalIgnoreCase));
+                        if (e == null || !e.Size.HasValue || e.Size.Value == v.Value) continue;
+                        ok--;
+                        failures.Add(v.Key + ": doğrulama başarısız — kartta " + DeviceSpace.FormatBytes(e.Size.Value) + ", bilgisayarda " +
+                                     DeviceSpace.FormatBytes(v.Value) + "; yeniden yükleyin");
+                    }
+                }
                 if (Error == null) await RefreshSpaceAsync(destDir);
                 if (failures.Count == 0)
                 {
@@ -1372,8 +1429,11 @@ namespace Vision
         {
             TransferProgress previous = _tp;
             _tp = tp;
-            try { return await FetchCopyCoreAsync(entry, localPath, ftp, settings, textFallback); }
-            finally { _tp = previous; }
+            using (BeginTransferScope())
+            {
+                try { return await FetchCopyCoreAsync(entry, localPath, ftp, settings, textFallback); }
+                finally { _tp = previous; }
+            }
         }
 
         private async Task<OpResult> FetchCopyCoreAsync(FsEntry entry, string localPath, IFileUploader ftp, TransferSettings settings, bool textFallback)
@@ -1450,6 +1510,16 @@ namespace Vision
                     var r = OpResult.Fail("\"" + entry.Name + "\" FTP'den indirilemedi (" + FtpErrorText(ex) + ").");
                     SetError(r);
                     return r;
+                }
+                // Doğrulama (G42.11): bilgisayara gelen dosya karttaki boyutta mı?
+                if (entry.Size.HasValue && LocalSize(localPath) != entry.Size.Value)
+                {
+                    long got = LocalSize(localPath);
+                    try { System.IO.File.Delete(localPath); } catch { }
+                    var sz = OpResult.Fail("\"" + entry.Name + "\" doğrulama başarısız: kartta " + DeviceSpace.FormatBytes(entry.Size.Value) +
+                                           ", bilgisayara gelen " + DeviceSpace.FormatBytes(got) + ". Dosya silindi; yeniden deneyin.");
+                    SetError(sz);
+                    return sz;
                 }
                 return new OpResult { Ok = true, Message = "FTP", Response = resp };
             }
@@ -1767,7 +1837,36 @@ namespace Vision
         /// ardından write. Her bloktan sonra ilerleme bildirilir ve iptal denetlenir (iptal en geç bir blok sonra etki eder).
         /// Başarılıysa null, değilse neden ("iptal edildi" dahil).
         /// </summary>
-        private async Task<string> CardCopyBytesAsync(int inFd, int outFd, string buf, long len)
+        private async Task<string> CardCopyBytesAsync(int inFd, int outFd, string buf, long len, long inStart, long outStart)
+        {
+            string bad = await CardCopyLoopAsync(inFd, outFd, buf, len);
+            if (bad != null) return bad;
+            // Doğrulama (G42.11): iki dosyanın konumu tam beklenen yerde mi? Araya giren bir cevap okunan bayt sayısını
+            // yanlış gösterseydi konumlar tutmazdı. lseek 32 bitlik döndürür: 4 GB'a göre (mod 2^32) karşılaştırılır.
+            string v = await CheckPositionAsync(inFd, inStart + len, "kaynak");
+            if (v == null) v = await CheckPositionAsync(outFd, outStart + len, "hedef");
+            return v;
+        }
+
+        private async Task<string> CheckPositionAsync(int fd, long expected, string what)
+        {
+            string cmd = "lseek " + fd + ", 0, 1";
+            ShellResponse r = await Exec(cmd, ShortTimeoutSec, true);
+            OpResult common = CheckCommon(r, cmd);
+            if (common != null)
+            {
+                if (r.Failure != null) { SetError(common); return "doğrulanamadı (" + common.Message + ")"; }
+                return null;   // lseek yok / desteklenmiyor: doğrulama atlanır
+            }
+            if (!r.ReturnCode.HasValue || r.ReturnCode.Value == -1) return null;
+            uint got = unchecked((uint)r.ReturnCode.Value);
+            uint want = unchecked((uint)(expected & 0xFFFFFFFFL));
+            if (got == want) return null;
+            return "doğrulama başarısız: " + what + " dosyasında konum " + DeviceSpace.FormatBytes(expected) + " olmalıydı, kart " +
+                   got + " bildirdi (aktarılan veri eksik / fazla)";
+        }
+
+        private async Task<string> CardCopyLoopAsync(int inFd, int outFd, string buf, long len)
         {
             long done = 0;
             while (done < len)
@@ -1775,13 +1874,13 @@ namespace Vision
                 if (Cancelled) return "iptal edildi";
                 int n = (int)Math.Min(ChunkBytes, len - done);
                 string read = "read " + inFd + ", " + buf + ", " + n;
-                ShellResponse r = await Exec(read, CopyTimeoutSec(n));
+                ShellResponse r = await Exec(read, CopyTimeoutSec(n), true);
                 string why = FdProblem(r, read);
                 if (why != null) return "kaynaktan okunamadı (" + why + ")";
                 int got = r.ReturnCode.Value;
                 if (got <= 0) return "kaynak dosya beklenenden kısa (" + DeviceSpace.FormatBytes(done) + " sonra bitti)";
                 string write = "write " + outFd + ", " + buf + ", " + got;
-                r = await Exec(write, CopyTimeoutSec(got));
+                r = await Exec(write, CopyTimeoutSec(got), true);
                 why = FdProblem(r, write);
                 if (why != null) return "hedefe yazılamadı (" + why + ")";
                 if (r.ReturnCode.Value != got)
@@ -1809,13 +1908,48 @@ namespace Vision
                 why("kartta " + DeviceSpace.FormatBytes(ChunkBytes) + " ara bellek ayrılamadı (malloc)");
                 return null;
             }
+            await EnsureBootTickAsync();
+            if (_host != null) _host.AddCleanup("buf:" + r.ReturnHex, "free " + r.ReturnHex, 1, true, _bootTick);
             return r.ReturnHex;
+        }
+
+        private async Task CardFreeAsync(string buf)
+        {
+            ShellResponse r = await Exec("free " + buf, ShortTimeoutSec, true);
+            if (r.Failure == null && _host != null) _host.RemoveCleanup("buf:" + buf);
         }
 
         /// <summary>Kart dosyasını kapatır (bağlantı koptuysa denenmez).</summary>
         private async Task<ShellResponse> CardCloseAsync(int fd, int timeoutSec)
         {
-            return await Exec("close " + fd, timeoutSec);
+            ShellResponse r = await Exec("close " + fd, timeoutSec, true);
+            if (r.Failure == null && _host != null) _host.RemoveCleanup("fd:" + fd);
+            return r;
+        }
+
+        /// <summary>open'dan dönen tanıtıcıyı kaydeder: bağlantı koparsa yeniden bağlanınca kapatılır (G42.8).</summary>
+        private async Task TrackFdAsync(int fd)
+        {
+            await EnsureBootTickAsync();
+            if (_host != null) _host.AddCleanup("fd:" + fd, "close " + fd, 0, true, _bootTick);
+        }
+
+        /// <summary>Yarım kalabilecek hedef dosya: bağlantı koparsa yeniden bağlanınca silinir (kart yeniden başlasa da).</summary>
+        private void TrackPartial(string path)
+        {
+            if (_host != null) _host.AddCleanup("rm:" + path, "rm " + FsPath.Quote(path), 2, false, _bootTick);
+        }
+
+        private void UntrackPartial(string path)
+        {
+            if (_host != null) _host.RemoveCleanup("rm:" + path);
+        }
+
+        private async Task EnsureBootTickAsync()
+        {
+            if (_bootTick.HasValue || _host == null) return;
+            ShellResponse r = await Exec("tickGet", ShortTimeoutSec, true);
+            if (r.Failure == null && r.ReturnCode.HasValue) _bootTick = unchecked((uint)r.ReturnCode.Value);
         }
 
         /// <summary>
@@ -1843,6 +1977,8 @@ namespace Vision
             string why = FdProblem(r, openOut);
             if (why != null) return "kartta " + dst + " yazmak için açılamadı (" + why + ")";
             int outFd = r.ReturnCode.Value;
+            await TrackFdAsync(outFd);
+            TrackPartial(dst);
 
             string failure = null;
             string buf = await CardAllocAsync(w => failure = w);
@@ -1879,9 +2015,10 @@ namespace Vision
                 why = FdProblem(r, openIn);
                 if (why != null) { failure = "parça " + (p + 1) + "/" + parts + " kartta açılamadı (kaynak " + src + "; " + why + ")"; break; }
                 int inFd = r.ReturnCode.Value;
+                await TrackFdAsync(inFd);
 
                 show("Kartta ekleniyor " + pstep);
-                string copyFail = await CardCopyBytesAsync(inFd, outFd, buf, len);
+                string copyFail = await CardCopyBytesAsync(inFd, outFd, buf, len, 0, offset);
                 if (Error == null) await CardCloseAsync(inFd, ShortTimeoutSec);
                 if (copyFail != null)
                 {
@@ -1895,13 +2032,17 @@ namespace Vision
             }
 
             if (Error != null && failure != null) return failure + "; " + done + "/" + parts + " parça aktarılmıştı";
-            if (buf != null) await Exec("free " + buf, ShortTimeoutSec);
+            if (buf != null) await CardFreeAsync(buf);
             ShellResponse closed = await CardCloseAsync(outFd, ShortTimeoutSec);
             if (failure == null && (closed.Failure != null || closed.ReturnCode != 0))
                 failure = "karttaki dosya kapatılamadı (" + (closed.Failure ?? ("dönüş değeri " + closed.ReturnCode)) + ")";
-            if (failure == null) return null;
+            if (failure == null) { UntrackPartial(dst); return null; }
             // Yarım dosya kartta bırakılmaz
-            if (closed.Failure == null) await Exec("rm " + FsPath.Quote(dst), ShortTimeoutSec);
+            if (closed.Failure == null)
+            {
+                ShellResponse rmr = await Exec("rm " + FsPath.Quote(dst), ShortTimeoutSec);
+                if (rmr.Failure == null) UntrackPartial(dst);
+            }
             return failure + "; " + done + "/" + parts + " parça aktarılmıştı, kartta yarım kalan dosya silindi";
         }
 
@@ -1924,6 +2065,7 @@ namespace Vision
             string why = FdProblem(r, openIn);
             if (why != null) return "kartta okumak için açılamadı (" + why + ")";
             int inFd = r.ReturnCode.Value;
+            await TrackFdAsync(inFd);
 
             string failure = null;
             string buf = await CardAllocAsync(w => failure = w);
@@ -1949,8 +2091,9 @@ namespace Vision
                 why = FdProblem(r, openOut);
                 if (why != null) { failure = label + " için FTP'de geçici dosya açılamadı (" + why + ")"; break; }
                 int outFd = r.ReturnCode.Value;
+                await TrackFdAsync(outFd);
                 pendingRemote = partName;
-                string copyFail = await CardCopyBytesAsync(inFd, outFd, buf, len);
+                string copyFail = await CardCopyBytesAsync(inFd, outFd, buf, len, p * PartBytes, 0);
                 if (Error != null) { failure = label + ": " + (copyFail ?? "bağlantı koptu"); break; }
                 // Kapatınca kartın FTP sürücüsü dosyayı sunucuya yazar: parça büyüklüğünde süre tanınır
                 ShellResponse closed = await CardCloseAsync(outFd, CopyTimeoutSec(len));
@@ -1979,6 +2122,13 @@ namespace Vision
                     failure = label + " FTP'den indirilemedi (" + FtpErrorText(ex) + ")";
                     break;
                 }
+                long localLen = LocalSize(localPath);
+                if (localLen != p * PartBytes + len)
+                {
+                    failure = label + " doğrulama başarısız: bilgisayardaki dosya " + DeviceSpace.FormatBytes(p * PartBytes + len) +
+                              " olmalıydı, " + DeviceSpace.FormatBytes(localLen) + " oldu";
+                    break;
+                }
                 try { await ftp.DeleteAsync(partName, false); pendingRemote = null; }
                 catch (Exception ex) { ErrorText.LogTechnical("FTP parça silme " + partName, ex); }
                 done++;
@@ -1986,7 +2136,7 @@ namespace Vision
 
             if (Error == null)
             {
-                if (buf != null) await Exec("free " + buf, ShortTimeoutSec);
+                if (buf != null) await CardFreeAsync(buf);
                 await CardCloseAsync(inFd, ShortTimeoutSec);
             }
             if (pendingRemote != null)
@@ -2253,9 +2403,9 @@ namespace Vision
             if (r.Ok && _lastListing != null) Entries = _lastListing;
         }
 
-        private async Task<ShellResponse> Exec(string cmd, int timeoutSec)
+        private async Task<ShellResponse> Exec(string cmd, int timeoutSec, bool chained = false)
         {
-            ShellResponse resp = await _exec(cmd, timeoutSec);
+            ShellResponse resp = _host != null ? await _host.ExecuteAsync(cmd, timeoutSec, chained) : await _exec(cmd, timeoutSec);
             LastResponse = resp;
             return resp;
         }

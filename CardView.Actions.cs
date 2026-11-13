@@ -216,6 +216,7 @@ namespace Vision
 
         private async Task SendActionCommandAsync(string cmd, string source)
         {
+            if (Session.TransferActive) { ShowToast("✕  " + CardSession.TransferBusyMessage, false, null); return; }
             Session.CommandHistory.Add(cmd);
             ScrollToEnd();
             HideNewLinesPill();

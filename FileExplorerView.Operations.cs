@@ -395,7 +395,38 @@ namespace Vision
             CardFtpResult r = await _browser.ObtainFtpAsync();
             if (!r.Ok) return null;                       // neden şeritte (FileBrowser.Error)
             session.Ftp = r.Credentials;
+            await FindFtpLeftoversAsync(session, r.Credentials);
             return r.Credentials;
+        }
+
+        private static readonly System.Text.RegularExpressions.Regex LeftoverName = new System.Text.RegularExpressions.Regex(
+            @"^(_tkt_.*|_parca_.*|.+\.part\d+)$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        /// <summary>
+        /// Önceki oturumlarda yarım kalan aktarımların FTP'de bıraktığı geçici dosyaları (Vision'ın kendi adlandırması:
+        /// _tkt_…, _parca_…, ….partN) bulur ve "FTP kopyalarını sil" listesine ekler; silmek kullanıcının onayıyla (G42.13).
+        /// Yalnız FTP'ye bakar, kartta bir şey çalıştırmaz. FTP bilgisi bu oturumda ilk alındığında bir kez.
+        /// </summary>
+        private async Task FindFtpLeftoversAsync(CardSession session, CardFtpCredentials creds)
+        {
+            try
+            {
+                IList<string> names = await new FtpUploader(CardTransfer(creds)).ListNamesAsync();
+                int added = 0;
+                foreach (string n in names)
+                {
+                    if (!LeftoverName.IsMatch(n) || session.FtpCopies.Items.Any(i => i.Name == n)) continue;
+                    session.FtpCopies.Add(n, false);
+                    added++;
+                }
+                if (added > 0 && _browser != null)
+                    _browser.ShowNotice("FTP klasöründe önceki yarım kalmış aktarımlardan " + added + " geçici dosya bulundu; " +
+                                        "\"FTP kopyalarını sil\" ile silebilirsiniz.");
+            }
+            catch (Exception ex)
+            {
+                ErrorText.LogTechnical("FTP artıkları", ex);
+            }
         }
 
         /// <summary>Bu kartın bilgileriyle çalışan FTP ayarları (ortak klasör / kip ayarları + kartın sunucusu, kullanıcısı, parolası).</summary>

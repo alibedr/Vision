@@ -31,10 +31,34 @@ namespace Vision
         private int _fileCount;
         private DateTime _startUtc = DateTime.UtcNow, _stepStartUtc = DateTime.UtcNow;
 
-        public TransferProgress(TransferDirection direction) { Direction = direction; }
+        private static readonly List<TransferProgress> Running = new List<TransferProgress>();
+
+        public TransferProgress(TransferDirection direction)
+        {
+            Direction = direction;
+            lock (Running) Running.Add(this);
+        }
+
+        /// <summary>Süren tüm aktarımları iptal eder (Vision kapatılırken, G42.12).</summary>
+        public static void CancelAll()
+        {
+            List<TransferProgress> all;
+            lock (Running) all = new List<TransferProgress>(Running);
+            foreach (TransferProgress p in all) p.Cancel();
+        }
 
         public TransferDirection Direction { get; private set; }
-        public volatile bool Finished;
+        private volatile bool _finished;
+
+        public bool Finished
+        {
+            get { return _finished; }
+            set
+            {
+                _finished = value;
+                if (value) lock (Running) Running.Remove(this);
+            }
+        }
 
         public CancellationToken Token { get { return _cts.Token; } }
         public bool CancelRequested { get { return _cts.IsCancellationRequested; } }

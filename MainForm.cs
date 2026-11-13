@@ -979,13 +979,44 @@ namespace Vision
             _statusLeft.ForeColor = warn ? Theme.Warning : Theme.TextMuted;
         }
 
+        private bool _closeAfterTransfers;
+
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
             // Komut kütüphanesinde kaydedilmemiş değişiklik varsa sor; vazgeçilirse kapanma
-            if (!_commandLibrary.ConfirmLeave())
+            if (!_closeAfterTransfers && !_commandLibrary.ConfirmLeave())
             {
                 e.Cancel = true;
                 ShowTab(MainTab.Commands);
+                return;
+            }
+            // Dosya aktarımı sürüyorsa (G42.12): sor; kapatılacaksa önce temiz biçimde iptal et (kartta açılan dosyalar
+            // kapatılır, ara bellek bırakılır, yarım dosya silinir), sonra kapan
+            List<CardSession> busy = _sessions.Values.Where(s => s.TransferActive).ToList();
+            if (busy.Count > 0 && e.CloseReason != CloseReason.WindowsShutDown)
+            {
+                e.Cancel = true;
+                if (_closeAfterTransfers) return;      // iptal sürüyor; bitince kendiliğinden kapanır
+                int c = ChoiceDialog.Ask(this, "Dosya aktarımı sürüyor",
+                    (busy.Count == 1 ? busy[0].Card.Label + " kartında" : busy.Count + " kartta") + " dosya aktarımı sürüyor.",
+                    "Kapatılırsa aktarım iptal edilir: kartta açılan dosyalar kapatılır, ayrılan bellek bırakılır ve yarım kalan dosya " +
+                    "silinir. Bu birkaç saniye sürer; ardından Vision kapanır.",
+                    new[] { "Vazgeç", "İptal et ve kapat" }, 0, 1);
+                if (c != 1) return;
+                _closeAfterTransfers = true;
+                TransferProgress.CancelAll();
+                _statusLeft.Text = "Dosya aktarımı iptal ediliyor; ardından Vision kapanacak…";
+                DateTime until = DateTime.UtcNow.AddSeconds(90);
+                var t = new Timer { Interval = 300 };
+                t.Tick += (s, a) =>
+                {
+                    if (_sessions.Values.Any(x => x.TransferActive) && DateTime.UtcNow < until) return;
+                    t.Stop();
+                    t.Dispose();
+                    foreach (var x in _sessions.Values) x.ForceEndTransfers();
+                    Close();
+                };
+                t.Start();
                 return;
             }
             _uiTimer.Stop();

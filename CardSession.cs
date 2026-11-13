@@ -20,7 +20,7 @@ namespace Vision
     /// kart görünümü kapatılsa da bağlantı ve veri akışı sürer; tekrar açınca geçmiş geri gelir.
     /// Haberleşmenin kendisi değiştirilmeden TelnetClient üzerinden yapılır.
     /// </summary>
-    public sealed class CardSession : IDisposable
+    public sealed class CardSession : IDisposable, ITransferHost
     {
         // Satır sınırına ek güvenlik: satır sonu içermeyen çok uzun akışlarda bellek sınırı
         private const int MaxHistoryChars = 4000000;
@@ -221,6 +221,7 @@ namespace Vision
                 AppendSystem("Bağlandı.");
                 lock (_lock) _connectedSinceUtc = DateTime.UtcNow;   // süre gerçek bağlantı anından başlar
                 SetState(CardState.Connected, null);
+                RunTransferCleanupSoon();
             }
             catch (Exception ex)
             {
@@ -366,6 +367,7 @@ namespace Vision
                 AppendSystem("Bağlantı yeniden kuruldu (" + now.ToLocalTime().ToString("HH:mm:ss") +
                              ") — kesinti süresi " + FormatDuration(outage) + ".");
                 SetState(CardState.Connected, null);
+                RunTransferCleanupSoon();
                 return true;
             }
             catch (Exception ex)
@@ -388,6 +390,7 @@ namespace Vision
         public async Task SendCommandAsync(string cmd, string source = "komut satırı")
         {
             if (State != CardState.Connected) throw new InvalidOperationException("Kart bağlı değil.");
+            if (TransferActive) throw new InvalidOperationException(TransferBusyMessage);
             await _commandGate.WaitAsync().ConfigureAwait(false);
             try
             {
@@ -421,6 +424,111 @@ namespace Vision
             }
             LastTxUtc = DateTime.UtcNow;
             await _client.SendAsync(cmd + _settings.LineEndingChars).ConfigureAwait(false);
+        }
+
+        // ---------- Dosya aktarımı (G42) ----------
+
+        private int _transferDepth;
+        private readonly List<TransferCleanup> _cleanups = new List<TransferCleanup>();
+
+        private sealed class TransferCleanup
+        {
+            public string Key, Command;
+            public int Order;
+            public bool SameBootOnly;
+            public uint? BootTick;
+        }
+
+        /// <summary>
+        /// Kart Dosya Gezgini bu kartta dosya aktarıyor: kullanıcının komutları (komut satırı, genel komut çubuğu, hızlı
+        /// komut, Sentinel) gönderilmez. Araya giren bir komutun çıktısı aktarımın read / write cevaplarına karışıp
+        /// dosyayı sessizce bozabilirdi (G42.10).
+        /// </summary>
+        public bool TransferActive { get { return Volatile.Read(ref _transferDepth) > 0; } }
+
+        public const string TransferBusyMessage =
+            "Kartta dosya aktarımı sürüyor (Kart Dosya Gezgini); komut gönderilmedi. Aktarım bitince tekrar deneyin.";
+
+        /// <summary>Kapanışta iptal süresi dolduysa: aktarım bayrağı bırakılır (Vision kapanabilsin).</summary>
+        public void ForceEndTransfers()
+        {
+            Interlocked.Exchange(ref _transferDepth, 0);
+        }
+
+        public IDisposable BeginTransfer()
+        {
+            Interlocked.Increment(ref _transferDepth);
+            return new TransferScope(this);
+        }
+
+        private sealed class TransferScope : IDisposable
+        {
+            private CardSession _s;
+            public TransferScope(CardSession s) { _s = s; }
+            public void Dispose()
+            {
+                CardSession s = Interlocked.Exchange(ref _s, null);
+                if (s == null) return;
+                Interlocked.Decrement(ref s._transferDepth);
+            }
+        }
+
+        /// <summary>
+        /// Aktarımın kartta açtığı bir kaynağı (dosya tanıtıcısı, ara bellek, yarım hedef dosya) kaydeder. Bağlantı aktarım
+        /// sürerken koparsa Vision yeniden bağlanınca bunları kapatır / bırakır / siler (G42.8). sameBootOnly: yalnız kart
+        /// yeniden başlamadıysa çalıştırılır (close / free; yeniden başlamışsa tanıtıcı ya da adres artık başkasının olabilir).
+        /// </summary>
+        public void AddCleanup(string key, string command, int order, bool sameBootOnly, uint? bootTick)
+        {
+            lock (_lock)
+            {
+                _cleanups.RemoveAll(c => c.Key == key);
+                _cleanups.Add(new TransferCleanup { Key = key, Command = command, Order = order, SameBootOnly = sameBootOnly, BootTick = bootTick });
+            }
+        }
+
+        public void RemoveCleanup(string key)
+        {
+            lock (_lock) _cleanups.RemoveAll(c => c.Key == key);
+        }
+
+        private void RunTransferCleanupSoon()
+        {
+            bool any;
+            lock (_lock) any = _cleanups.Count > 0;
+            if (any) Task.Run(() => RunTransferCleanupAsync());
+        }
+
+        private async Task RunTransferCleanupAsync()
+        {
+            try
+            {
+                await Task.Delay(1500).ConfigureAwait(false);   // istem ve karşılama yazıları gelsin
+                List<TransferCleanup> items;
+                lock (_lock)
+                {
+                    items = new List<TransferCleanup>(_cleanups);
+                    _cleanups.Clear();
+                }
+                if (items.Count == 0 || State != CardState.Connected) { lock (_lock) _cleanups.AddRange(items); return; }
+                ShellResponse t = await ExecuteAsync("tickGet", 6).ConfigureAwait(false);
+                uint? now = t.Failure == null && t.ReturnCode.HasValue ? (uint?)unchecked((uint)t.ReturnCode.Value) : null;
+                int done = 0, skipped = 0;
+                items.Sort((a, b) => a.Order.CompareTo(b.Order));
+                foreach (TransferCleanup c in items)
+                {
+                    bool sameBoot = now.HasValue && c.BootTick.HasValue && now.Value >= c.BootTick.Value;
+                    if (c.SameBootOnly && !sameBoot) { skipped++; continue; }
+                    ShellResponse r = await ExecuteAsync(c.Command, 10).ConfigureAwait(false);
+                    if (r.Failure == null) done++;
+                }
+                AppendSystem("Yarıda kalan dosya aktarımının kartta bıraktıkları temizlendi (" + done + " işlem" +
+                             (skipped > 0 ? "; kart yeniden başladığı için " + skipped + " açık dosya / bellek zaten bırakılmış" : "") + ").");
+            }
+            catch (Exception ex)
+            {
+                ErrorText.LogTechnical(Card.DisplayName + " aktarım temizliği", ex);
+            }
         }
 
         /// <summary>
@@ -469,7 +577,17 @@ namespace Vision
         /// </summary>
         /// <param name="idleTimeoutSec">Dönüş satırı gelmeden önce bu kadar saniye veri gelmezse zaman aşımı
         /// (copy / xcopy gibi sessiz çalışan uzun işlemler için büyütülür).</param>
-        public async Task<ShellResponse> ExecuteAsync(string command, int idleTimeoutSec = 4)
+        public Task<ShellResponse> ExecuteAsync(string command, int idleTimeoutSec = 4)
+        {
+            return ExecuteAsync(command, idleTimeoutSec, false);
+        }
+
+        /// <param name="chained">
+        /// Önceki komut da bu çağıranın ve tamamlandı (ör. dosya aktarımının art arda read / write komutları): hattın
+        /// susması beklenmez. Bu bekleme kartın o an bastığı logların cevaba karışmasını önler; sürekli log basan kartta
+        /// komut başına 2 sn'ye kadar sürer (G42.9).
+        /// </param>
+        public async Task<ShellResponse> ExecuteAsync(string command, int idleTimeoutSec, bool chained)
         {
             if (State != CardState.Connected)
                 return ShellResponse.Failed(command, "Kart bağlı değil. Dosya gezgini ayrı bağlantı açmaz.", "");
@@ -486,7 +604,7 @@ namespace Vision
 
                 // Önceki (terminal) komutun cevabı bitsin: hat kısa süre sessizleşene kadar bekle (en çok 2 sn)
                 DateTime settleStart = DateTime.UtcNow;
-                while ((DateTime.UtcNow - settleStart).TotalSeconds < 2 &&
+                while (!chained && (DateTime.UtcNow - settleStart).TotalSeconds < 2 &&
                        ((DateTime.UtcNow - LastRxUtc).TotalMilliseconds < 200 || (DateTime.UtcNow - LastTxUtc).TotalMilliseconds < 200))
                 {
                     await Task.Delay(20).ConfigureAwait(false);
