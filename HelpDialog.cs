@@ -283,7 +283,7 @@ namespace Vision
             LinkLabel l = _tocLinks[i];
             bool top = _tocLevels[i] == 1;
             l.BackColor = active ? Theme.Selection : Theme.Sidebar;
-            l.LinkColor = active ? (Theme.IsDark ? Color.White : Theme.Text) : (top ? Theme.Text : Theme.TextMuted);
+            l.LinkColor = active || top ? Theme.Text : Theme.TextMuted;
             l.Font = active || top ? Theme.UiBold : Theme.Ui;
         }
 
@@ -333,55 +333,37 @@ namespace Vision
                    "</div>";
         }
 
-        /// <summary>Temaya uygun (koyu / açık) HTML iskeleti (WebBrowser IE11 kipinde açılır).</summary>
+        /// <summary>
+        /// Temaya uygun HTML iskeleti (WebBrowser IE11 kipinde açılır). Renkler o anki temanın paletinden alınır (G44):
+        /// önceden yalnız koyu / açık için sabit renkler vardı; Dracula, Solarized gibi temalarda yardım sayfası pencerenin
+        /// geri kalanından farklı renkte görünüyordu. Sayfa her açılışta o anki temayla oluşturulur.
+        /// </summary>
         private static string Page(string body)
         {
-            // Koyu ve açık tema için ayrı renkler (sayfa her açılışta o anki temayla oluşturulur)
+            string bg = Theme.Hex(Theme.Window), text = Theme.Hex(Theme.Text), muted = Theme.Hex(Theme.TextMuted);
+            string border = Theme.Hex(Theme.Border), accent = Theme.Hex(Theme.Accent), input = Theme.Hex(Theme.Input);
+            string surface = Theme.Hex(Theme.Surface), sidebar = Theme.Hex(Theme.Sidebar), term = Theme.Hex(Theme.Terminal);
+            string noteBg = Theme.Hex(Theme.AccentSurface), badge = Theme.Hex(Theme.AccentFill);
             var css = new StringBuilder();
-            if (Theme.IsDark)
-            {
-                css.Append("html,body{background:#111318;color:#e2e6ed;margin:0;}");
-                css.Append("body{font-family:'Segoe UI',Tahoma,sans-serif;font-size:14px;line-height:1.6;padding:28px 40px 60px 36px;max-width:920px;}");
-                css.Append("h1{font-size:26px;font-weight:600;margin:4px 0 10px;color:#fff;}");
-                css.Append("h2{font-size:19px;font-weight:600;margin:34px 0 10px;padding-bottom:6px;border-bottom:1px solid #3a414e;color:#fff;}");
-                css.Append("h3{font-size:15px;font-weight:600;margin:22px 0 6px;color:#cfe0ff;}");
-                css.Append("p{margin:8px 0;} a{color:#5498ff;} strong{color:#fff;}");
-                css.Append("code{font-family:Consolas,monospace;font-size:13px;background:#1c2027;border:1px solid #3a414e;border-radius:4px;padding:1px 5px;color:#cdd6e0;}");
-                css.Append("pre{background:#0e1014;border:1px solid #3a414e;border-radius:6px;padding:12px 14px;overflow:auto;}");
-                css.Append("pre code{background:none;border:none;padding:0;}");
-                css.Append("ul,ol{margin:6px 0 10px;padding-left:26px;} li{margin:3px 0;}");
-                css.Append("table{border-collapse:collapse;margin:10px 0 14px;width:100%;}");
-                css.Append("th,td{border:1px solid #3a414e;padding:7px 10px;text-align:left;vertical-align:top;}");
-                css.Append("th{background:#1c2027;color:#a3abb8;font-weight:600;font-size:12px;text-transform:uppercase;}");
-                css.Append("tr:nth-child(even) td{background:#151820;}");
-                css.Append(".note{background:#16233a;border-left:4px solid #3884ff;border-radius:4px;padding:10px 14px;margin:12px 0;color:#d6e4ff;}");
-                css.Append("hr{border:none;border-top:1px solid #3a414e;margin:26px 0;}");
-                css.Append(".about{padding-top:20px;} .lead{color:#a3abb8;font-size:15px;} .muted{color:#a3abb8;margin-top:24px;}");
-                css.Append(".badge{display:inline-block;background:#2563eb;color:#fff;font-weight:600;border-radius:8px;padding:6px 14px;margin-bottom:10px;}");
-                css.Append(".about table{width:auto;} .about th{width:130px;}");
-            }
-            else
-            {
-                css.Append("html,body{background:#f2f4f7;color:#1b1f26;margin:0;}");
-                css.Append("body{font-family:'Segoe UI',Tahoma,sans-serif;font-size:14px;line-height:1.6;padding:28px 40px 60px 36px;max-width:920px;}");
-                css.Append("h1{font-size:26px;font-weight:600;margin:4px 0 10px;color:#0f1218;}");
-                css.Append("h2{font-size:19px;font-weight:600;margin:34px 0 10px;padding-bottom:6px;border-bottom:1px solid #c8ced8;color:#0f1218;}");
-                css.Append("h3{font-size:15px;font-weight:600;margin:22px 0 6px;color:#1d4fa8;}");
-                css.Append("p{margin:8px 0;} a{color:#1d5fd7;} strong{color:#0f1218;}");
-                css.Append("code{font-family:Consolas,monospace;font-size:13px;background:#eef1f5;border:1px solid #c8ced8;border-radius:4px;padding:1px 5px;color:#20262e;}");
-                css.Append("pre{background:#ffffff;border:1px solid #c8ced8;border-radius:6px;padding:12px 14px;overflow:auto;}");
-                css.Append("pre code{background:none;border:none;padding:0;}");
-                css.Append("ul,ol{margin:6px 0 10px;padding-left:26px;} li{margin:3px 0;}");
-                css.Append("table{border-collapse:collapse;margin:10px 0 14px;width:100%;}");
-                css.Append("th,td{border:1px solid #c8ced8;padding:7px 10px;text-align:left;vertical-align:top;}");
-                css.Append("th{background:#eef1f5;color:#505866;font-weight:600;font-size:12px;text-transform:uppercase;}");
-                css.Append("tr:nth-child(even) td{background:#f7f8fa;}");
-                css.Append(".note{background:#e3edfd;border-left:4px solid #1d5fd7;border-radius:4px;padding:10px 14px;margin:12px 0;color:#1b2a44;}");
-                css.Append("hr{border:none;border-top:1px solid #c8ced8;margin:26px 0;}");
-                css.Append(".about{padding-top:20px;} .lead{color:#505866;font-size:15px;} .muted{color:#505866;margin-top:24px;}");
-                css.Append(".badge{display:inline-block;background:#2563eb;color:#fff;font-weight:600;border-radius:8px;padding:6px 14px;margin-bottom:10px;}");
-                css.Append(".about table{width:auto;} .about th{width:130px;}");
-            }
+            css.Append("html,body{background:" + bg + ";color:" + text + ";margin:0;}");
+            css.Append("body{font-family:'Segoe UI',Tahoma,sans-serif;font-size:14px;line-height:1.6;padding:28px 40px 60px 36px;max-width:920px;}");
+            css.Append("h1{font-size:26px;font-weight:600;margin:4px 0 10px;color:" + text + ";}");
+            css.Append("h2{font-size:19px;font-weight:600;margin:34px 0 10px;padding-bottom:6px;border-bottom:1px solid " + border + ";color:" + text + ";}");
+            css.Append("h3{font-size:15px;font-weight:600;margin:22px 0 6px;color:" + accent + ";}");
+            css.Append("p{margin:8px 0;} a{color:" + accent + ";} strong{color:" + text + ";}");
+            css.Append("code{font-family:Consolas,monospace;font-size:13px;background:" + input + ";border:1px solid " + border + ";border-radius:4px;padding:1px 5px;color:" + term + ";}");
+            css.Append("pre{background:" + input + ";border:1px solid " + border + ";border-radius:6px;padding:12px 14px;overflow:auto;}");
+            css.Append("pre code{background:none;border:none;padding:0;}");
+            css.Append("ul,ol{margin:6px 0 10px;padding-left:26px;} li{margin:3px 0;}");
+            css.Append("table{border-collapse:collapse;margin:10px 0 14px;width:100%;}");
+            css.Append("th,td{border:1px solid " + border + ";padding:7px 10px;text-align:left;vertical-align:top;}");
+            css.Append("th{background:" + surface + ";color:" + muted + ";font-weight:600;font-size:12px;text-transform:uppercase;}");
+            css.Append("tr:nth-child(even) td{background:" + sidebar + ";}");
+            css.Append(".note{background:" + noteBg + ";border-left:4px solid " + accent + ";border-radius:4px;padding:10px 14px;margin:12px 0;color:" + text + ";}");
+            css.Append("hr{border:none;border-top:1px solid " + border + ";margin:26px 0;}");
+            css.Append(".about{padding-top:20px;} .lead{color:" + muted + ";font-size:15px;} .muted{color:" + muted + ";margin-top:24px;}");
+            css.Append(".badge{display:inline-block;background:" + badge + ";color:#fff;font-weight:600;border-radius:8px;padding:6px 14px;margin-bottom:10px;}");
+            css.Append(".about table{width:auto;} .about th{width:130px;}");
 
             return "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">" +
                    "<style>" + css + "</style></head><body>" + body + "</body></html>";
