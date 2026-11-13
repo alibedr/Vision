@@ -373,8 +373,12 @@ namespace Vision
             values["AccentFill"] = DarkenUntilReadable(values["AccentFill"]);
             values["AccentFillHover"] = DarkenUntilReadable(values["AccentFillHover"]);
 
-            // Tema değişiminde denetim renkleri değerden değere çevrildiği için paletteki tüm değerler farklı olmalı
-            var seen = new HashSet<int>();
+            // Tema değişiminde denetim renkleri değerden değere çevrildiği için paletteki tüm değerler farklı olmalı.
+            // Saf beyaz ve saf siyah da palete giremez (G44.3): kodda sabit Color.White / Color.Black kullanan yerler var
+            // (birincil düğme yazısı, bildirimler, tur katmanı…). Palette bir alan tam beyaz / siyah olursa (Yüksek kontrast
+            // ve Matrix'te türetilen renkler 255'e / 0'a dayanıyordu; açık temalarda zemin beyaz) bu sabit renkler o alan
+            // sanılıp sonraki tema geçişinde yanlış renge çevriliyordu. Gerekirse bir birim kaydırılır (gözle fark edilmez).
+            var seen = new HashSet<int> { Color.White.ToArgb(), Color.Black.ToArgb() };
             int[][] steps = { new[] { 1, 0, 0 }, new[] { 0, 1, 0 }, new[] { 0, 0, 1 }, new[] { -1, 0, 0 }, new[] { 0, -1, 0 },
                               new[] { 0, 0, -1 }, new[] { 1, 1, 0 }, new[] { 0, 1, 1 }, new[] { 1, 0, 1 }, new[] { -1, -1, 0 } };
             foreach (System.Reflection.FieldInfo fi in fields)
