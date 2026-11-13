@@ -757,9 +757,11 @@ Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındak
 | `%APPDATA%\TelnetCards\config.xml` | Gruplar, kartlar (adları, hızlı komutları, reboot seçimleri), terminal, yakınlaştırma, izleme ve ortak FTP ayarları (otomatik kaydedilir; FTP parolası dosyada tutulmaz). |
 | `%APPDATA%\TelnetCards\KomutGecmisi.txt` | Komut geçmişi: yazılan tüm komutlar, satır başına bir komut, eskiden yeniye (en fazla 5.000; tüm kartlar ve genel çubuk ortak; otomatik kaydedilir). Silinirse geçmiş boş başlar. |
 | `logs\GrupAdı_IP_anlik_tarih_saat.log` | "Dosyaya kaydet" ile alınan anlık terminal görüntüleri (her tıklama ayrı dosya). |
-| `logs\hatalar.log` | Bağlantı hatalarının teknik ayrıntıları (hata kodu, özgün İngilizce mesaj). Her zaman açıktır. |
+| `logs\hatalar.log` | Bağlantı ve işlem hatalarının teknik ayrıntıları (hata kodu, özgün İngilizce mesaj) ve beklenmeyen hataların yığın izi. Her zaman açıktır. 5 MB'ı geçince `hatalar.log.1` olarak saklanıp yenisine başlanır (en fazla iki dosya). |
 | `%TEMP%\TelnetCards\SaltOkunur\` | "Birlikte aç" ile açılan salt okunur kopyalar (kapanışta silinir). |
 | `%TEMP%\TelnetCards\Surukle\` | Karttan Windows Gezgini'ne sürüklenen öğelerin geçici kopyaları (kapanışta silinir). |
+
+**Beklenmeyen hata olursa:** Vision Türkçe kısa bir pencereyle bildirir ("Vision'da beklenmeyen bir hata oluştu; Vision çalışmaya devam ediyor") ve ayrıntıyı `logs\hatalar.log`'a yazar. Art arda gelen hatalarda 10 saniyede en fazla bir pencere çıkar, diğerleri yalnız log'a yazılır. Vision'ın kapanmasını gerektiren bir hatada kapanmadan önce bildirilir. Sorun bildirirken `hatalar.log` dosyasını eklemeniz yeterlidir.
 
 `config.xml` ve `%TEMP%` dışındaki klasörler exe'nin yanındadır (Visual Studio'dan çalıştırırken `bin\Debug\`).
 

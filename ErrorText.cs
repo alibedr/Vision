@@ -88,16 +88,47 @@ namespace Vision
 
         private static readonly object LogLock = new object();
 
+        /// <summary>Log dosyası bu boyutu geçince hatalar.log.1 olarak saklanır, yenisine başlanır (en fazla iki dosya).</summary>
+        public const long MaxLogBytes = 5L * 1024 * 1024;
+
+        /// <summary>logs\\hatalar.log dosyasının yolu.</summary>
+        public static string LogPath
+        {
+            get { return System.IO.Path.Combine(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs"), "hatalar.log"); }
+        }
+
         /// <summary>Teknik ayrıntıyı logs\\hatalar.log dosyasına yazar (kullanıcıya gösterilmez).</summary>
         public static void LogTechnical(string source, Exception ex)
         {
             if (ex == null) return;
+            WriteLog(source + "  " + Technical(ex));
+        }
+
+        /// <summary>Beklenmeyen hata: yığın izi dahil tüm ayrıntı log'a yazılır (G43).</summary>
+        public static void LogCrash(string source, Exception ex)
+        {
+            WriteLog("BEKLENMEYEN HATA  " + source + Environment.NewLine + (ex != null ? ex.ToString() : "(ayrıntı yok)"));
+        }
+
+        private static void WriteLog(string text)
+        {
             try
             {
-                string dir = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
-                System.IO.Directory.CreateDirectory(dir);
-                string line = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff") + "  " + source + "  " + Technical(ex) + Environment.NewLine;
-                lock (LogLock) System.IO.File.AppendAllText(System.IO.Path.Combine(dir, "hatalar.log"), line, System.Text.Encoding.UTF8);
+                string path = LogPath;
+                System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path));
+                string line = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff") + "  " + text + Environment.NewLine;
+                lock (LogLock)
+                {
+                    // Döndürme (G43): sınırı geçen dosya .1 olur (eski .1 silinir)
+                    var fi = new System.IO.FileInfo(path);
+                    if (fi.Exists && fi.Length > MaxLogBytes)
+                    {
+                        string old = path + ".1";
+                        if (System.IO.File.Exists(old)) System.IO.File.Delete(old);
+                        System.IO.File.Move(path, old);
+                    }
+                    System.IO.File.AppendAllText(path, line, System.Text.Encoding.UTF8);
+                }
             }
             catch { }
         }
