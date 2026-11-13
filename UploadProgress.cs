@@ -12,7 +12,7 @@ namespace Vision
     /// <summary>
     /// Kart ile bilgisayar arasındaki aktarımın ilerlemesi (G40 / G41). Aktarım farklı iş parçacıklarından yazar, ilerleme
     /// penceresi zamanlayıcıyla okur. Her bayt iki aşamadan geçer: FTP aşaması (bilgisayar ↔ FTP sunucusu, bayt bayt
-    /// izlenir) ve kart aşaması (kart ↔ FTP, 16 MB'lık bloklarla ya da adım bitince ilerler). Toplam ilerleme bu iki
+    /// izlenir) ve kart aşaması (kart ↔ FTP, 8 MB'lık bloklarla ya da adım bitince ilerler). Toplam ilerleme bu iki
     /// aşamanın ortalamasıdır. Hızlar o an ölçülür (FTP: son birkaç saniye; kart: son bloklar / son parça) ve
     /// saklanmaz; kalan süre bu anlık hızlarla hesaplanır.
     /// </summary>
@@ -132,7 +132,7 @@ namespace Vision
             lock (_lock) { _stage = stage ?? ""; _stepTotal = bytes; _stepDone = 0; _onCard = _cardStep = true; _ftpStep = false; _stepStartUtc = DateTime.UtcNow; }
         }
 
-        /// <summary>Kart aşamasında bu adımda o ana kadar aktarılan bayt (16 MB'lık bloklar).</summary>
+        /// <summary>Kart aşamasında bu adımda o ana kadar aktarılan bayt (8 MB'lık bloklar).</summary>
         public void CardBytes(long done)
         {
             lock (_lock)
@@ -307,7 +307,7 @@ namespace Vision
 
     /// <summary>
     /// Karta yükleme ilerleme penceresi (G40): kalıcı (modal) değildir. "Arka planda sürdür" ile kapatılır, yükleme sürer.
-    /// "İptal": FTP gönderimi hemen kesilir, kartta en geç bir blok (16 MB) sonra durulur.
+    /// "İptal": FTP gönderimi hemen kesilir, kartta en geç bir blok (8 MB) sonra durulur.
     /// </summary>
     public sealed class UploadProgressDialog : DarkDialog
     {
@@ -391,7 +391,7 @@ namespace Vision
 
     /// <summary>
     /// Karttan bilgisayara alma ilerleme penceresi (G41). Sürükle-bırak bırakmayı bu pencere bitene kadar beklettiği için
-    /// kalıcıdır (modal). "İptal": FTP indirmesi hemen kesilir, kartta en geç bir blok (16 MB) sonra durulur.
+    /// kalıcıdır (modal). "İptal": FTP indirmesi hemen kesilir, kartta en geç bir blok (8 MB) sonra durulur.
     /// </summary>
     public sealed class DownloadProgressDialog : DarkDialog
     {

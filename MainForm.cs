@@ -1478,7 +1478,7 @@ namespace Vision
                      "tek seferde dev bir dosyayla uğraşmaz. Aktarımdan önce hedef diskte (kartta ya da bilgisayarda) yer olup olmadığına " +
                      "bakılır. Kart içinde büyük dosya kopyalama / taşımada da ilerleme penceresi açılır.\n\n" +
                      "Büyük aktarımlarda ilerleme penceresi açılır: yüzde, aktarılan / toplam, FTP ve kartın o anki hızı, bu hızlarla " +
-                     "hesaplanan kalan süre. İptal FTP aktarımını hemen keser, kartta en geç 16 MB'lık bir blok sonra durur ve yarım " +
+                     "hesaplanan kalan süre. İptal FTP aktarımını hemen keser, kartta en geç 8 MB'lık bir blok sonra durur ve yarım " +
                      "kalan dosyayı siler. Yüklemede \"Arka planda sürdür\" pencereyi kapatır, aktarım sürer.",
                      () => TourRect(_fileExplorer.TourList));
 

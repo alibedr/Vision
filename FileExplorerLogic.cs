@@ -1043,7 +1043,7 @@ namespace Vision
         }
 
         /// <summary>
-        /// Büyük dosyayı kart içinde kopyalar / taşır (G42): kaynak ve hedef açılıp 16 MB'lık read / write bloklarıyla
+        /// Büyük dosyayı kart içinde kopyalar / taşır (G42): kaynak ve hedef açılıp 8 MB'lık read / write bloklarıyla
         /// aktarılır; ilerleme penceresi bayt bayt ilerler, iptal en geç bir blok sonra etki eder. Taşımada kaynak ancak
         /// hedef eksiksiz kapatıldıktan sonra silinir. Hata / iptalde yarım hedef silinir, kaynak korunur.
         /// </summary>
@@ -1744,7 +1744,7 @@ namespace Vision
             return (int)Math.Min(24 * 3600, sec);
         }
 
-        /// <summary>Bu boyuttan büyük dosyalar parça parça, kartta 16 MB'lık bloklarla aktarılır (ilerleme ve anında iptal için).</summary>
+        /// <summary>Bu boyuttan büyük dosyalar parça parça, kartta 8 MB'lık bloklarla aktarılır (ilerleme ve anında iptal için).</summary>
         public const long PartThresholdBytes = 64L * 1024 * 1024;
         /// <summary>
         /// Parça boyutu: kartın FTP sürücüsünün tek seferde açtığı (ve RAM'e aldığı) en büyük dosya. Eşikle aynı: kartın
@@ -1752,7 +1752,7 @@ namespace Vision
         /// </summary>
         public const long PartBytes = 64L * 1024 * 1024;
         /// <summary>Kartta bir read / write komutunun taşıdığı blok (kartta malloc ile ayrılan ara bellek).</summary>
-        public const int ChunkBytes = 16 * 1024 * 1024;
+        public const int ChunkBytes = 8 * 1024 * 1024;
 
         /// <summary>İptal edildi mi (süren aktarımın ilerleme nesnesi)?</summary>
         private bool Cancelled { get { return _tp != null && _tp.CancelRequested; } }
@@ -1763,7 +1763,7 @@ namespace Vision
         }
 
         /// <summary>
-        /// Kartta açık iki dosya arasında <paramref name="len"/> bayt aktarır: ara belleğe 16 MB'lık bloklar halinde read,
+        /// Kartta açık iki dosya arasında <paramref name="len"/> bayt aktarır: ara belleğe 8 MB'lık bloklar halinde read,
         /// ardından write. Her bloktan sonra ilerleme bildirilir ve iptal denetlenir (iptal en geç bir blok sonra etki eder).
         /// Başarılıysa null, değilse neden ("iptal edildi" dahil).
         /// </summary>
@@ -1820,7 +1820,7 @@ namespace Vision
 
         /// <summary>
         /// Büyük dosyayı karta parça parça aktarır (G39 / G41). Kartta hedef dosya bir kez açılır (O_WRONLY|O_CREAT|O_TRUNC)
-        /// ve 16 MB'lık ara bellek ayrılır. Her parça (256 MB) FTP'ye gönderilir, kartta açılır, 16 MB'lık read / write
+        /// ve 8 MB'lık ara bellek ayrılır. Her parça (64 MB) FTP'ye gönderilir, kartta açılır, 8 MB'lık read / write
         /// bloklarıyla hedefin sonuna eklenir, kapatılır ve FTP'den silinir. Kartın FTP sürücüsü hiçbir zaman parça
         /// boyutundan büyük dosya açmaz. FTP gönderimi iptalde hemen kesilir; kartta en geç bir blok sonra durulur.
         /// Hata / iptalde hedef kapatılıp yarım dosya silinir. Başarılıysa null, değilse neden.
@@ -1907,7 +1907,7 @@ namespace Vision
 
         /// <summary>
         /// Büyük kart dosyasını bilgisayara parça parça alır (G41): kaynak kartta bir kez açılır, her parça için FTP'de
-        /// (kartın FTP sürücüsüyle) geçici bir dosya açılıp 16 MB'lık read / write bloklarıyla doldurulur ve kapatılır
+        /// (kartın FTP sürücüsüyle) geçici bir dosya açılıp 8 MB'lık read / write bloklarıyla doldurulur ve kapatılır
         /// (sürücü dosyayı bu sırada FTP'ye yazar), ardından bilgisayara indirilip yerel dosyanın sonuna eklenir ve
         /// FTP'den silinir. İptal: FTP indirmesi hemen kesilir, kartta en geç bir blok sonra durulur. Hata / iptalde
         /// yarım yerel dosya ve FTP'deki geçici parça silinir. Başarılıysa null, değilse neden.
