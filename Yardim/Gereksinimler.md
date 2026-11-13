@@ -427,6 +427,13 @@ Ana metin (≈ 14:1), terminal metni (≈ 13:1) ve başarı / uyarı renkleri za
 | G41.3 | Kalan süre kartın o anki hızına göre hesaplanmalı; hızlar saklanmamalı | Karşılandı | FTP ve kart için ayrı kayan pencere (son 6 sn; FTP her 1 MB'ta, kart her 16 MB'lık blokta örnek). Ara bilgi vermeyen kart adımında (tek `copy`) hız adımın süresinden ölçülür ve süren adım için geçen süreyle tahmin yapılır. Kalan süre = kalan FTP baytı / FTP hızı + kalan kart baytı / kart hızı; hız ölçülmeden "hesaplanıyor…". Hızlar yalnız o aktarım boyunca bellekte tutulur. Pencerede "Anlık hız: FTP … · kart …". |
 | G41.4 | İlerleme penceresi indirmede de olmalı | Karşılandı | `TransferProgressPanel` (ortak görünüm) + `UploadProgressDialog` (kalıcı değil) ve `DownloadProgressDialog` (kalıcı: sürükle-bırak bırakmayı bekletir). Uygulama turuna "Büyük dosyalar ve ilerleme" adımı eklendi. |
 
+### G44 — Tema renkleri (hata düzeltmesi)
+
+| No | Gereksinim | Durum | Nasıl karşılandı |
+|---|---|---|---|
+| G44.1 | Yardım (Kullanım Kılavuzu / Hakkında) içeriği seçili temanın renklerinde görünmeli | Karşılandı | Neden: sayfanın CSS'i yalnız koyu / açık için sabit renklerdi; Dracula, Solarized vb. temalarda içerik pencerenin geri kalanından farklı renkteydi. `HelpDialog.Page` renkleri o anki paletten alır (`Theme.Hex`: Window, Text, TextMuted, Border, Accent, Input, Surface, Sidebar, Terminal, AccentSurface, AccentFill). İçindekiler'de seçili başlık beyaz yerine temanın yazı rengi. |
+| G44.2 | Tema değiştikten sonra menüler (Temalar, Yardım, sağ tık) doğru renklerde kalmalı | Karşılandı | Neden: tema geçişi renkleri değer eşlemesiyle çevirir; eski temada iki palet rengi aynıysa tek eşleme ilk alana düşüp yazı ya da zemin yanlış renge çevriliyordu (G33.4'teki düzeltme menüleri izliyordu, eşlemenin kendisi bu durumu karşılamıyordu). `Theme.BuildMaps`: zemin (`BackColor`) ve yazı (`ForeColor`, bağlantı renkleri) için ayrı eşleme; yazı eşlemesinde yazı / vurgu alanları öncelikli. `DarkMenuRenderer`: menü yazısının rengi şu anki paletin dışındaysa (eski temadan kalmış ya da hiç atanmamış) temanın yazı rengiyle çizilir (`Theme.IsPaletteColor`); alt menü okları temanın rengiyle; işaretli öğenin (Temalar'da seçili tema) arka planı sistemin açık mavisi yerine temanın seçim rengi. |
+
 ## Sürüm notları
 
 İlk resmî yayın **1.0**'dır (G1–G38). Bundan sonra `main`'e her birleştirmede küçük sürüm bir artırılır (1.1, 1.2, …); yayın GitHub'da `vX.Y` etiketiyle, `Vision.zip` ekiyle, main derlemesinden kendiliğinden yapılır (G38); derlenmiş hali ayrıca depoda `release/vX.Y/Vision/` klasöründe (zipten çıkarılmış) tutulur.

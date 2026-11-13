@@ -261,7 +261,7 @@ namespace Vision
             ThemeDefinition def = ThemeCatalog.FindOrDefault(themeId);
             Color[] c = colors != null && colors.Length == ThemeColorInfo.Count ? (Color[])colors.Clone() : def.CopyDefaults();
             Palette from = _p, to = BuildPalette(c);
-            Dictionary<int, Color> map = BuildMap(from, to);
+            ColorMaps map = BuildMaps(from, to);
             _p = to;
             Mode = ModeFor(c);
             CurrentThemeId = def.Id;
@@ -403,17 +403,58 @@ namespace Vision
             return c;
         }
 
-        private static Dictionary<int, Color> BuildMap(Palette from, Palette to)
+        /// <summary>
+        /// Eski paletten yeni palete renk eşlemesi. Zemin ve yazı için ayrı eşleme tutulur (G44): eski temada iki palet
+        /// rengi aynıysa (ör. bir zemin rengi ile bir yazı rengi) tek eşleme ilk alana düşüyor, menü yazıları ya da
+        /// zeminler yeni temada yanlış renge çevriliyordu. Zemin eşlemesinde zemin alanları, yazı eşlemesinde yazı / vurgu
+        /// alanları önceliklidir.
+        /// </summary>
+        public sealed class ColorMaps
         {
-            var map = new Dictionary<int, Color>();
-            foreach (System.Reflection.FieldInfo fi in typeof(Palette).GetFields())
+            public readonly Dictionary<int, Color> Back = new Dictionary<int, Color>();
+            public readonly Dictionary<int, Color> Fore = new Dictionary<int, Color>();
+        }
+
+        private static readonly string[] ForeFirst =
+        {
+            "Text", "TextMuted", "TextFaint", "Terminal", "Accent", "AccentHover", "Success", "Warning", "Danger",
+            "SuccessBannerText", "WarningBannerText", "InfoBannerText", "DropBannerTitle", "DropBannerFaint",
+        };
+
+        private static ColorMaps BuildMaps(Palette from, Palette to)
+        {
+            var maps = new ColorMaps();
+            Action<Dictionary<int, Color>, System.Reflection.FieldInfo> add = (map, fi) =>
             {
-                var a = (Color)fi.GetValue(from);
-                var b = (Color)fi.GetValue(to);
-                int key = a.ToArgb();
-                if (!map.ContainsKey(key)) map[key] = b;
+                int key = ((Color)fi.GetValue(from)).ToArgb();
+                if (!map.ContainsKey(key)) map[key] = (Color)fi.GetValue(to);
+            };
+            foreach (System.Reflection.FieldInfo fi in PaletteFields) add(maps.Back, fi);
+            foreach (string name in ForeFirst)
+            {
+                System.Reflection.FieldInfo fi = typeof(Palette).GetField(name);
+                if (fi != null) add(maps.Fore, fi);
             }
-            return map;
+            foreach (System.Reflection.FieldInfo fi in PaletteFields) add(maps.Fore, fi);
+            return maps;
+        }
+
+        private static readonly System.Reflection.FieldInfo[] PaletteFields = typeof(Palette).GetFields();
+
+        /// <summary>Renk şu anki temanın paletinde var mı? (Menü yazısı eski temadan kalmışsa düzeltmek için.)</summary>
+        public static bool IsPaletteColor(Color c)
+        {
+            if (c.IsEmpty || c.A == 0) return false;
+            int key = Color.FromArgb(255, c).ToArgb();
+            foreach (System.Reflection.FieldInfo fi in PaletteFields)
+                if (((Color)fi.GetValue(_p)).ToArgb() == key) return true;
+            return false;
+        }
+
+        /// <summary>CSS için "#rrggbb".</summary>
+        public static string Hex(Color c)
+        {
+            return "#" + c.R.ToString("x2") + c.G.ToString("x2") + c.B.ToString("x2");
         }
 
         private static Color MapColor(Color c, Dictionary<int, Color> map)
@@ -452,13 +493,13 @@ namespace Vision
         }
 
         /// <summary>Denetimi ve tüm alt denetimlerini (menü ve araç çubuğu öğeleri dahil) yeni temaya çevirir.</summary>
-        public static void Recolor(Control c, Dictionary<int, Color> map)
+        public static void Recolor(Control c, ColorMaps map)
         {
             if (_recolored != null && !_recolored.Add(c)) return;   // bu tema geçişinde zaten çevrildi
             try
             {
                 Color back = c.BackColor, fore = c.ForeColor;
-                Color nb = MapColor(back, map), nf = MapColor(fore, map);
+                Color nb = MapColor(back, map.Back), nf = MapColor(fore, map.Fore);
                 if (nb != back) c.BackColor = nb;
                 if (nf != fore) c.ForeColor = nf;      // RichTextBox: tüm metni yeni renge boyar (uyarı satırlarını kart yeniden boyar)
 
@@ -467,8 +508,8 @@ namespace Vision
                 var ll = c as LinkLabel;
                 if (ll != null)
                 {
-                    ll.LinkColor = MapColor(ll.LinkColor, map);
-                    ll.ActiveLinkColor = MapColor(ll.ActiveLinkColor, map);
+                    ll.LinkColor = MapColor(ll.LinkColor, map.Fore);
+                    ll.ActiveLinkColor = MapColor(ll.ActiveLinkColor, map.Fore);
                 }
                 if (c.ContextMenuStrip != null) Recolor(c.ContextMenuStrip, map);
             }
@@ -476,11 +517,11 @@ namespace Vision
             foreach (Control child in c.Controls) Recolor(child, map);
         }
 
-        private static void RecolorItem(ToolStripItem it, Dictionary<int, Color> map)
+        private static void RecolorItem(ToolStripItem it, ColorMaps map)
         {
             if (_recolored != null && !_recolored.Add(it)) return;
-            it.ForeColor = MapColor(it.ForeColor, map);
-            it.BackColor = MapColor(it.BackColor, map);
+            it.ForeColor = MapColor(it.ForeColor, map.Fore);
+            it.BackColor = MapColor(it.BackColor, map.Back);
             var mi = it as ToolStripDropDownItem;
             // Alt menü: açılır kutunun kendi zemini de (ör. "Karta aktar ▸") çevrilir
             if (mi != null && mi.HasDropDownItems) Recolor(mi.DropDown, map);

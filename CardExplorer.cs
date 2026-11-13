@@ -663,7 +663,17 @@ namespace Vision
         protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
         {
             if (!e.Item.Enabled) e.TextColor = Theme.TextFaint;
+            // Yazı rengi şu anki temanın paletinde değilse (önceki temadan kalmış ya da hiç atanmamış: siyah) temanın
+            // yazı rengiyle çizilir. Tema değişince menülerin renkleri değer eşlemesiyle çevrilir; iki palet rengi aynı
+            // olduğunda eşleme yanlış renge düşebiliyordu (G44).
+            else if (!Theme.IsPaletteColor(e.TextColor)) e.TextColor = Theme.Text;
             base.OnRenderItemText(e);
+        }
+
+        protected override void OnRenderArrow(ToolStripArrowRenderEventArgs e)
+        {
+            e.ArrowColor = e.Item != null && !e.Item.Enabled ? Theme.TextFaint : Theme.TextMuted;
+            base.OnRenderArrow(e);
         }
 
         private sealed class DarkColors : ProfessionalColorTable
@@ -685,6 +695,13 @@ namespace Vision
             public override Color ImageMarginGradientBegin { get { return Theme.SurfaceHigh; } }
             public override Color ImageMarginGradientMiddle { get { return Theme.SurfaceHigh; } }
             public override Color ImageMarginGradientEnd { get { return Theme.SurfaceHigh; } }
+            // İşaretli öğe (ör. Temalar menüsünde seçili tema): sistemin açık mavisi yerine temanın seçim rengi (G44)
+            public override Color CheckBackground { get { return Theme.Selection; } }
+            public override Color CheckSelectedBackground { get { return Theme.Selection; } }
+            public override Color CheckPressedBackground { get { return Theme.Selection; } }
+            public override Color ButtonSelectedBorder { get { return Theme.Accent; } }
+            public override Color ButtonCheckedHighlight { get { return Theme.Selection; } }
+            public override Color ButtonCheckedHighlightBorder { get { return Theme.Accent; } }
         }
     }
 }
