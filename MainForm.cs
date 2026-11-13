@@ -1474,7 +1474,7 @@ namespace Vision
                      "Liste içinde: bir klasörün üstüne bırakmak taşır, Ctrl basılıysa kopyalar.",
                      () => TourRect(_fileExplorer.TourList));
             fileStep("Büyük dosyalar ve ilerleme",
-                     "64 MB'tan büyük dosyalar iki yönde de (klasörlerin içindekiler dahil) 256 MB'lık parçalar halinde aktarılır; kart " +
+                     "64 MB'tan büyük dosyalar iki yönde de (klasörlerin içindekiler dahil) 64 MB'lık parçalar halinde aktarılır; kart " +
                      "tek seferde dev bir dosyayla uğraşmaz. Aktarımdan önce hedef diskte (kartta ya da bilgisayarda) yer olup olmadığına " +
                      "bakılır. Kart içinde büyük dosya kopyalama / taşımada da ilerleme penceresi açılır.\n\n" +
                      "Büyük aktarımlarda ilerleme penceresi açılır: yüzde, aktarılan / toplam, FTP ve kartın o anki hızı, bu hızlarla " +

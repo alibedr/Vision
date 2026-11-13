@@ -1746,8 +1746,11 @@ namespace Vision
 
         /// <summary>Bu boyuttan büyük dosyalar parça parça, kartta 16 MB'lık bloklarla aktarılır (ilerleme ve anında iptal için).</summary>
         public const long PartThresholdBytes = 64L * 1024 * 1024;
-        /// <summary>Parça boyutu: kartın FTP sürücüsünün tek seferde açtığı en büyük dosya (700 MB tek seferde sorunsuzdu).</summary>
-        public const long PartBytes = 256L * 1024 * 1024;
+        /// <summary>
+        /// Parça boyutu: kartın FTP sürücüsünün tek seferde açtığı (ve RAM'e aldığı) en büyük dosya. Eşikle aynı: kartın
+        /// RAM'i hangi dosyada olursa olsun en fazla bir parça + ara bellek kadar kullanılır.
+        /// </summary>
+        public const long PartBytes = 64L * 1024 * 1024;
         /// <summary>Kartta bir read / write komutunun taşıdığı blok (kartta malloc ile ayrılan ara bellek).</summary>
         public const int ChunkBytes = 16 * 1024 * 1024;
 

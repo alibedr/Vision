@@ -518,7 +518,7 @@ Yükleme, kartlara dosya atarken elle izlediğiniz yolun aynısını otomatik ya
 
 **Büyük dosyalar:**
 - Hedef `/ata…` ya da `/bd…` diskiyse yüklemeden önce diskin boş alanı (`dosFsShow`) okunur. Yüklenecek toplam boyut sığmıyorsa hiçbir şey gönderilmeden bildirilir. Aynı adla üzerine yazılacak dosyaların boyutu hesaba katılır. Boş alan okunamazsa yükleme engellenmez.
-- **64 MB'tan büyük dosyalar parça parça aktarılır (iki yönde de):** tek `copy` ile 2,5 GB'lık dosya kartın FTP sürücüsünü zorlayıp telnet bağlantısını düşürüyordu. Dosya 256 MB'lık parçalar halinde FTP üzerinden taşınır; kartta parça ile hedef dosya arasındaki aktarım 16 MB'lık bloklarla yapılır (`read` / `write`; kartta 16 MB'lık ara bellek ayrılır, iş bitince bırakılır).
+- **64 MB'tan büyük dosyalar parça parça aktarılır (iki yönde de):** tek `copy` ile 2,5 GB'lık dosya kartın FTP sürücüsünü zorlayıp telnet bağlantısını düşürüyordu. Dosya 64 MB'lık parçalar halinde FTP üzerinden taşınır (kartın RAM'i hangi dosya olursa olsun en fazla bir parça + 16 MB ara bellek kadar kullanılır); kartta parça ile hedef dosya arasındaki aktarım 16 MB'lık bloklarla yapılır (`read` / `write`; kartta 16 MB'lık ara bellek ayrılır, iş bitince bırakılır).
   - **Karta:** hedef dosya kartta bir kez açılır; her parça FTP'ye gönderilir, kartta açılıp hedefin sonuna eklenir ve FTP'den silinir.
   - **Klasör yüklerken** içindeki 64 MB üstü dosyalar da klasörle birlikte FTP'ye gönderilmez, kartta sırası gelince aynı yolla parça parça aktarılır.
   - **Bilgisayara:** kaynak dosya kartta açılır; her parça kartta FTP'deki geçici bir dosyaya yazılır, bilgisayara indirilip yerel dosyanın sonuna eklenir ve FTP'den silinir.
@@ -529,7 +529,7 @@ Yükleme, kartlara dosya atarken elle izlediğiniz yolun aynısını otomatik ya
 - **İlerleme penceresi:** 50 MB'tan büyük ya da 20'den çok dosyalı yüklemelerde **Karta yükleme**, kart içinde 50 MB üstü kopyalama / taşımada **Kart içinde kopyalama / taşıma**, karttan alırken her zaman **Karttan bilgisayara** penceresi açılır:
   - Üstteki çubuk toplam ilerleme: yüzde, tamamlanan / toplam boyut ve ara aşamada aktarılan. Her bayt iki aşamadan geçer (bilgisayar ↔ FTP, FTP ↔ kart); yüzde ikisinin ortalamasıdır.
   - **Anlık hız** ve **kalan süre:** FTP hızı son birkaç saniyede, kart hızı son bloklarda ölçülür; kalan süre bu anlık hızlarla hesaplanır. Hızlar saklanmaz, her aktarımda yeniden ölçülür (koşullar değişebilir).
-  - Alttaki ince çubuk o anki adım ("Parça 3/10: kartta açılıp hedefe ekleniyor · 96 MB / 256 MB"). Kart parçayı FTP'den açarken ara bilgi vermez; o sırada hareketli çubuk görünür.
+  - Alttaki ince çubuk o anki adım ("Parça 12/40: kartta açılıp hedefe ekleniyor · 32 MB / 64 MB"). Kart parçayı FTP'den açarken ara bilgi vermez; o sırada hareketli çubuk görünür.
   - **İptal** FTP aktarımını hemen keser; kartta en geç bir blok (16 MB) sonra durulur. Yüklemede **Arka planda sürdür** pencereyi kapatır, aktarım durum şeridinde sürer.
   - Aktarım bitince pencere kendiliğinden kapanır; sonuç Dosya Gezgini şeridinde yazar.
 - Bu disklerde (FAT) bir dosya en fazla 4 GB'tan biraz küçük olabilir. 4 GB ve üstü dosyalar yüklenmez, nedeni yazılır.
