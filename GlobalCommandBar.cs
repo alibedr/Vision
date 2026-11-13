@@ -264,7 +264,7 @@ namespace Vision
             int i = 0;
             foreach (CardSession s in targets.Where(t => t != null).Distinct())
             {
-                if (s.State != CardState.Connected || s.InteractiveInputActive) continue;
+                if (s.State != CardState.Connected || s.InteractiveInputActive || s.TransferActive) continue;
                 try { BootChangeDialog.Begin(s, FindForm(), cmd, i++); }
                 catch (Exception ex) { ErrorText.LogTechnical(s.Card.DisplayName + " boot ayarları penceresi", ex); }
             }

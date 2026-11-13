@@ -274,7 +274,7 @@ namespace Vision
             if (card != null && !_browsers.TryGetValue(card, out _browser))
             {
                 CardSession session = _sessionOf(card);
-                var b = new FileBrowser(session.ExecuteAsync);   // kartın mevcut oturumu; ayrı bağlantı yok
+                var b = new FileBrowser(session);   // kartın mevcut oturumu; ayrı bağlantı yok
                 b.Changed += () => { if (b == _browser) RefreshUi(); };
                 // FTP kopyaları listesi değişince (yükleme başladı / silindi) düğme durumu güncellenir
                 session.FtpCopies.Changed += () =>

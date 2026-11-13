@@ -979,13 +979,44 @@ namespace Vision
             _statusLeft.ForeColor = warn ? Theme.Warning : Theme.TextMuted;
         }
 
+        private bool _closeAfterTransfers;
+
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
             // Komut kütüphanesinde kaydedilmemiş değişiklik varsa sor; vazgeçilirse kapanma
-            if (!_commandLibrary.ConfirmLeave())
+            if (!_closeAfterTransfers && !_commandLibrary.ConfirmLeave())
             {
                 e.Cancel = true;
                 ShowTab(MainTab.Commands);
+                return;
+            }
+            // Dosya aktarımı sürüyorsa (G42.12): sor; kapatılacaksa önce temiz biçimde iptal et (kartta açılan dosyalar
+            // kapatılır, ara bellek bırakılır, yarım dosya silinir), sonra kapan
+            List<CardSession> busy = _sessions.Values.Where(s => s.TransferActive).ToList();
+            if (busy.Count > 0 && e.CloseReason != CloseReason.WindowsShutDown)
+            {
+                e.Cancel = true;
+                if (_closeAfterTransfers) return;      // iptal sürüyor; bitince kendiliğinden kapanır
+                int c = ChoiceDialog.Ask(this, "Dosya aktarımı sürüyor",
+                    (busy.Count == 1 ? busy[0].Card.Label + " kartında" : busy.Count + " kartta") + " dosya aktarımı sürüyor.",
+                    "Kapatılırsa aktarım iptal edilir: kartta açılan dosyalar kapatılır, ayrılan bellek bırakılır ve yarım kalan dosya " +
+                    "silinir. Bu birkaç saniye sürer; ardından Vision kapanır.",
+                    new[] { "Vazgeç", "İptal et ve kapat" }, 0, 1);
+                if (c != 1) return;
+                _closeAfterTransfers = true;
+                TransferProgress.CancelAll();
+                _statusLeft.Text = "Dosya aktarımı iptal ediliyor; ardından Vision kapanacak…";
+                DateTime until = DateTime.UtcNow.AddSeconds(90);
+                var t = new Timer { Interval = 300 };
+                t.Tick += (s, a) =>
+                {
+                    if (_sessions.Values.Any(x => x.TransferActive) && DateTime.UtcNow < until) return;
+                    t.Stop();
+                    t.Dispose();
+                    foreach (var x in _sessions.Values) x.ForceEndTransfers();
+                    Close();
+                };
+                t.Start();
                 return;
             }
             _uiTimer.Stop();
@@ -1474,10 +1505,11 @@ namespace Vision
                      "Liste içinde: bir klasörün üstüne bırakmak taşır, Ctrl basılıysa kopyalar.",
                      () => TourRect(_fileExplorer.TourList));
             fileStep("Büyük dosyalar ve ilerleme",
-                     "64 MB'tan büyük dosyalar iki yönde de 256 MB'lık parçalar halinde aktarılır; kart tek seferde dev bir dosyayla " +
-                     "uğraşmaz. Yüklemeden önce kartın diskinde yer olup olmadığına bakılır.\n\n" +
+                     "64 MB'tan büyük dosyalar iki yönde de (klasörlerin içindekiler dahil) 64 MB'lık parçalar halinde aktarılır; kart " +
+                     "tek seferde dev bir dosyayla uğraşmaz. Aktarımdan önce hedef diskte (kartta ya da bilgisayarda) yer olup olmadığına " +
+                     "bakılır. Kart içinde büyük dosya kopyalama / taşımada da ilerleme penceresi açılır.\n\n" +
                      "Büyük aktarımlarda ilerleme penceresi açılır: yüzde, aktarılan / toplam, FTP ve kartın o anki hızı, bu hızlarla " +
-                     "hesaplanan kalan süre. İptal FTP aktarımını hemen keser, kartta en geç 16 MB'lık bir blok sonra durur ve yarım " +
+                     "hesaplanan kalan süre. İptal FTP aktarımını hemen keser, kartta en geç 8 MB'lık bir blok sonra durur ve yarım " +
                      "kalan dosyayı siler. Yüklemede \"Arka planda sürdür\" pencereyi kapatır, aktarım sürer.",
                      () => TourRect(_fileExplorer.TourList));
 

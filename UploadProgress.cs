@@ -7,12 +7,12 @@ using System.Windows.Forms;
 
 namespace Vision
 {
-    public enum TransferDirection { ToCard, FromCard }
+    public enum TransferDirection { ToCard, FromCard, InCard }
 
     /// <summary>
     /// Kart ile bilgisayar arasındaki aktarımın ilerlemesi (G40 / G41). Aktarım farklı iş parçacıklarından yazar, ilerleme
     /// penceresi zamanlayıcıyla okur. Her bayt iki aşamadan geçer: FTP aşaması (bilgisayar ↔ FTP sunucusu, bayt bayt
-    /// izlenir) ve kart aşaması (kart ↔ FTP, 16 MB'lık bloklarla ya da adım bitince ilerler). Toplam ilerleme bu iki
+    /// izlenir) ve kart aşaması (kart ↔ FTP, 8 MB'lık bloklarla ya da adım bitince ilerler). Toplam ilerleme bu iki
     /// aşamanın ortalamasıdır. Hızlar o an ölçülür (FTP: son birkaç saniye; kart: son bloklar / son parça) ve
     /// saklanmaz; kalan süre bu anlık hızlarla hesaplanır.
     /// </summary>
@@ -31,10 +31,34 @@ namespace Vision
         private int _fileCount;
         private DateTime _startUtc = DateTime.UtcNow, _stepStartUtc = DateTime.UtcNow;
 
-        public TransferProgress(TransferDirection direction) { Direction = direction; }
+        private static readonly List<TransferProgress> Running = new List<TransferProgress>();
+
+        public TransferProgress(TransferDirection direction)
+        {
+            Direction = direction;
+            lock (Running) Running.Add(this);
+        }
+
+        /// <summary>Süren tüm aktarımları iptal eder (Vision kapatılırken, G42.12).</summary>
+        public static void CancelAll()
+        {
+            List<TransferProgress> all;
+            lock (Running) all = new List<TransferProgress>(Running);
+            foreach (TransferProgress p in all) p.Cancel();
+        }
 
         public TransferDirection Direction { get; private set; }
-        public volatile bool Finished;
+        private volatile bool _finished;
+
+        public bool Finished
+        {
+            get { return _finished; }
+            set
+            {
+                _finished = value;
+                if (value) lock (Running) Running.Remove(this);
+            }
+        }
 
         public CancellationToken Token { get { return _cts.Token; } }
         public bool CancelRequested { get { return _cts.IsCancellationRequested; } }
@@ -58,8 +82,16 @@ namespace Vision
             /// <summary>Anlık hızlarla kalan süre; hesaplanamıyorsa null.</summary>
             public TimeSpan? Remaining;
 
-            /// <summary>0..1: FTP ve kart aşamalarının ortalaması.</summary>
-            public double Fraction { get { return Total > 0 ? Math.Min(1.0, (FtpDone + CardDone) / (2.0 * Total)) : 0; } }
+            /// <summary>0..1: FTP ve kart aşamalarının ortalaması (kart içi işlemde yalnız kart).</summary>
+            public double Fraction
+            {
+                get
+                {
+                    if (Total <= 0) return 0;
+                    if (Direction == TransferDirection.InCard) return Math.Min(1.0, CardDone / (double)Total);
+                    return Math.Min(1.0, (FtpDone + CardDone) / (2.0 * Total));
+                }
+            }
         }
 
         public void Begin(long totalBytes, int fileCount)
@@ -124,7 +156,7 @@ namespace Vision
             lock (_lock) { _stage = stage ?? ""; _stepTotal = bytes; _stepDone = 0; _onCard = _cardStep = true; _ftpStep = false; _stepStartUtc = DateTime.UtcNow; }
         }
 
-        /// <summary>Kart aşamasında bu adımda o ana kadar aktarılan bayt (16 MB'lık bloklar).</summary>
+        /// <summary>Kart aşamasında bu adımda o ana kadar aktarılan bayt (8 MB'lık bloklar).</summary>
         public void CardBytes(long done)
         {
             lock (_lock)
@@ -195,7 +227,7 @@ namespace Vision
                     CardRate = _cardRate,
                 };
                 // Kalan süre: kalan FTP baytı / anlık FTP hızı + kalan kart baytı / anlık kart hızı
-                long ftpLeft = _total - ftpDone;
+                long ftpLeft = Direction == TransferDirection.InCard ? 0 : _total - ftpDone;
                 long cardLeft = _total - cardDone;
                 if (_cardStep && _stepDone == 0 && _cardRate > 0)   // ara bilgi vermeyen kart adımı: geçen süreyle tahmin
                     cardLeft -= Math.Min((long)((now - _stepStartUtc).TotalSeconds * _cardRate), (long)(_stepTotal * 0.95));
@@ -250,13 +282,23 @@ namespace Vision
             double f = s.Fraction;
             _totalBar.Value = Math.Max(0, Math.Min(1000, (int)(f * 1000)));
             bool toCard = s.Direction == TransferDirection.ToCard;
-            // Karta yüklemede son aşama kart, karttan almada son aşama FTP'den indirme
-            long finished = toCard ? s.CardDone : s.FtpDone;
-            long middle = toCard ? s.FtpDone : s.CardDone;
-            _overall.Text = "%" + Math.Floor(f * 100) + "  ·  " + (toCard ? "kartta " : "bilgisayarda ") + DeviceSpace.FormatBytes(finished) +
-                            " / " + DeviceSpace.FormatBytes(s.Total) + "  ·  " + (toCard ? "FTP'ye gönderilen " : "kartta FTP'ye yazılan ") +
-                            DeviceSpace.FormatBytes(middle);
-            string speed = "Anlık hız: FTP " + Rate(s.FtpRate) + "  ·  kart " + Rate(s.CardRate) + "  ·  geçen " + Duration(s.Elapsed);
+            bool inCard = s.Direction == TransferDirection.InCard;
+            string speed;
+            if (inCard)
+            {
+                _overall.Text = "%" + Math.Floor(f * 100) + "  ·  kopyalanan " + DeviceSpace.FormatBytes(s.CardDone) + " / " + DeviceSpace.FormatBytes(s.Total);
+                speed = "Anlık hız: kart " + Rate(s.CardRate) + "  ·  geçen " + Duration(s.Elapsed);
+            }
+            else
+            {
+                // Karta yüklemede son aşama kart, karttan almada son aşama FTP'den indirme
+                long finished = toCard ? s.CardDone : s.FtpDone;
+                long middle = toCard ? s.FtpDone : s.CardDone;
+                _overall.Text = "%" + Math.Floor(f * 100) + "  ·  " + (toCard ? "kartta " : "bilgisayarda ") + DeviceSpace.FormatBytes(finished) +
+                                " / " + DeviceSpace.FormatBytes(s.Total) + "  ·  " + (toCard ? "FTP'ye gönderilen " : "kartta FTP'ye yazılan ") +
+                                DeviceSpace.FormatBytes(middle);
+                speed = "Anlık hız: FTP " + Rate(s.FtpRate) + "  ·  kart " + Rate(s.CardRate) + "  ·  geçen " + Duration(s.Elapsed);
+            }
             speed += "  ·  kalan " + (s.Remaining.HasValue ? "~" + Duration(s.Remaining.Value) : "hesaplanıyor…");
             _speed.Text = speed;
             _item.Text = s.Item;
@@ -289,7 +331,7 @@ namespace Vision
 
     /// <summary>
     /// Karta yükleme ilerleme penceresi (G40): kalıcı (modal) değildir. "Arka planda sürdür" ile kapatılır, yükleme sürer.
-    /// "İptal": FTP gönderimi hemen kesilir, kartta en geç bir blok (16 MB) sonra durulur.
+    /// "İptal": FTP gönderimi hemen kesilir, kartta en geç bir blok (8 MB) sonra durulur.
     /// </summary>
     public sealed class UploadProgressDialog : DarkDialog
     {
@@ -303,8 +345,8 @@ namespace Vision
         private readonly Button _cancel = Theme.MakeButton("İptal", Theme.ButtonKind.Secondary);
         private readonly System.Windows.Forms.Timer _timer = new System.Windows.Forms.Timer { Interval = 300 };
 
-        private UploadProgressDialog(string title, TransferProgress p)
-            : base("Karta yükleme", new Size(600, 270))
+        private UploadProgressDialog(string caption, string title, TransferProgress p)
+            : base(caption, new Size(600, 270))
         {
             _p = p;
             ControlBox = false;
@@ -334,6 +376,12 @@ namespace Vision
         /// </summary>
         public static void Watch(Form owner, string title, TransferProgress p)
         {
+            Watch(owner, "Karta yükleme", title, p);
+        }
+
+        /// <summary>Başlıklı izleme (ör. "Kart içinde kopyalama").</summary>
+        public static void Watch(Form owner, string caption, string title, TransferProgress p)
+        {
             var t = new System.Windows.Forms.Timer { Interval = 250 };
             UploadProgressDialog dlg = null;
             bool decided = false;
@@ -351,7 +399,7 @@ namespace Vision
                 if (s0.Total <= 0 && s0.FileCount <= 0) return;      // boyut henüz hesaplanmadı
                 decided = true;
                 if (s0.Total < ShowFromBytes && s0.FileCount < ShowFromFiles) return;
-                dlg = new UploadProgressDialog(title, p);
+                dlg = new UploadProgressDialog(caption, title, p);
                 dlg.StartPosition = FormStartPosition.CenterParent;
                 dlg.Show(owner);
             };
@@ -367,7 +415,7 @@ namespace Vision
 
     /// <summary>
     /// Karttan bilgisayara alma ilerleme penceresi (G41). Sürükle-bırak bırakmayı bu pencere bitene kadar beklettiği için
-    /// kalıcıdır (modal). "İptal": FTP indirmesi hemen kesilir, kartta en geç bir blok (16 MB) sonra durulur.
+    /// kalıcıdır (modal). "İptal": FTP indirmesi hemen kesilir, kartta en geç bir blok (8 MB) sonra durulur.
     /// </summary>
     public sealed class DownloadProgressDialog : DarkDialog
     {

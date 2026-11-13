@@ -303,7 +303,27 @@ namespace Vision
             }
 
             TransferSettings eff = viaFtp ? CardTransfer(creds) : new TransferSettings();
-            OpResult r = await b.FetchCopyAsync(e, local, viaFtp ? new FtpUploader(eff) : null, eff, !viaFtp);
+            long size = e.Size ?? 0;
+            // Bilgisayarda yer denetimi ve büyük dosyada ilerleme penceresi (G42.5): Bilgisayara kaydet ile aynı
+            if (!EnoughLocalSpace(Path.GetDirectoryName(local), size, e.Name)) { ReadOnlyCopies.DeleteTree(Path.GetDirectoryName(local)); return; }
+            OpResult r;
+            if (viaFtp && size >= UploadProgressDialog.ShowFromBytes)
+            {
+                OpResult res = null;
+                using (var d = new DownloadProgressDialog(e.Name, async tp =>
+                {
+                    tp.Begin(size, 1);
+                    tp.BeginItem(e.Name + "  ·  " + DeviceSpace.FormatBytes(size));
+                    res = await b.FetchCopyAsync(e, local, new FtpUploader(eff), eff, false, tp);
+                    tp.CompleteItem(size);
+                    return res.Ok ? local : null;
+                }))
+                {
+                    d.ShowDialog(FindForm());
+                }
+                r = res != null && res.Ok && File.Exists(local) ? res : OpResult.Fail("\"" + e.Name + "\" açılmadı.");
+            }
+            else r = await b.FetchCopyAsync(e, local, viaFtp ? new FtpUploader(eff) : null, eff, !viaFtp);
             if (!r.Ok) { ReadOnlyCopies.DeleteTree(Path.GetDirectoryName(local)); return; }   // hata şeritte gösterilir
 
             try { ReadOnlyCopies.MarkReadOnly(local); }
@@ -347,7 +367,17 @@ namespace Vision
                 "\"" + e.Name + "\" hangi klasöre " + (copy ? "kopyalansın" : "taşınsın") + "? (kart üzerindeki tam yol)",
                 _browser.Current.Path,
                 v => string.IsNullOrWhiteSpace(v) ? "Hedef klasör boş olamaz." : v.IndexOf('"') >= 0 ? "Yol tırnak içeremez." : null);
-            if (target != null) await _browser.TransferAsync(e, target.Trim(), copy);
+            if (target != null) await InCardTransferAsync(e, target.Trim(), copy);
+        }
+
+        /// <summary>Kart içi kopyalama / taşıma; büyük işlerde ilerleme penceresi (G42).</summary>
+        private async Task InCardTransferAsync(FsEntry e, string destDir, bool copy)
+        {
+            var tp = new TransferProgress(TransferDirection.InCard);
+            UploadProgressDialog.Watch(FindForm(), copy ? "Kart içinde kopyalama" : "Kart içinde taşıma",
+                                       "\"" + e.Name + "\" → " + destDir, tp);
+            try { await _browser.TransferAsync(e, destDir, copy, tp); }
+            finally { tp.Finished = true; }
         }
 
         // ---------- Kart başına FTP ----------
@@ -365,7 +395,38 @@ namespace Vision
             CardFtpResult r = await _browser.ObtainFtpAsync();
             if (!r.Ok) return null;                       // neden şeritte (FileBrowser.Error)
             session.Ftp = r.Credentials;
+            await FindFtpLeftoversAsync(session, r.Credentials);
             return r.Credentials;
+        }
+
+        private static readonly System.Text.RegularExpressions.Regex LeftoverName = new System.Text.RegularExpressions.Regex(
+            @"^(_tkt_.*|_parca_.*|.+\.part\d+)$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        /// <summary>
+        /// Önceki oturumlarda yarım kalan aktarımların FTP'de bıraktığı geçici dosyaları (Vision'ın kendi adlandırması:
+        /// _tkt_…, _parca_…, ….partN) bulur ve "FTP kopyalarını sil" listesine ekler; silmek kullanıcının onayıyla (G42.13).
+        /// Yalnız FTP'ye bakar, kartta bir şey çalıştırmaz. FTP bilgisi bu oturumda ilk alındığında bir kez.
+        /// </summary>
+        private async Task FindFtpLeftoversAsync(CardSession session, CardFtpCredentials creds)
+        {
+            try
+            {
+                IList<string> names = await new FtpUploader(CardTransfer(creds)).ListNamesAsync();
+                int added = 0;
+                foreach (string n in names)
+                {
+                    if (!LeftoverName.IsMatch(n) || session.FtpCopies.Items.Any(i => i.Name == n)) continue;
+                    session.FtpCopies.Add(n, false);
+                    added++;
+                }
+                if (added > 0 && _browser != null)
+                    _browser.ShowNotice("FTP klasöründe önceki yarım kalmış aktarımlardan " + added + " geçici dosya bulundu; " +
+                                        "\"FTP kopyalarını sil\" ile silebilirsiniz.");
+            }
+            catch (Exception ex)
+            {
+                ErrorText.LogTechnical("FTP artıkları", ex);
+            }
         }
 
         /// <summary>Bu kartın bilgileriyle çalışan FTP ayarları (ortak klasör / kip ayarları + kartın sunucusu, kullanıcısı, parolası).</summary>
@@ -508,7 +569,7 @@ namespace Vision
             }
             var dragged = e.Data.GetData(InternalDragFormat) as FsEntry;
             if (dragged != null && folderTarget != null)
-                await _browser.TransferAsync(dragged, folderTarget, (e.KeyState & 8) != 0);
+                await InCardTransferAsync(dragged, folderTarget, (e.KeyState & 8) != 0);
         }
 
         /// <summary>Breadcrumb bölümleri de bırakma hedefidir (üst klasöre taşıma / yükleme).</summary>
@@ -534,7 +595,7 @@ namespace Vision
                     return;
                 }
                 var dragged = e.Data.GetData(InternalDragFormat) as FsEntry;
-                if (dragged != null) await _browser.TransferAsync(dragged, target.Path, (e.KeyState & 8) != 0);
+                if (dragged != null) await InCardTransferAsync(dragged, target.Path, (e.KeyState & 8) != 0);
             };
         }
 

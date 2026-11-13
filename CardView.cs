@@ -945,6 +945,12 @@ namespace Vision
         private async Task SendCurrentAsync()
         {
             if (Session.State != CardState.Connected) return;
+            if (Session.TransferActive)
+            {
+                // Komut satırda kalır; aktarım bitince Enter ile gönderilebilir (G42.10)
+                AppendOutput("\n*** " + CardSession.TransferBusyMessage + " Komut satırda bekliyor.\n");
+                return;
+            }
             string cmd = _input.Text;
             _input.Clear();
             Session.CommandHistory.Add(cmd);    // boş ve art arda tekrar eden komut saklanmaz

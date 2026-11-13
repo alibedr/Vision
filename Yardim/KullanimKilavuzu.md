@@ -518,15 +518,24 @@ Yükleme, kartlara dosya atarken elle izlediğiniz yolun aynısını otomatik ya
 
 **Büyük dosyalar:**
 - Hedef `/ata…` ya da `/bd…` diskiyse yüklemeden önce diskin boş alanı (`dosFsShow`) okunur. Yüklenecek toplam boyut sığmıyorsa hiçbir şey gönderilmeden bildirilir. Aynı adla üzerine yazılacak dosyaların boyutu hesaba katılır. Boş alan okunamazsa yükleme engellenmez.
-- **64 MB'tan büyük dosyalar parça parça aktarılır (iki yönde de):** tek `copy` ile 2,5 GB'lık dosya kartın FTP sürücüsünü zorlayıp telnet bağlantısını düşürüyordu. Dosya 256 MB'lık parçalar halinde FTP üzerinden taşınır; kartta parça ile hedef dosya arasındaki aktarım 16 MB'lık bloklarla yapılır (`read` / `write`; kartta 16 MB'lık ara bellek ayrılır, iş bitince bırakılır).
+- **64 MB'tan büyük dosyalar parça parça aktarılır (iki yönde de):** tek `copy` ile 2,5 GB'lık dosya kartın FTP sürücüsünü zorlayıp telnet bağlantısını düşürüyordu. Dosya 64 MB'lık parçalar halinde FTP üzerinden taşınır (kartın RAM'i hangi dosya olursa olsun en fazla bir parça + 8 MB ara bellek kadar kullanılır); kartta parça ile hedef dosya arasındaki aktarım 8 MB'lık bloklarla yapılır (`read` / `write`; kartta 8 MB'lık ara bellek ayrılır, iş bitince bırakılır).
   - **Karta:** hedef dosya kartta bir kez açılır; her parça FTP'ye gönderilir, kartta açılıp hedefin sonuna eklenir ve FTP'den silinir.
+  - **Klasör yüklerken** içindeki 64 MB üstü dosyalar da klasörle birlikte FTP'ye gönderilmez, kartta sırası gelince aynı yolla parça parça aktarılır.
   - **Bilgisayara:** kaynak dosya kartta açılır; her parça kartta FTP'deki geçici bir dosyaya yazılır, bilgisayara indirilip yerel dosyanın sonuna eklenir ve FTP'den silinir.
   - Bir parça aktarılamazsa ya da iptal edilirse yarım kalan dosya (kartta ya da bilgisayarda) silinir ve kaç parçanın aktarıldığı yazılır.
-- **İlerleme penceresi:** 50 MB'tan büyük ya da 20'den çok dosyalı yüklemelerde **Karta yükleme**, karttan alırken her zaman **Karttan bilgisayara** penceresi açılır:
+- **Bilgisayarda yer denetimi:** karttan almadan önce (Bilgisayara kaydet, sürükle-bırak, Birlikte aç / Varsayılan uygulamayla aç) bilgisayarın diskinde yer olup olmadığına bakılır; yetmiyorsa hiçbir şey indirilmeden şeritte yazar. Açmak için alınan 50 MB üstü dosyalarda da ilerleme penceresi açılır.
+- **Aktarım sürerken o karta komut gönderilmez:** komut satırına yazılan komut gönderilmez, satırda bekler ("Kartta dosya aktarımı sürüyor"); genel komut çubuğu, hızlı komut, reboot ve Sentinel düğmesi de o kartı atlar. Araya giren bir komutun çıktısı aktarımın cevaplarına karışıp dosyayı bozabilirdi. Diğer kartlar etkilenmez.
+- **Doğrulama:** her parçanın sonunda kartta kaynak ve hedef dosyanın konumu (`lseek`), bilgisayarda gelen dosyanın boyutu denetlenir; tek `copy` ile yüklenen dosyaların karttaki boyutu bilgisayardakiyle karşılaştırılır. Tutmazsa "doğrulama başarısız" yazar, dosya silinir.
+- **Bağlantı aktarım sırasında koparsa:** Vision yeniden bağlanınca aktarımın kartta açık bıraktığı dosyaları kapatır, ayrılan belleği bırakır ve yarım kalan dosyayı siler; kartın terminalinde bir satırla bildirilir. Kart bu arada yeniden başladıysa yalnız yarım dosya silinir (açık dosyalar ve bellek zaten bırakılmıştır).
+- **Aktarım sürerken Vision kapatılırsa** sorulur: "İptal et ve kapat" aktarımı temiz biçimde durdurur (kartta dosyalar kapatılır, bellek bırakılır, yarım dosya silinir), ardından Vision kapanır.
+- **FTP'de kalan geçici dosyalar:** önceki oturumlarda yarım kalan aktarımların FTP klasöründe bıraktığı geçici dosyalar (`_tkt_…`, `_parca_…`, `….partN`) kartın FTP bilgisi alınınca bulunur ve **FTP kopyalarını sil** listesine eklenir.
+- **Boş alan güncel kalır:** yükleme, silme, kart içi kopyalama ve diskler arası taşımadan sonra ilgili diskin boş alanı (`dosFsShow`) yeniden okunur; doluluk çubuğu ve adres çubuğundaki boş alan hemen güncellenir.
+- **Kart içinde kopyalama / taşıma** (listede sürükle-bırak, Ctrl ile kopyalama): kopyalamada ve iki disk arasında taşımada (ör. `/ata0a` → `/bd0`) bekleme süresi verinin boyutuna göre ayarlanır (klasörde önce içerik taranır). 64 MB üstü tek dosya 8 MB'lık bloklarla kopyalanır; taşımada kaynak ancak hedef eksiksiz yazılınca silinir, hata / iptalde yarım hedef silinir ve kaynak yerinde kalır. Aynı disk içinde taşıma bir yeniden adlandırmadır, anında biter.
+- **İlerleme penceresi:** 50 MB'tan büyük ya da 20'den çok dosyalı yüklemelerde **Karta yükleme**, kart içinde 50 MB üstü kopyalama / taşımada **Kart içinde kopyalama / taşıma**, karttan alırken her zaman **Karttan bilgisayara** penceresi açılır:
   - Üstteki çubuk toplam ilerleme: yüzde, tamamlanan / toplam boyut ve ara aşamada aktarılan. Her bayt iki aşamadan geçer (bilgisayar ↔ FTP, FTP ↔ kart); yüzde ikisinin ortalamasıdır.
   - **Anlık hız** ve **kalan süre:** FTP hızı son birkaç saniyede, kart hızı son bloklarda ölçülür; kalan süre bu anlık hızlarla hesaplanır. Hızlar saklanmaz, her aktarımda yeniden ölçülür (koşullar değişebilir).
-  - Alttaki ince çubuk o anki adım ("Parça 3/10: kartta açılıp hedefe ekleniyor · 96 MB / 256 MB"). Kart parçayı FTP'den açarken ara bilgi vermez; o sırada hareketli çubuk görünür.
-  - **İptal** FTP aktarımını hemen keser; kartta en geç bir blok (16 MB) sonra durulur. Yüklemede **Arka planda sürdür** pencereyi kapatır, aktarım durum şeridinde sürer.
+  - Alttaki ince çubuk o anki adım ("Parça 12/40: kartta açılıp hedefe ekleniyor · 32 MB / 64 MB"). Kart parçayı FTP'den açarken ara bilgi vermez; o sırada hareketli çubuk görünür.
+  - **İptal** FTP aktarımını hemen keser; kartta en geç bir blok (8 MB) sonra durulur. Yüklemede **Arka planda sürdür** pencereyi kapatır, aktarım durum şeridinde sürer.
   - Aktarım bitince pencere kendiliğinden kapanır; sonuç Dosya Gezgini şeridinde yazar.
 - Bu disklerde (FAT) bir dosya en fazla 4 GB'tan biraz küçük olabilir. 4 GB ve üstü dosyalar yüklenmez, nedeni yazılır.
 - 64 MB'tan küçük dosyalar tek `copy` ile aktarılır. Kart `copy` bitene kadar hiçbir şey yazmaz; Vision bu yüzden kartı dosyanın boyutuna göre bekler: 5 dakikaya ek olarak her MB için 1 saniye (2,5 GB'lık dosyada yaklaşık 48 dakikaya kadar). Kopyalama daha önce biterse hemen devam edilir. Durum şeridinde dosyanın boyutu ve "kartta kopyalama dakikalar sürebilir" notu görünür. Aynı bekleme karttan bilgisayara alırken de geçerlidir.
@@ -748,9 +757,11 @@ Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındak
 | `%APPDATA%\TelnetCards\config.xml` | Gruplar, kartlar (adları, hızlı komutları, reboot seçimleri), terminal, yakınlaştırma, izleme ve ortak FTP ayarları (otomatik kaydedilir; FTP parolası dosyada tutulmaz). |
 | `%APPDATA%\TelnetCards\KomutGecmisi.txt` | Komut geçmişi: yazılan tüm komutlar, satır başına bir komut, eskiden yeniye (en fazla 5.000; tüm kartlar ve genel çubuk ortak; otomatik kaydedilir). Silinirse geçmiş boş başlar. |
 | `logs\GrupAdı_IP_anlik_tarih_saat.log` | "Dosyaya kaydet" ile alınan anlık terminal görüntüleri (her tıklama ayrı dosya). |
-| `logs\hatalar.log` | Bağlantı hatalarının teknik ayrıntıları (hata kodu, özgün İngilizce mesaj). Her zaman açıktır. |
+| `logs\hatalar.log` | Bağlantı ve işlem hatalarının teknik ayrıntıları (hata kodu, özgün İngilizce mesaj) ve beklenmeyen hataların yığın izi. Her zaman açıktır. 5 MB'ı geçince `hatalar.log.1` olarak saklanıp yenisine başlanır (en fazla iki dosya). |
 | `%TEMP%\TelnetCards\SaltOkunur\` | "Birlikte aç" ile açılan salt okunur kopyalar (kapanışta silinir). |
 | `%TEMP%\TelnetCards\Surukle\` | Karttan Windows Gezgini'ne sürüklenen öğelerin geçici kopyaları (kapanışta silinir). |
+
+**Beklenmeyen hata olursa:** Vision Türkçe kısa bir pencereyle bildirir ("Vision'da beklenmeyen bir hata oluştu; Vision çalışmaya devam ediyor") ve ayrıntıyı `logs\hatalar.log`'a yazar. Art arda gelen hatalarda 10 saniyede en fazla bir pencere çıkar, diğerleri yalnız log'a yazılır. Vision'ın kapanmasını gerektiren bir hatada kapanmadan önce bildirilir. Sorun bildirirken `hatalar.log` dosyasını eklemeniz yeterlidir.
 
 `config.xml` ve `%TEMP%` dışındaki klasörler exe'nin yanındadır (Visual Studio'dan çalıştırırken `bin\Debug\`).
 

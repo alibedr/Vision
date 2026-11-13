@@ -219,8 +219,12 @@ namespace Vision
         /// <summary>Dosyanın bir bölümünü (offset'ten length bayt) ayrı bir dosya olarak gönderir (büyük dosya parçaları).</summary>
         Task UploadFileRangeAsync(string localPath, long offset, long length, string remoteName, Action<long> sent = null, CancellationToken ct = default(CancellationToken));
         /// <param name="sent">İsteğe bağlı: klasördeki tüm dosyalar için toplam gönderilen bayt.</param>
-        Task UploadDirectoryAsync(string localDir, string remoteName, Action<long> sent = null, CancellationToken ct = default(CancellationToken));
+        /// <param name="include">İsteğe bağlı: false dönen yerel dosyalar gönderilmez (büyük dosyalar ayrıca parça parça gider).</param>
+        Task UploadDirectoryAsync(string localDir, string remoteName, Action<long> sent = null, CancellationToken ct = default(CancellationToken),
+                                  Func<string, bool> include = null);
         Task DeleteAsync(string remoteName, bool isDirectory);
+        /// <summary>FTP çalışma klasöründeki adlar (NLST).</summary>
+        Task<IList<string>> ListNamesAsync();
         /// <summary>FTP klasöründeki dosyayı bilgisayara indirir (append: yerel dosyanın sonuna ekler — parçalı indirme).</summary>
         Task DownloadFileAsync(string remoteName, string localPath, Action<long> got = null, CancellationToken ct = default(CancellationToken), bool append = false);
         /// <summary>Küçük bir veriyi dosya olarak gönderir (bağlantı sınamasında yazma denemesi).</summary>
@@ -446,19 +450,22 @@ namespace Vision
                 || ex.Status == WebExceptionStatus.Timeout || ex.Status == WebExceptionStatus.ReceiveFailure;
         }
 
-        public async Task UploadDirectoryAsync(string localDir, string remoteName, Action<long> sent = null, CancellationToken ct = default(CancellationToken))
+        public async Task UploadDirectoryAsync(string localDir, string remoteName, Action<long> sent = null, CancellationToken ct = default(CancellationToken),
+                                               Func<string, bool> include = null)
         {
-            await UploadDirectoryAsync(localDir, remoteName, sent, new long[1], ct).ConfigureAwait(false);
+            await UploadDirectoryAsync(localDir, remoteName, sent, new long[1], ct, include).ConfigureAwait(false);
         }
 
-        private async Task UploadDirectoryAsync(string localDir, string remoteName, Action<long> sent, long[] doneBefore, CancellationToken ct)
+        private async Task UploadDirectoryAsync(string localDir, string remoteName, Action<long> sent, long[] doneBefore, CancellationToken ct,
+                                                Func<string, bool> include)
         {
             ct.ThrowIfCancellationRequested();
             await MakeDirectoryAsync(remoteName).ConfigureAwait(false);
             foreach (string dir in Directory.GetDirectories(localDir))
-                await UploadDirectoryAsync(dir, remoteName + "/" + Path.GetFileName(dir), sent, doneBefore, ct).ConfigureAwait(false);
+                await UploadDirectoryAsync(dir, remoteName + "/" + Path.GetFileName(dir), sent, doneBefore, ct, include).ConfigureAwait(false);
             foreach (string file in Directory.GetFiles(localDir))
             {
+                if (include != null && !include(file)) continue;
                 long before = doneBefore[0];
                 Action<long> fileSent = null;
                 if (sent != null) fileSent = n => sent(before + n);
@@ -505,6 +512,29 @@ namespace Vision
                 await DeleteAsync(remoteName + "/" + name, l.StartsWith("d")).ConfigureAwait(false);
             }
             await Complete(Create(remoteName, WebRequestMethods.Ftp.RemoveDirectory)).ConfigureAwait(false);
+        }
+
+        public async Task<IList<string>> ListNamesAsync()
+        {
+            var names = new List<string>();
+            await WithModeFallback("listeleme", "", async passive =>
+            {
+                names.Clear();
+                FtpWebRequest req = Create("", WebRequestMethods.Ftp.ListDirectory, passive);
+                using (var resp = (FtpWebResponse)await req.GetResponseAsync().ConfigureAwait(false))
+                using (var rd = new StreamReader(resp.GetResponseStream()))
+                {
+                    string line;
+                    while ((line = await rd.ReadLineAsync().ConfigureAwait(false)) != null)
+                    {
+                        string n = line.Trim();
+                        int slash = n.LastIndexOf('/');
+                        if (slash >= 0) n = n.Substring(slash + 1);
+                        if (n.Length > 0) names.Add(n);
+                    }
+                }
+            }).ConfigureAwait(false);
+            return names;
         }
 
         public async Task TestAsync()
