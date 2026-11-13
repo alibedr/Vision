@@ -303,7 +303,27 @@ namespace Vision
             }
 
             TransferSettings eff = viaFtp ? CardTransfer(creds) : new TransferSettings();
-            OpResult r = await b.FetchCopyAsync(e, local, viaFtp ? new FtpUploader(eff) : null, eff, !viaFtp);
+            long size = e.Size ?? 0;
+            // Bilgisayarda yer denetimi ve büyük dosyada ilerleme penceresi (G42.5): Bilgisayara kaydet ile aynı
+            if (!EnoughLocalSpace(Path.GetDirectoryName(local), size, e.Name)) { ReadOnlyCopies.DeleteTree(Path.GetDirectoryName(local)); return; }
+            OpResult r;
+            if (viaFtp && size >= UploadProgressDialog.ShowFromBytes)
+            {
+                OpResult res = null;
+                using (var d = new DownloadProgressDialog(e.Name, async tp =>
+                {
+                    tp.Begin(size, 1);
+                    tp.BeginItem(e.Name + "  ·  " + DeviceSpace.FormatBytes(size));
+                    res = await b.FetchCopyAsync(e, local, new FtpUploader(eff), eff, false, tp);
+                    tp.CompleteItem(size);
+                    return res.Ok ? local : null;
+                }))
+                {
+                    d.ShowDialog(FindForm());
+                }
+                r = res != null && res.Ok && File.Exists(local) ? res : OpResult.Fail("\"" + e.Name + "\" açılmadı.");
+            }
+            else r = await b.FetchCopyAsync(e, local, viaFtp ? new FtpUploader(eff) : null, eff, !viaFtp);
             if (!r.Ok) { ReadOnlyCopies.DeleteTree(Path.GetDirectoryName(local)); return; }   // hata şeritte gösterilir
 
             try { ReadOnlyCopies.MarkReadOnly(local); }

@@ -787,6 +787,33 @@ namespace Vision
             return true;
         }
 
+        /// <summary>
+        /// Diske yazan / diskten silen bir işlemden sonra ilgili disklerin boş alanını yeniden okur (dosFsShow): doluluk
+        /// çubukları ve adres çubuğundaki boş alan güncel kalır (G42.4). Yalnız /ata… ve /bd…; "Son cevap" panelini
+        /// değiştirmez; okunamazsa eski değer kalır.
+        /// </summary>
+        private async Task RefreshSpaceAsync(params string[] paths)
+        {
+            var devices = paths.Where(p => !string.IsNullOrEmpty(p)).Select(DeviceOf).Where(WantsSpace)
+                               .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            foreach (string dev in devices)
+            {
+                try
+                {
+                    ShellResponse r = await _exec("dosFsShow " + FsPath.Quote(dev), SpaceTimeoutSec);
+                    if (r == null || r.Failure != null) continue;
+                    DeviceSpace sp = DosFsShowParser.Parse(r.OutputLines);
+                    if (sp == null) continue;
+                    _space[dev] = sp;
+                    foreach (FsEntry e in Entries) if (e.Kind == FsKind.Device && e.FullPath == dev) e.Space = sp;
+                    if (_lastListing != null)
+                        foreach (FsEntry e in _lastListing) if (e.Kind == FsKind.Device && e.FullPath == dev) e.Space = sp;
+                }
+                catch (Exception ex) { ErrorText.LogTechnical("dosFsShow " + dev, ex); }
+            }
+            if (devices.Count > 0) Raise();
+        }
+
         private FsEntry DeviceEntry(string device)
         {
             int? code;
@@ -915,7 +942,9 @@ namespace Vision
 
             string failHint = entry.Kind == FsKind.File ? null
                 : recursive ? null : "Klasör boş değilse \"İçindekilerle birlikte sil\"i kullanın.";
-            return await RunAsync(cmd, timeout, "\"" + entry.Name + "\" silinemedi", "\"" + entry.Name + "\" silindi.", failHint);
+            OpResult result = await RunAsync(cmd, timeout, "\"" + entry.Name + "\" silinemedi", "\"" + entry.Name + "\" silindi.", failHint);
+            if (result.Ok || result.Response != null) await RefreshSpaceAsync(entry.FullPath);
+            return result;
         }
 
         public async Task<OpResult> RenameAsync(FsEntry entry, string newName)
@@ -993,7 +1022,11 @@ namespace Vision
                 }
                 timeout = bytes >= 0 ? CopyTimeoutSec(bytes) : CopyTimeoutSec(4L * 1024 * 1024 * 1024);
                 if (entry.Kind == FsKind.File && bytes >= PartThresholdBytes)
-                    return await CardCopyLargeAsync(entry, dst, !copy, destDir, verb);
+                {
+                    OpResult large = await CardCopyLargeAsync(entry, dst, !copy, destDir, verb);
+                    await RefreshSpaceAsync(destDir, copy ? null : entry.FullPath);
+                    return large;
+                }
             }
             if (_tp != null && bytes > 0)
             {
@@ -1005,6 +1038,7 @@ namespace Vision
                 "\"" + entry.Name + "\" " + (copy ? "kopyalanamadı" : "taşınamadı"),
                 "\"" + entry.Name + "\" → " + destDir + " " + verb + ".");
             if (_tp != null && bytes > 0 && result.Ok) _tp.EndCard();
+            if (movesData) await RefreshSpaceAsync(destDir, copy ? null : entry.FullPath);
             return result;
         }
 
@@ -1308,6 +1342,7 @@ namespace Vision
                 }
 
                 await RefreshListingQuietly();
+                if (Error == null) await RefreshSpaceAsync(destDir);
                 if (failures.Count == 0)
                 {
                     Notice = ok + " öğe karta yüklendi → " + destDir + (modeNote != null ? "  ·  " + modeNote : "");
