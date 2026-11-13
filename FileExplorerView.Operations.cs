@@ -440,7 +440,7 @@ namespace Vision
             if (creds == null || card != _card || b != _browser) return;
             TransferSettings eff = CardTransfer(creds);
             // Büyük yüklemede ilerleme penceresi (G40): boyut hesaplanınca gerekiyorsa açılır, bitince kapanır
-            var tp = new TransferProgress();
+            var tp = new TransferProgress(TransferDirection.ToCard);
             string title = paths.Count == 1 ? "\"" + Path.GetFileName(paths[0].TrimEnd('\\', '/')) + "\" → " + (card.Label ?? card.Ip) + ":" + target
                                             : paths.Count + " öğe → " + (card.Label ?? card.Ip) + ":" + target;
             UploadProgressDialog.Watch(FindForm(), title, tp);

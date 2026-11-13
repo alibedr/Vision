@@ -1473,6 +1473,13 @@ namespace Vision
                      "Bilgisayara: listedeki bir öğeyi masaüstüne ya da açık bir klasöre sürükleyin; bıraktığınızda karttan indirilir.\n" +
                      "Liste içinde: bir klasörün üstüne bırakmak taşır, Ctrl basılıysa kopyalar.",
                      () => TourRect(_fileExplorer.TourList));
+            fileStep("Büyük dosyalar ve ilerleme",
+                     "64 MB'tan büyük dosyalar iki yönde de 256 MB'lık parçalar halinde aktarılır; kart tek seferde dev bir dosyayla " +
+                     "uğraşmaz. Yüklemeden önce kartın diskinde yer olup olmadığına bakılır.\n\n" +
+                     "Büyük aktarımlarda ilerleme penceresi açılır: yüzde, aktarılan / toplam, FTP ve kartın o anki hızı, bu hızlarla " +
+                     "hesaplanan kalan süre. İptal FTP aktarımını hemen keser, kartta en geç 16 MB'lık bir blok sonra durur ve yarım " +
+                     "kalan dosyayı siler. Yüklemede \"Arka planda sürdür\" pencereyi kapatır, aktarım sürer.",
+                     () => TourRect(_fileExplorer.TourList));
 
             // ---------------- Komut Kütüphanesi ----------------
             Action<string, string, Func<Rectangle?>> libStep = (title, body, target) => steps.Add(new TourStep

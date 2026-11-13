@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
 
@@ -213,14 +214,15 @@ namespace Vision
         /// <summary>FTP'deki çalışma klasörünü (…/Vision) yoksa oluşturur; varsa bir şey yapmaz.</summary>
         Task EnsureWorkFolderAsync();
         /// <param name="sent">İsteğe bağlı: bu aktarımda o ana kadar gönderilen bayt (ilerleme penceresi için).</param>
-        Task UploadFileAsync(string localPath, string remoteName, Action<long> sent = null);
+        /// <param name="ct">İptal: aktarım hemen kesilir (OperationCanceledException).</param>
+        Task UploadFileAsync(string localPath, string remoteName, Action<long> sent = null, CancellationToken ct = default(CancellationToken));
         /// <summary>Dosyanın bir bölümünü (offset'ten length bayt) ayrı bir dosya olarak gönderir (büyük dosya parçaları).</summary>
-        Task UploadFileRangeAsync(string localPath, long offset, long length, string remoteName, Action<long> sent = null);
+        Task UploadFileRangeAsync(string localPath, long offset, long length, string remoteName, Action<long> sent = null, CancellationToken ct = default(CancellationToken));
         /// <param name="sent">İsteğe bağlı: klasördeki tüm dosyalar için toplam gönderilen bayt.</param>
-        Task UploadDirectoryAsync(string localDir, string remoteName, Action<long> sent = null);
+        Task UploadDirectoryAsync(string localDir, string remoteName, Action<long> sent = null, CancellationToken ct = default(CancellationToken));
         Task DeleteAsync(string remoteName, bool isDirectory);
-        /// <summary>FTP klasöründeki dosyayı bilgisayara indirir.</summary>
-        Task DownloadFileAsync(string remoteName, string localPath);
+        /// <summary>FTP klasöründeki dosyayı bilgisayara indirir (append: yerel dosyanın sonuna ekler — parçalı indirme).</summary>
+        Task DownloadFileAsync(string remoteName, string localPath, Action<long> got = null, CancellationToken ct = default(CancellationToken), bool append = false);
         /// <summary>Küçük bir veriyi dosya olarak gönderir (bağlantı sınamasında yazma denemesi).</summary>
         Task UploadBytesAsync(byte[] data, string remoteName);
         /// <summary>Ayarları sınar (bağlan, klasörü listele). Hata varsa istisna fırlatır.</summary>
@@ -309,18 +311,21 @@ namespace Vision
             }
         }
 
-        public async Task UploadFileAsync(string localPath, string remoteName, Action<long> sent = null)
+        public async Task UploadFileAsync(string localPath, string remoteName, Action<long> sent = null, CancellationToken ct = default(CancellationToken))
         {
             if (!File.Exists(localPath)) throw new FtpOperationException("gönderme", DisplayUrl(remoteName), "Yerel dosya bulunamadı: " + localPath, null);
-            await UploadFileRangeAsync(localPath, 0, new FileInfo(localPath).Length, remoteName, sent).ConfigureAwait(false);
+            await UploadFileRangeAsync(localPath, 0, new FileInfo(localPath).Length, remoteName, sent, ct).ConfigureAwait(false);
         }
 
-        public async Task UploadFileRangeAsync(string localPath, long offset, long length, string remoteName, Action<long> sent = null)
+        public async Task UploadFileRangeAsync(string localPath, long offset, long length, string remoteName, Action<long> sent = null, CancellationToken ct = default(CancellationToken))
         {
             if (!File.Exists(localPath)) throw new FtpOperationException("gönderme", DisplayUrl(remoteName), "Yerel dosya bulunamadı: " + localPath, null);
-            await WithModeFallback("gönderme", remoteName, async passive =>
+            await WithModeFallback("gönderme", remoteName, ct, async passive =>
             {
+                ct.ThrowIfCancellationRequested();
                 FtpWebRequest req = Create(remoteName, WebRequestMethods.Ftp.UploadFile, passive);
+                using (ct.Register(req.Abort))
+                {
                 if (sent != null) sent(0);
                 // Dosya başka programda açık olsa da okunabilsin (FileShare.ReadWrite)
                 using (var src = new FileStream(localPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
@@ -333,6 +338,7 @@ namespace Vision
                         long left = length;
                         while (left > 0)
                         {
+                            ct.ThrowIfCancellationRequested();
                             int n = await src.ReadAsync(buffer, 0, (int)Math.Min(buffer.Length, left)).ConfigureAwait(false);
                             if (n <= 0) throw new IOException("Dosya beklenenden kısa: " + localPath);
                             await dst.WriteAsync(buffer, 0, n).ConfigureAwait(false);
@@ -342,6 +348,7 @@ namespace Vision
                     }
                 }
                 await Complete(req).ConfigureAwait(false);
+                }
             }).ConfigureAwait(false);
         }
 
@@ -357,15 +364,33 @@ namespace Vision
             }).ConfigureAwait(false);
         }
 
-        public async Task DownloadFileAsync(string remoteName, string localPath)
+        public async Task DownloadFileAsync(string remoteName, string localPath, Action<long> got = null, CancellationToken ct = default(CancellationToken), bool append = false)
         {
-            await WithModeFallback("indirme", remoteName, async passive =>
+            long startLength = append && File.Exists(localPath) ? new FileInfo(localPath).Length : 0;
+            await WithModeFallback("indirme", remoteName, ct, async passive =>
             {
+                ct.ThrowIfCancellationRequested();
                 FtpWebRequest req = Create(remoteName, WebRequestMethods.Ftp.DownloadFile, passive);
+                using (ct.Register(req.Abort))
                 using (var resp = (FtpWebResponse)await req.GetResponseAsync().ConfigureAwait(false))
                 using (Stream src = resp.GetResponseStream())
-                using (FileStream dst = File.Create(localPath))
-                    await src.CopyToAsync(dst).ConfigureAwait(false);
+                using (FileStream dst = new FileStream(localPath, append ? FileMode.OpenOrCreate : FileMode.Create, FileAccess.Write, FileShare.Read))
+                {
+                    // Kip değiştirilip yeniden denenirse yarım kalan kısım atılır
+                    dst.SetLength(startLength);
+                    dst.Seek(startLength, SeekOrigin.Begin);
+                    if (got != null) got(0);
+                    var buffer = new byte[1024 * 1024];
+                    long total = 0;
+                    int n;
+                    while ((n = await src.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false)) > 0)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        await dst.WriteAsync(buffer, 0, n).ConfigureAwait(false);
+                        total += n;
+                        if (got != null) got(total);
+                    }
+                }
             }).ConfigureAwait(false);
         }
 
@@ -373,7 +398,12 @@ namespace Vision
         /// Veri bağlantısı (pasif / etkin kip) kurulamadıysa işlemi bir kez diğer kiple dener. Oturum açma ya da
         /// izin hatalarında yeniden denenmez. Hata, aşama + adres + sunucu cevabıyla FtpOperationException olur.
         /// </summary>
-        private async Task WithModeFallback(string stage, string remoteName, Func<bool, Task> op)
+        private Task WithModeFallback(string stage, string remoteName, Func<bool, Task> op)
+        {
+            return WithModeFallback(stage, remoteName, CancellationToken.None, op);
+        }
+
+        private async Task WithModeFallback(string stage, string remoteName, CancellationToken ct, Func<bool, Task> op)
         {
             ModeNote = null;
             try
@@ -381,6 +411,10 @@ namespace Vision
                 await op(_s.UsePassive).ConfigureAwait(false);
                 return;
             }
+            // İptal: istek kesildi (Abort); diğer kiple yeniden denenmez
+            catch (WebException) when (ct.IsCancellationRequested) { throw new OperationCanceledException(ct); }
+            catch (IOException) when (ct.IsCancellationRequested) { throw new OperationCanceledException(ct); }
+            catch (ObjectDisposedException) when (ct.IsCancellationRequested) { throw new OperationCanceledException(ct); }
             catch (WebException ex) when (IsDataConnectionProblem(ex))
             {
                 try
@@ -390,7 +424,11 @@ namespace Vision
                                (_s.UsePassive ? "etkin" : "pasif") + " kiple gönderildi. FTP ayarlarında kipi değiştirmeniz önerilir.";
                     return;
                 }
-                catch (WebException ex2) { throw new FtpOperationException(stage, DisplayUrl(remoteName), null, ex2); }
+                catch (WebException ex2)
+                {
+                    if (ct.IsCancellationRequested) throw new OperationCanceledException(ct);
+                    throw new FtpOperationException(stage, DisplayUrl(remoteName), null, ex2);
+                }
             }
             catch (WebException ex) { throw new FtpOperationException(stage, DisplayUrl(remoteName), null, ex); }
             catch (IOException ex) { throw new FtpOperationException(stage, DisplayUrl(remoteName), "Yerel dosya okunamadı/yazılamadı: " + ex.Message, ex); }
@@ -408,22 +446,23 @@ namespace Vision
                 || ex.Status == WebExceptionStatus.Timeout || ex.Status == WebExceptionStatus.ReceiveFailure;
         }
 
-        public async Task UploadDirectoryAsync(string localDir, string remoteName, Action<long> sent = null)
+        public async Task UploadDirectoryAsync(string localDir, string remoteName, Action<long> sent = null, CancellationToken ct = default(CancellationToken))
         {
-            await UploadDirectoryAsync(localDir, remoteName, sent, new long[1]).ConfigureAwait(false);
+            await UploadDirectoryAsync(localDir, remoteName, sent, new long[1], ct).ConfigureAwait(false);
         }
 
-        private async Task UploadDirectoryAsync(string localDir, string remoteName, Action<long> sent, long[] doneBefore)
+        private async Task UploadDirectoryAsync(string localDir, string remoteName, Action<long> sent, long[] doneBefore, CancellationToken ct)
         {
+            ct.ThrowIfCancellationRequested();
             await MakeDirectoryAsync(remoteName).ConfigureAwait(false);
             foreach (string dir in Directory.GetDirectories(localDir))
-                await UploadDirectoryAsync(dir, remoteName + "/" + Path.GetFileName(dir), sent, doneBefore).ConfigureAwait(false);
+                await UploadDirectoryAsync(dir, remoteName + "/" + Path.GetFileName(dir), sent, doneBefore, ct).ConfigureAwait(false);
             foreach (string file in Directory.GetFiles(localDir))
             {
                 long before = doneBefore[0];
                 Action<long> fileSent = null;
                 if (sent != null) fileSent = n => sent(before + n);
-                await UploadFileAsync(file, remoteName + "/" + Path.GetFileName(file), fileSent).ConfigureAwait(false);
+                await UploadFileAsync(file, remoteName + "/" + Path.GetFileName(file), fileSent, ct).ConfigureAwait(false);
                 try { doneBefore[0] = before + new FileInfo(file).Length; } catch { }
             }
         }

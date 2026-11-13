@@ -169,7 +169,7 @@ namespace Vision
         /// <summary>İlerleme penceresiyle indirir; başarılıysa bilgisayardaki yol, değilse (hata / iptal) null.</summary>
         private string RunTransferDialog(FsEntry entry, string targetDir)
         {
-            using (var d = new DownloadProgressDialog(entry.Name, (progress, cancelled) => DownloadToAsync(entry, targetDir, progress, cancelled)))
+            using (var d = new DownloadProgressDialog(entry.Name, tp => DownloadToAsync(entry, targetDir, tp)))
             {
                 d.ShowDialog(FindForm());
                 return d.Result;
@@ -178,12 +178,13 @@ namespace Vision
 
         /// <summary>
         /// Kart öğesini bilgisayardaki klasöre indirir (klasörse alt klasörleriyle). FTP bilgisi bu karttan alınır.
-        /// Dönüş: indirilen dosya / klasörün yolu; hata ya da iptalde null (neden Dosya Gezgini şeridinde).
+        /// Büyük dosyalar parça parça alınır (G41). Dönüş: indirilen dosya / klasörün yolu; hata ya da iptalde null
+        /// (neden Dosya Gezgini şeridinde).
         /// </summary>
-        private async Task<string> DownloadToAsync(FsEntry entry, string targetDir, IProgress<string> progress, Func<bool> cancelled)
+        private async Task<string> DownloadToAsync(FsEntry entry, string targetDir, TransferProgress tp)
         {
             FileBrowser b = _browser;
-            progress.Report("Kartın FTP bilgisi hazırlanıyor…");
+            tp.Note("Kartın FTP bilgisi hazırlanıyor…");
             CardFtpCredentials creds = await EnsureCardFtpAsync(false);
             if (creds == null || b != _browser) return null;
             TransferSettings eff = CardTransfer(creds);
@@ -192,69 +193,34 @@ namespace Vision
 
             if (entry.Kind != FsKind.Folder)
             {
-                progress.Report(entry.Name);
-                OpResult r = await b.FetchCopyAsync(entry, top, ftp, eff, false);
+                long size = entry.Size ?? 0;
+                tp.Begin(size, 1);
+                tp.BeginItem(entry.Name + (size > 0 ? "  ·  " + DeviceSpace.FormatBytes(size) : ""));
+                OpResult r = await b.FetchCopyAsync(entry, top, ftp, eff, false, tp);
+                tp.CompleteItem(size);
                 return r.Ok ? top : null;
             }
 
-            progress.Report("Klasör taranıyor…");
+            tp.Note("Klasör taranıyor…");
             var tree = new FileBrowser.FolderTree();
             OpResult scan = await b.CollectTreeAsync(entry, tree);
-            if (!scan.Ok || cancelled()) return null;
+            if (!scan.Ok || tp.CancelRequested) return null;
+            long total = 0;
+            foreach (KeyValuePair<string, FsEntry> f in tree.Files) total += f.Value.Size ?? 0;
+            tp.Begin(total, tree.Files.Count);
             Directory.CreateDirectory(top);
             foreach (string f in tree.Folders) Directory.CreateDirectory(Path.Combine(top, f));
             int i = 0;
             foreach (KeyValuePair<string, FsEntry> f in tree.Files)
             {
-                if (cancelled()) return null;
+                if (tp.CancelRequested) return null;
                 i++;
-                progress.Report(i + " / " + tree.Files.Count + "  ·  " + f.Key);
-                OpResult r = await b.FetchCopyAsync(f.Value, Path.Combine(top, f.Key), ftp, eff, false);
+                tp.BeginItem(i + " / " + tree.Files.Count + "  ·  " + f.Key);
+                OpResult r = await b.FetchCopyAsync(f.Value, Path.Combine(top, f.Key), ftp, eff, false, tp);
+                tp.CompleteItem(f.Value.Size ?? 0);
                 if (!r.Ok) return null;
             }
             return top;
-        }
-
-        /// <summary>Karttan indirme ilerlemesi; İptal o anki dosya bitince durdurur.</summary>
-        private sealed class DownloadProgressDialog : DarkDialog
-        {
-            private readonly Func<IProgress<string>, Func<bool>, Task<string>> _work;
-            private readonly Label _what = Theme.MakeLabel("", Theme.Ui, Theme.TextMuted);
-            private readonly ProgressBar _bar = new ProgressBar { Style = ProgressBarStyle.Marquee, MarqueeAnimationSpeed = 30 };
-            private readonly Button _cancel = Theme.MakeButton("İptal", Theme.ButtonKind.Secondary);
-            private bool _cancelled, _done;
-
-            public DownloadProgressDialog(string name, Func<IProgress<string>, Func<bool>, Task<string>> work)
-                : base("Karttan bilgisayara", new Size(460, 190))
-            {
-                _work = work;
-                ControlBox = false;
-                var title = Theme.MakeLabel("\"" + name + "\" karttan alınıyor…", Theme.UiBold, Theme.Text);
-                title.Location = new Point(20, 18);
-                title.MaximumSize = new Size(420, 0);
-                _what.AutoSize = false;
-                _what.SetBounds(20, 46, 420, 20);
-                _what.AutoEllipsis = true;
-                _bar.SetBounds(20, 72, 420, 10);
-                _cancel.Width = 90;
-                _cancel.Location = new Point(ClientSize.Width - 20 - _cancel.Width, ClientSize.Height - FooterHeight + 18);
-                _cancel.Click += (s, e) => { _cancelled = true; _cancel.Enabled = false; _what.Text = "İptal ediliyor (o anki dosya bitince)…"; };
-                Controls.AddRange(new Control[] { title, _what, _bar, _cancel });
-                Shown += async (s, e) => await RunAsync();
-                FormClosing += (s, e) => { if (!_done) e.Cancel = true; };   // iş bitmeden kapanmaz (İptal ile durdurulur)
-            }
-
-            public string Result { get; private set; }
-
-            private async Task RunAsync()
-            {
-                var progress = new Progress<string>(t => { if (!_cancelled) _what.Text = t; });
-                try { Result = await _work(progress, () => _cancelled); }
-                catch (Exception ex) { ErrorText.LogTechnical("karttan indirme", ex); Result = null; }
-                if (_cancelled) Result = null;
-                _done = true;
-                Close();
-            }
         }
     }
 

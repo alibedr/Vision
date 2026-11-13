@@ -17,7 +17,7 @@ Geliştiren: **Ali Bedir**
 - Boot ayarları penceresi: `bspBootChange` / `bootChange` alanları araya giren loglardan ayrı, tek ekranda izlenir ve düzenlenir
 - Genel komut çubuğu: ekrandaki tüm kartlara aynı komut
 - Periyodik bağlantı izleme ve otomatik yeniden bağlanma
-- Kart Dosya Gezgini: `devs` ile hızlı cihaz listesi, `ll`, klasör ve dosya işlemleri; bilgisayardan karta ve karttan bilgisayara (masaüstüne / herhangi bir klasöre) sürükle-bırak, FTP üzerinden karta yükleme (büyük dosyalarda boş alan denetimi ve boyuta göre bekleme), salt okunur "Birlikte aç"
+- Kart Dosya Gezgini: `devs` ile hızlı cihaz listesi, `ll`, klasör ve dosya işlemleri; bilgisayardan karta ve karttan bilgisayara (masaüstüne / herhangi bir klasöre) sürükle-bırak, FTP üzerinden karta yükleme ve karttan alma (büyük dosyalar iki yönde de parça parça; ilerleme penceresinde anlık hız, kalan süre ve anında iptal; yüklemede boş alan denetimi), salt okunur "Birlikte aç"
 - Sentinel: kartın içindeki web sunucusunu tek tıkla başlatma / durdurma ve kartın sağlık sayfasını (CPU, task, socket) tarayıcı açmadan uygulama içinde görüntüleme
 - Komut Kütüphanesi: exe'ye gömülü, salt okunur 113 VxWorks 6.4 kabuk komutu (açıklama, örnek kullanım, örnek çıktı), modüllerde gruplama ve komutu tek tıkla bir kartın komut satırına aktarma
 - 21 hazır tema: Vision temaları (Koyu, Açık, Yüksek kontrast, Matrix) ve popüler editör temaları (Dark Modern, Light Modern, Dark+, Monokai, Solarized Dark, Solarized Light, Dracula, One Dark Pro, GitHub Dark, GitHub Light, Nord, Night Owl, Tokyo Night, Catppuccin Mocha, Gruvbox Dark, Material Theme, Ayu Dark) ve tema düzenleyici: renk değiştirme, anlık önizleme, kaydetme, varsayılana dönme (sekme şeridindeki Temalar menüsü; Ctrl+Shift+L sonraki tema)
