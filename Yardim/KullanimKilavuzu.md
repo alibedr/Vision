@@ -518,14 +518,18 @@ Yükleme, kartlara dosya atarken elle izlediğiniz yolun aynısını otomatik ya
 
 **Büyük dosyalar:**
 - Hedef `/ata…` ya da `/bd…` diskiyse yüklemeden önce diskin boş alanı (`dosFsShow`) okunur. Yüklenecek toplam boyut sığmıyorsa hiçbir şey gönderilmeden bildirilir. Aynı adla üzerine yazılacak dosyaların boyutu hesaba katılır. Boş alan okunamazsa yükleme engellenmez.
-- **1 GB'tan büyük dosyalar parça parça aktarılır:** tek `copy` ile 2,5 GB'lık dosya kartın FTP sürücüsünü zorlayıp telnet bağlantısını düşürüyordu. Vision kartta hedef dosyayı bir kez açar (`open`), dosyayı 256 MB'lık parçalar halinde FTP'ye gönderir, her parçayı kartta açıp hedefin sonuna ekler (`copyStreams`), parçayı kapatıp FTP'den siler; sonunda hedefi kapatır. Durum şeridinde "parça 3/10" gibi görünür. Bir parça aktarılamazsa kartta yarım kalan dosya silinir ve kaç parçanın aktarıldığı yazılır.
-- **İlerleme penceresi:** 50 MB'tan büyük ya da 20'den çok dosyalı yüklemelerde **Karta yükleme** penceresi açılır:
-  - Üstteki çubuk toplam ilerleme: yüzde, kartta tamamlanan / toplam boyut, FTP'ye gönderilen, geçen süre ve **kalan süre tahmini**. Her bayt iki aşamadan geçer (bilgisayardan FTP'ye, FTP'den karta); yüzde ikisinin ortalamasıdır.
-  - Alttaki ince çubuk o anki adım: FTP'ye gönderimde bayt bayt dolar ("Parça 3/10: FTP'ye gönderiliyor · 120 MB / 256 MB"); kartta kopyalama sırasında kart ara bilgi vermediği için hareketli çubuk görünür, parça / dosya bitince toplam ilerler.
-  - **Arka planda sürdür** pencereyi kapatır, yükleme durum şeridinde sürer. **İptal** o anki parça / dosya bitince durdurur (parçalı aktarımda kartta yarım kalan dosya silinir).
-  - Yükleme bitince pencere kendiliğinden kapanır; sonuç Dosya Gezgini şeridinde yazar.
+- **64 MB'tan büyük dosyalar parça parça aktarılır (iki yönde de):** tek `copy` ile 2,5 GB'lık dosya kartın FTP sürücüsünü zorlayıp telnet bağlantısını düşürüyordu. Dosya 256 MB'lık parçalar halinde FTP üzerinden taşınır; kartta parça ile hedef dosya arasındaki aktarım 16 MB'lık bloklarla yapılır (`read` / `write`; kartta 16 MB'lık ara bellek ayrılır, iş bitince bırakılır).
+  - **Karta:** hedef dosya kartta bir kez açılır; her parça FTP'ye gönderilir, kartta açılıp hedefin sonuna eklenir ve FTP'den silinir.
+  - **Bilgisayara:** kaynak dosya kartta açılır; her parça kartta FTP'deki geçici bir dosyaya yazılır, bilgisayara indirilip yerel dosyanın sonuna eklenir ve FTP'den silinir.
+  - Bir parça aktarılamazsa ya da iptal edilirse yarım kalan dosya (kartta ya da bilgisayarda) silinir ve kaç parçanın aktarıldığı yazılır.
+- **İlerleme penceresi:** 50 MB'tan büyük ya da 20'den çok dosyalı yüklemelerde **Karta yükleme**, karttan alırken her zaman **Karttan bilgisayara** penceresi açılır:
+  - Üstteki çubuk toplam ilerleme: yüzde, tamamlanan / toplam boyut ve ara aşamada aktarılan. Her bayt iki aşamadan geçer (bilgisayar ↔ FTP, FTP ↔ kart); yüzde ikisinin ortalamasıdır.
+  - **Anlık hız** ve **kalan süre:** FTP hızı son birkaç saniyede, kart hızı son bloklarda ölçülür; kalan süre bu anlık hızlarla hesaplanır. Hızlar saklanmaz, her aktarımda yeniden ölçülür (koşullar değişebilir).
+  - Alttaki ince çubuk o anki adım ("Parça 3/10: kartta açılıp hedefe ekleniyor · 96 MB / 256 MB"). Kart parçayı FTP'den açarken ara bilgi vermez; o sırada hareketli çubuk görünür.
+  - **İptal** FTP aktarımını hemen keser; kartta en geç bir blok (16 MB) sonra durulur. Yüklemede **Arka planda sürdür** pencereyi kapatır, aktarım durum şeridinde sürer.
+  - Aktarım bitince pencere kendiliğinden kapanır; sonuç Dosya Gezgini şeridinde yazar.
 - Bu disklerde (FAT) bir dosya en fazla 4 GB'tan biraz küçük olabilir. 4 GB ve üstü dosyalar yüklenmez, nedeni yazılır.
-- Kart `copy` bitene kadar hiçbir şey yazmaz. Vision bu yüzden kartı dosyanın boyutuna göre bekler: 5 dakikaya ek olarak her MB için 1 saniye (2,5 GB'lık dosyada yaklaşık 48 dakikaya kadar). Kopyalama daha önce biterse hemen devam edilir. Durum şeridinde dosyanın boyutu ve "kartta kopyalama dakikalar sürebilir" notu görünür. Aynı bekleme karttan bilgisayara alırken de geçerlidir.
+- 64 MB'tan küçük dosyalar tek `copy` ile aktarılır. Kart `copy` bitene kadar hiçbir şey yazmaz; Vision bu yüzden kartı dosyanın boyutuna göre bekler: 5 dakikaya ek olarak her MB için 1 saniye (2,5 GB'lık dosyada yaklaşık 48 dakikaya kadar). Kopyalama daha önce biterse hemen devam edilir. Durum şeridinde dosyanın boyutu ve "kartta kopyalama dakikalar sürebilir" notu görünür. Aynı bekleme karttan bilgisayara alırken de geçerlidir.
 
 Yüklemek için: Windows Gezgini'nden dosyaları listeye **sürükleyip bırakın** (bir klasörün üzerine bırakırsanız o klasöre; boş bir klasöre de bırakılabilir) ya da **Yükle** (yukarı ok simgesi) düğmesini kullanın. Hedefte aynı adlı öğe varsa üzerine yazmadan önce sorulur.
 

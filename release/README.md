@@ -22,4 +22,5 @@ Releases'ta `vX.Y` etiketiyle `Vision.zip` olarak da yayınlanır.
 
 | Sürüm | Değişiklikler |
 |---|---|
+| v1.2 | Karttan büyük dosya alma (parçalı), anında iptal, anlık hıza göre kalan süre, indirmede ilerleme penceresi. |
 | v1.1 | Büyük dosya yükleme: 1 GB üstü dosyalar parça parça aktarılır, kartta kopyalama süresi dosya boyutuna göre, yüklemeden önce boş alan denetimi, FAT 4 GB sınırı, yükleme ilerleme penceresi. |
