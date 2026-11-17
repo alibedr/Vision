@@ -253,6 +253,22 @@ namespace VisionTests
         }
 
         [Test]
+        public void Boot_PenceredenKayitGonderilenDegerleriAlir()
+        {
+            // Boot ayarları penceresinin "Bu ayarları kaydet…" düğmesi: kartın gösterdiği değer ya da gönderilen yeni değer (G51.9)
+            var fields = new List<BootField>
+            {
+                new BootField { Label = "file name", OriginalValue = "/ata0a/eski", CardValue = "/ata0a/eski", Entered = "/ata0a/yeni" },
+                new BootField { Label = "other (o)", OriginalValue = "x", CardValue = "x", Entered = BootChangeParser.ClearToken },
+                new BootField { Label = "host inet (h)", OriginalValue = "10.0.0.1", CardValue = "10.0.0.1" },
+            };
+            BootRecord rec = BootRecordLogic.FromFields("Pencere", "bootChange", "10.0.0.5", fields, DateTime.Now);
+            Check.Equal("/ata0a/yeni", rec.ValueOf("file name"), "gönderilen yeni değer");
+            Check.Equal("", rec.ValueOf("other (o)"), "temizlenen alan boş");
+            Check.Equal("10.0.0.1", rec.ValueOf("host inet (h)"), "değişmeyen alan");
+        }
+
+        [Test]
         public void Boot_KarsilastirmaDurumlari()
         {
             var rec = new BootRecord { Name = "x", Command = "bootChange" };

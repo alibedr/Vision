@@ -361,23 +361,56 @@ namespace Vision
 
         // ---------- Kaydetme / ad / silme ----------
 
-        private async Task SaveFromCardAsync()
+        /// <summary>
+        /// Yeni kayıt için ad sorar; kart 5 kayıtla doluysa önce en eskinin yerine kaydetmeyi önerir. Vazgeçilirse null.
+        /// Boot ayarları penceresi de (G51.9) kullanır.
+        /// </summary>
+        internal static string AskNewRecord(IWin32Window owner, CardConfig card, out BootRecord replace)
         {
-            BootRecord replace = null;
-            if (OwnRecords.Count >= BootRecordLogic.MaxPerCard)
+            replace = null;
+            List<BootRecord> own = card.BootRecords ?? (card.BootRecords = new List<BootRecord>());
+            if (own.Count >= BootRecordLogic.MaxPerCard)
             {
-                BootRecord oldest = OwnRecords.OrderBy(r => r.Created).First();
-                int c = ChoiceDialog.Ask(this, "Kayıt sınırı",
+                BootRecord oldest = own.OrderBy(r => r.Created).First();
+                int c = ChoiceDialog.Ask(owner, "Kayıt sınırı",
                     "Bu kartta en fazla " + BootRecordLogic.MaxPerCard + " kayıt tutulur.",
                     "Yeni kayıt en eski kaydın (\"" + oldest.Name + "\", " + oldest.Created.ToString("dd.MM.yyyy HH:mm") + ") yerine alınabilir. " +
                     "İsterseniz önce başka bir kaydı silin.",
                     new[] { "Vazgeç", "En eskisinin yerine kaydet" }, 0, 1);
-                if (c != 1) return;
+                if (c != 1) return null;
                 replace = oldest;
             }
-            string name = InputDialog.Ask(this, "Boot ayarlarını kaydet", "Kayıt adı (ör. \"Fabrika ayarı\", \"Test sahası\"):",
-                                          "Kayıt " + DateTime.Now.ToString("dd.MM.yyyy HH:mm"),
-                                          n => BootRecordLogic.ValidateName(n, OwnRecords.Where(r => r != replace), null));
+            BootRecord skip = replace;
+            return InputDialog.Ask(owner, "Boot ayarlarını kaydet", "Kayıt adı (ör. \"Fabrika ayarı\", \"Test sahası\"):",
+                                   "Kayıt " + DateTime.Now.ToString("dd.MM.yyyy HH:mm"),
+                                   n => BootRecordLogic.ValidateName(n, own.Where(r => r != skip), null));
+        }
+
+        /// <summary>Kaydı karta ekler (gerekirse en eskinin yerine), yapılandırmayı kaydeder, olay günlüğüne yazar, açık pencereyi yeniler.</summary>
+        internal static void AddRecord(CardConfig card, BootRecord rec, BootRecord replace, string command, CardSession session, string from)
+        {
+            List<BootRecord> own = card.BootRecords ?? (card.BootRecords = new List<BootRecord>());
+            if (replace != null) own.Remove(replace);
+            own.Add(rec);
+            card.BootCommand = command;
+            var h = SaveConfig;
+            if (h != null) h();
+            string msg = "Boot ayarları \"" + rec.Name + "\" adıyla kaydedildi (" + rec.Fields.Count + " alan" +
+                         (replace != null ? "; en eski kayıt \"" + replace.Name + "\" yerine" : "") + (from != null ? "; " + from : "") + ").";
+            if (session != null) session.LogEvent(CardEventLog.Boot, msg);
+            else CardEventLog.Write(card, CardEventLog.Boot, msg);
+            BootRecordsDialog d;
+            if (Open.TryGetValue(card, out d) && !d.IsDisposed)
+            {
+                d.SetMessage("✓  \"" + rec.Name + "\" kaydedildi (" + rec.Fields.Count + " alan" + (from != null ? "; " + from : "") + ").", Theme.Success);
+                d.FillRecords(rec);
+            }
+        }
+
+        private async Task SaveFromCardAsync()
+        {
+            BootRecord replace;
+            string name = AskNewRecord(this, _card, out replace);
             if (name == null) return;
 
             BootRunResult r0 = await RunReadAsync("Kaydediliyor");
@@ -390,12 +423,7 @@ namespace Vision
                 return;
             }
             BootRecord rec = BootRecordLogic.FromFields(name, Command, _card.Ip, r0.Fields, DateTime.Now);
-            if (replace != null) OwnRecords.Remove(replace);
-            OwnRecords.Add(rec);
-            _card.BootCommand = Command;
-            Save();
-            LogEvent(CardEventLog.Boot, "Boot ayarları \"" + rec.Name + "\" adıyla kaydedildi (" + rec.Fields.Count + " alan" +
-                                        (replace != null ? "; en eski kayıt \"" + replace.Name + "\" yerine" : "") + ").");
+            AddRecord(_card, rec, replace, Command, Session, null);
             SetMessage("✓  \"" + rec.Name + "\" kaydedildi (" + rec.Fields.Count + " alan).", Theme.Success);
             FillRecords(rec);
         }

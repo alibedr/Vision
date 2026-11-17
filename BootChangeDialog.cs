@@ -58,6 +58,9 @@ namespace Vision
         private readonly TextBox _logs = new TextBox { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, WordWrap = false, BorderStyle = BorderStyle.None, Dock = DockStyle.Bottom, Height = 130, Visible = false };
         private readonly Label _footerHint = Theme.MakeLabel("", Theme.UiSmall, Theme.TextFaint);
         private readonly Button _close = Theme.MakeButton("Kapat", Theme.ButtonKind.Secondary);
+        // Boot ayarı kayıtlarıyla bağlantı (G51.9)
+        private readonly Button _saveRecord = Theme.MakeButton("Bu ayarları kaydet…", Theme.ButtonKind.Primary);
+        private readonly Button _records = Theme.MakeButton("Boot ayarı kayıtları…", Theme.ButtonKind.Secondary);
         private int _shownLogCount = -1;
 
         private BootChangeDialog(CardSession session, string command)
@@ -130,13 +133,23 @@ namespace Vision
             _footerHint.Text = "Kartın tüm çıktısı terminalde de görünür  ·  Enter: gönder  ·  F2: değeri düzenle  ·  Ctrl+D: çık  ·  Esc: kapat";
             _footerHint.BackColor = Color.Transparent;
             _close.Width = 90;
-            footer.Controls.AddRange(new Control[] { _footerHint, _close });
+            _saveRecord.Width = 160;
+            _records.Width = 170;
+            footer.Controls.AddRange(new Control[] { _footerHint, _records, _saveRecord, _close });
             footer.Resize += (s, e) =>
             {
-                _close.Location = new Point(footer.ClientSize.Width - 16 - _close.Width, (FooterHeight - _close.Height) / 2);
+                int y = (FooterHeight - _close.Height) / 2;
+                _close.Location = new Point(footer.ClientSize.Width - 16 - _close.Width, y);
+                _saveRecord.Location = new Point(_close.Left - 8 - _saveRecord.Width, y);
+                _records.Location = new Point(_saveRecord.Left - 8 - _records.Width, y);
                 _footerHint.Location = new Point(16, (FooterHeight - _footerHint.PreferredHeight) / 2);
-                _footerHint.Visible = _footerHint.Left + _footerHint.PreferredWidth < _close.Left - 8;
+                _footerHint.Visible = _footerHint.Left + _footerHint.PreferredWidth < _records.Left - 8;
             };
+            _tips.SetToolTip(_saveRecord, "Komut bitince kartın boot ayarlarını (bu pencerenin okuduğu değerlerle) adıyla kaydeder.\n" +
+                                          "Kayıtlar \"Boot ayarı kayıtları\" penceresinde karşılaştırılır ve geri yüklenir.");
+            _tips.SetToolTip(_records, "Bu kartın boot ayarı kayıtlarını açar (kaydet, karşılaştır, geri yükle).");
+            _saveRecord.Click += (s, e) => SaveAsRecord();
+            _records.Click += (s, e) => BootRecordsDialog.ShowFor(Owner ?? (IWin32Window)this, _session.Card);
 
             Controls.Add(middle);
             Controls.Add(_logBar);
@@ -263,6 +276,31 @@ namespace Vision
             else
                 _session.LogEvent(CardEventLog.Boot, _command + " tamamlanamadı: " + (_parser.FailMessage ?? "bilinmeyen neden") +
                                                      (changed.Count > 0 ? "  Gönderilen değişiklikler: " + fields : ""));
+        }
+
+        /// <summary>
+        /// "Bu ayarları kaydet…" (G51.9): komut bittikten sonra bu pencerenin okuduğu değerler (gönderilen yeni değerler dahil)
+        /// boot ayarı kaydı olarak saklanır; kart yeniden okunmaz. Değeri güvenle okunamayan alan varsa kaydedilmez.
+        /// </summary>
+        private void SaveAsRecord()
+        {
+            if (_parser.Phase != BootChangePhase.Finished) return;
+            List<string> unknown = _parser.Fields.Where(f => f.Uncertain && f.Entered == null).Select(f => f.Label).ToList();
+            if (unknown.Count > 0)
+            {
+                ChoiceDialog.Ask(this, "Kaydedilemedi", "Bazı alanların değeri güvenle okunamadı.",
+                    string.Join(", ", unknown) + " — araya giren log yüzünden. Boot ayarı kayıtları penceresindeki \"Karttan oku ve kaydet…\" " +
+                    "kartı yeniden okuyarak kaydeder.", new[] { "Tamam" }, 0, -1);
+                return;
+            }
+            BootRecord replace;
+            string name = BootRecordsDialog.AskNewRecord(this, _session.Card, out replace);
+            if (name == null) return;
+            string cmd = _command.TrimEnd(';', ' ').Replace("()", "").Trim();
+            BootRecord rec = BootRecordLogic.FromFields(name, cmd, _session.Card.Ip, _parser.Fields, DateTime.Now);
+            BootRecordsDialog.AddRecord(_session.Card, rec, replace, cmd, _session, "Boot ayarları penceresinden");
+            _status.Text = "✓  \"" + rec.Name + "\" kaydedildi (" + rec.Fields.Count + " alan). Boot ayarı kayıtları penceresinden karşılaştırılıp geri yüklenebilir.";
+            _status.ForeColor = Theme.Success;
         }
 
         /// <summary>"Kalanları geçip bitir" / "bu alana git": her yeni istemde bir adım gönderilir.</summary>
@@ -511,6 +549,7 @@ namespace Vision
             _prev.Enabled = canAct && _parser.CurrentIndex > 0;
             _skipRest.Enabled = _parser.Phase == BootChangePhase.Prompting && !_skipAll;
             _quit.Enabled = !_parser.IsOver && _session.State == CardState.Connected;
+            _saveRecord.Enabled = _parser.Phase == BootChangePhase.Finished && _parser.Fields.Count > 0;
             if (canAct && ContainsFocus && !_input.Focused && !_list.Focused) _input.Focus();
 
             // Alan listesi
