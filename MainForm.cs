@@ -974,9 +974,11 @@ namespace Vision
             int total = _config.Groups.Sum(g => g.Cards.Count);
             int connected = _sessions.Values.Count(s => s.State == CardState.Connected);
             int lost = _sessions.Values.Count(s => s.State == CardState.Recovering);
+            int rebooting = _sessions.Values.Count(s => s.State == CardState.Rebooting);
             int errors = _sessions.Values.Count(s => s.State == CardState.Error);
             string text = _config.Groups.Count + " grup  ·  " + total + " kart  ·  " + connected + " bağlı";
             if (lost > 0) text += "  ·  " + lost + " bağlantısı kesik (izleniyor)";
+            if (rebooting > 0) text += "  ·  " + rebooting + " yeniden başlatılıyor";
             if (errors > 0) text += "  ·  " + errors + " hatalı";
             if (_configNote != null) text += "  ·  " + _configNote;
             errors += lost;
@@ -1279,7 +1281,9 @@ namespace Vision
             {
                 Title = "Kart ekranları ve durum renkleri",
                 Body = () => "Açılan her kart burada kendi terminaliyle görünür; pencere genişledikçe ızgara kendiliğinden yerleşir. " +
-                             "Kartın rengi bağlantı durumunu gösterir. Bağlantı koparsa Vision kendiliğinden yeniden bağlanmayı dener.",
+                             "Kartın rengi bağlantı durumunu gösterir. Bağlantı koparsa Vision kendiliğinden yeniden bağlanmayı dener; kopma bir kez " +
+                             "yazılır, bağlantı gelince toplam kesinti süresi yazılır. Karta reboot gönderdiyseniz kopma beklenir: kırmızı uyarı " +
+                             "yerine sarı \"yeniden başlatılıyor\" görünür.",
                 Target = () => TourRect(_grid),
                 Enter = telnet,
                 Illustration = DrawTourStates,
@@ -1667,8 +1671,8 @@ namespace Vision
 
         private static void DrawTourStates(Graphics g, Rectangle r)
         {
-            var items = new[] { CardState.Connected, CardState.Connecting, CardState.Recovering, CardState.Error, CardState.Disconnected };
-            var labels = new[] { "Bağlı", "Bağlanıyor", "Yeniden bağlanıyor", "Hata", "Bağlı değil" };
+            var items = new[] { CardState.Connected, CardState.Connecting, CardState.Recovering, CardState.Error, CardState.Disconnected, CardState.Rebooting };
+            var labels = new[] { "Bağlı", "Bağlanıyor", "Yeniden bağlanıyor", "Hata", "Bağlı değil", "Yeniden başlatılıyor" };
             int colW = (r.Width - 16) / 3;
             for (int i = 0; i < items.Length; i++)
             {

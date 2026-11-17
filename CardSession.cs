@@ -12,8 +12,9 @@ namespace Vision
     /// Disconnected: kullanıcı bağlamadı / kesti.  Connecting: kullanıcı bağlanıyor.  Connected: bağlı ve sağlıklı.
     /// Error: bağlanılamadı (ya da otomatik yeniden bağlanma kapalıyken koptu).
     /// Recovering: bağlıyken koptu; izleyici, kart ulaşılabilir olunca kendiliğinden yeniden bağlar.
+    /// Rebooting: karta reboot gönderildikten sonra beklenen kopma (G52); kırmızı uyarı yok, kart açılınca yeniden bağlanır.
     /// </summary>
-    public enum CardState { Disconnected, Connecting, Connected, Error, Recovering }
+    public enum CardState { Disconnected, Connecting, Connected, Error, Recovering, Rebooting }
 
     /// <summary>
     /// Bir kartın bağlantısı + gelen veri geçmişi. Görünümden (CardView) bağımsızdır:
@@ -43,6 +44,13 @@ namespace Vision
         private int _recoverBusy;         // aynı kart için çakışan yeniden bağlanma denemesi olmasın (0/1)
         private int _recoverFailures;
         private DateTime _nextRecoverUtc;
+        // Kesinti dönemi (G52): ilk kopmadan bağlantı kalıcı olarak geri gelene kadar tek olay. Yeniden bağlanıp birkaç saniye
+        // içinde tekrar kopan (tutmayan) bağlantılar sessizdir; kalıcı bağlantıda toplam süre bir kez yazılır.
+        private DateTime? _stablePendingSinceUtc;   // yeniden bağlandı, henüz kalıcı sayılmadı
+        private int _flaps;                         // bu kesintide tutmayan yeniden bağlanma sayısı
+        private bool _outageIsReboot;               // bu kesinti planlı bir yeniden başlatma
+        private DateTime? _plannedRebootUtc;        // karta en son reboot benzeri komutun gönderildiği an
+        private string _plannedRebootCommand;
         private readonly LineNormalizer _normalizer = new LineNormalizer();
         private readonly EchoFilter _echoFilter = new EchoFilter();
         private DateTime? _connectedSinceUtc;
@@ -218,7 +226,7 @@ namespace Vision
             {
                 gen = ++_connectGeneration;
                 _connectedSinceUtc = null;
-                _droppedAtUtc = null;
+                ResetOutage();
                 _normalizer.Reset();
                 _echoFilter.Clear();
             }
@@ -254,16 +262,19 @@ namespace Vision
         public void Disconnect()
         {
             if (State == CardState.Disconnected) return;
+            string outage = null;
             lock (_lock)
             {
                 _connectGeneration++;
                 _connectedSinceUtc = null;
-                _droppedAtUtc = null;
+                if (_droppedAtUtc.HasValue && !_stablePendingSinceUtc.HasValue)
+                    outage = FormatDuration(DateTime.UtcNow - _droppedAtUtc.Value);
+                ResetOutage();
             }
             _client.Disconnect();
             ResetResponses("bağlantı kesildi");
             AppendSystem("Bağlantı kapatıldı.");
-            LogEvent(CardEventLog.Connection, "Bağlantı kullanıcı tarafından kesildi.");
+            LogEvent(CardEventLog.Connection, "Bağlantı kullanıcı tarafından kesildi" + (outage != null ? " (kesinti " + outage + " sürüyordu)." : "."));
             SetState(CardState.Disconnected, null);
         }
 
@@ -272,30 +283,150 @@ namespace Vision
             get { return _settings.Monitor ?? (_settings.Monitor = new ConnectionMonitorOptions()); }
         }
 
+        // ---------- Planlı yeniden başlatma (G52) ----------
+
+        private static readonly Regex RebootCommand = new Regex(
+            @"^\s*(?:reboot(?:\s+\d+|\s*\(\s*\d*\s*\))?|FPGAGiveBoardReset(?:\s*\(\s*\))?)\s*;?\s*$", RegexOptions.Compiled);
+
+        /// <summary>Kartı yeniden başlatan komut mu (reboot, reboot 2, reboot(2), FPGAGiveBoardReset)?</summary>
+        public static bool IsRebootCommand(string cmd)
+        {
+            return cmd != null && RebootCommand.IsMatch(cmd);
+        }
+
+        /// <summary>Kesinti bilgisini sıfırlar (kilit içinde çağrılır).</summary>
+        private void ResetOutage()
+        {
+            _droppedAtUtc = null;
+            _stablePendingSinceUtc = null;
+            _flaps = 0;
+            _outageIsReboot = false;
+        }
+
+        /// <summary>Kesinti dönemi sürüyor mu (ilk kopmadan kalıcı yeniden bağlantıya kadar)?</summary>
+        public bool InOutage { get { lock (_lock) return _droppedAtUtc.HasValue; } }
+
+        /// <summary>Planlı yeniden başlatmada reboot'un gönderildiği an (Rebooting durumunda gösterilir).</summary>
+        public DateTime? PlannedRebootUtc { get { lock (_lock) return _outageIsReboot ? _plannedRebootUtc : null; } }
+        public string PlannedRebootCommand { get { lock (_lock) return _plannedRebootCommand; } }
+
         private void OnClientDisconnected(string reason)
         {
             // TelnetClient bu olayı yalnızca KURULU bir bağlantı beklenmedik şekilde kopunca tetikler:
             // kart kapattı (FIN), sıfırladı (RST) ya da sağlık yoklamaları (keepalive) art arda cevapsız kaldı.
             if (_disposed) return;
             DateTime now = DateTime.UtcNow;
-            bool auto = Monitor.AutoReconnect;
+            ConnectionMonitorOptions o = Monitor;
+            bool auto = o.AutoReconnect;
+            bool flap, reboot;
+            string rebootCmd;
+            DateTime rebootAt;
             lock (_lock)
             {
+                // Yeniden bağlanıp kalıcı sayılmadan tekrar koptu: aynı kesintinin devamı (sessiz)
+                flap = _stablePendingSinceUtc.HasValue && _droppedAtUtc.HasValue;
+                _stablePendingSinceUtc = null;
                 _connectedSinceUtc = null;
-                _droppedAtUtc = now;
+                if (flap) _flaps++;
+                else
+                {
+                    _droppedAtUtc = now;
+                    _flaps = 0;
+                    _outageIsReboot = _plannedRebootUtc.HasValue && (now - _plannedRebootUtc.Value).TotalMilliseconds <= o.RebootDropWindowMs;
+                }
+                reboot = _outageIsReboot;
+                rebootCmd = _plannedRebootCommand ?? "reboot";
+                rebootAt = _plannedRebootUtc ?? now;
                 _recoverFailures = 0;
-                _nextRecoverUtc = now + TimeSpan.FromMilliseconds(Monitor.ReconnectMinMs);
+                _nextRecoverUtc = now + TimeSpan.FromMilliseconds(o.ReconnectMinMs);
             }
             ResetResponses("bağlantı koptu");
             Exception cause = _client.LastError;
             string tr = ErrorText.DescribeDrop(cause);
-            if (cause != null) ErrorText.LogTechnical(Card.DisplayName + " bağlantı koptu", cause);
+            if (cause != null && !flap) ErrorText.LogTechnical(Card.DisplayName + " bağlantı koptu", cause);
 
-            // Uyarı her kopmada YALNIZ BİR KEZ yazılır; yeniden bağlanma denemeleri sessizdir
+            if (flap)
+            {
+                // Yazı ve günlük yok: kalıcı bağlantı gelince toplam süre bir kez yazılır
+                SetState(reboot ? CardState.Rebooting : auto ? CardState.Recovering : CardState.Error, reboot ? null : tr);
+                return;
+            }
+            if (reboot)
+            {
+                // Bizim gönderdiğimiz reboot: kırmızı uyarı yok (G52)
+                AppendSystem("Kart yeniden başlatılıyor (\"" + rebootCmd + "\", " + rebootAt.ToLocalTime().ToString("HH:mm:ss") +
+                             ") — kart açılınca bağlantı otomatik kurulacak.");
+                LogEvent(CardEventLog.Reboot, "Kart yeniden başlıyor (\"" + rebootCmd + "\" gönderildikten sonra); bağlantı beklenen şekilde koptu.");
+                SetState(CardState.Rebooting, null);
+                return;
+            }
+
+            // Uyarı her kesintide YALNIZ BİR KEZ yazılır; yeniden bağlanma denemeleri ve tutmayan bağlantılar sessizdir
             AppendLine(AlertPrefix + "BAĞLANTI KESİLDİ (" + now.ToLocalTime().ToString("HH:mm:ss") + "): " + tr);
             if (auto) AppendSystem("Kart yeniden ulaşılabilir olduğunda bağlantı otomatik olarak kurulacak.");
             LogEvent(CardEventLog.Connection, "Bağlantı koptu: " + tr);
             SetState(auto ? CardState.Recovering : CardState.Error, tr);
+        }
+
+        /// <summary>Yeniden kurulan bağlantı yeterince sürdüyse kesintiyi kapatır: toplam süre bir kez yazılır (G52).</summary>
+        private void CheckStable(DateTime nowUtc)
+        {
+            DateTime since, dropped, rebootAt;
+            int flaps;
+            bool reboot;
+            string cmd;
+            lock (_lock)
+            {
+                if (!_stablePendingSinceUtc.HasValue || _state != CardState.Connected) return;
+                if ((nowUtc - _stablePendingSinceUtc.Value).TotalMilliseconds < Monitor.StableAfterMs) return;
+                since = _stablePendingSinceUtc.Value;
+                dropped = _droppedAtUtc ?? since;
+                rebootAt = _plannedRebootUtc ?? dropped;
+                flaps = _flaps;
+                reboot = _outageIsReboot;
+                cmd = _plannedRebootCommand ?? "reboot";
+                _stablePendingSinceUtc = null;
+                _droppedAtUtc = null;
+                _flaps = 0;
+                _outageIsReboot = false;
+                if (reboot) { _plannedRebootUtc = null; _plannedRebootCommand = null; }
+            }
+            string at = since.ToLocalTime().ToString("HH:mm:ss");
+            string flapNote = flaps > 0 ? " (arada " + flaps + " kez bağlanıp hemen koptu)" : "";
+            if (reboot)
+            {
+                string total = FormatDuration(since - rebootAt);
+                AppendSystem("Kart yeniden başladı, bağlantı kuruldu (" + at + ") — \"" + cmd + "\"dan bu yana " + total + flapNote + ".");
+                LogEvent(CardEventLog.Reboot, "Kart yeniden başladı ve bağlantı kuruldu — \"" + cmd + "\"dan bu yana " + total + flapNote + ".");
+            }
+            else
+            {
+                string total = FormatDuration(since - dropped);
+                AppendSystem("Bağlantı yeniden kuruldu (" + at + ") — kesinti süresi " + total + flapNote + ".");
+                LogEvent(CardEventLog.Connection, "Bağlantı yeniden kuruldu — kesinti süresi " + total + flapNote + ".");
+            }
+            RunTransferCleanupSoon();
+        }
+
+        /// <summary>Planlı yeniden başlatmadan sonra kart süresinde açılmadıysa kırmızı uyarıya geçilir (G52).</summary>
+        private void CheckRebootOverdue(DateTime nowUtc)
+        {
+            DateTime? at;
+            string cmd;
+            lock (_lock)
+            {
+                if (_state != CardState.Rebooting || !_outageIsReboot) return;
+                at = _plannedRebootUtc ?? _droppedAtUtc;
+                if (!at.HasValue || (nowUtc - at.Value).TotalMilliseconds < Monitor.RebootReturnMs) return;
+                _outageIsReboot = false;
+                cmd = _plannedRebootCommand ?? "reboot";
+            }
+            int min = (int)Math.Round(Monitor.RebootReturnMs / 60000.0);
+            string tr = "kart \"" + cmd + "\"dan sonra " + min + " dk içinde açılmadı";
+            AppendLine(AlertPrefix + "BAĞLANTI KURULAMADI (" + nowUtc.ToLocalTime().ToString("HH:mm:ss") + "): " + tr);
+            AppendSystem("Kart ulaşılabilir olduğunda bağlantı otomatik olarak kurulacak.");
+            LogEvent(CardEventLog.Connection, "Bağlantı koptu: " + tr + ".");
+            SetState(CardState.Recovering, tr);
         }
 
         // ---------- Bağlantı izleme (ConnectionMonitor'ın tek zamanlayıcısından çağrılır) ----------
@@ -313,7 +444,11 @@ namespace Vision
             CardState st = State;
             ConnectionMonitorOptions o = Monitor;
 
-            if (st == CardState.Recovering && o.AutoReconnect)
+            CheckStable(nowUtc);
+            CheckRebootOverdue(nowUtc);
+            st = State;
+
+            if ((st == CardState.Recovering && o.AutoReconnect) || st == CardState.Rebooting)
             {
                 DateTime due;
                 lock (_lock) due = _nextRecoverUtc;
@@ -354,7 +489,8 @@ namespace Vision
         /// </summary>
         public async Task<bool> TryRecoverAsync()
         {
-            if (_disposed || State != CardState.Recovering) return false;
+            CardState before = State;
+            if (_disposed || (before != CardState.Recovering && before != CardState.Rebooting)) return false;
             ConnectionMonitorOptions o = Monitor;
             int gen;
             lock (_lock)
@@ -369,7 +505,6 @@ namespace Vision
                 await _client.ConnectAsync(Card.Ip, Card.Group != null ? Card.Group.Port : 23, o.ReconnectTimeoutMs).ConfigureAwait(false);
 
                 DateTime now = DateTime.UtcNow;
-                TimeSpan outage;
                 lock (_lock)
                 {
                     if (gen != _connectGeneration || _disposed)
@@ -377,16 +512,12 @@ namespace Vision
                         _client.Disconnect();            // bu arada kullanıcı "Kes" dedi
                         return false;
                     }
-                    outage = _droppedAtUtc.HasValue ? now - _droppedAtUtc.Value : TimeSpan.Zero;
                     _connectedSinceUtc = now;           // bağlantı süresi yeni bağlantıdan başlar
-                    _droppedAtUtc = null;
                     _recoverFailures = 0;
+                    // Kesinti, bağlantı birkaç saniye tutunca kapanır (CheckStable): hemen kopan bağlantılar sessiz kalır
+                    _stablePendingSinceUtc = now;
                 }
-                AppendSystem("Bağlantı yeniden kuruldu (" + now.ToLocalTime().ToString("HH:mm:ss") +
-                             ") — kesinti süresi " + FormatDuration(outage) + ".");
-                LogEvent(CardEventLog.Connection, "Bağlantı yeniden kuruldu — kesinti süresi " + FormatDuration(outage) + ".");
                 SetState(CardState.Connected, null);
-                RunTransferCleanupSoon();
                 return true;
             }
             catch (Exception ex)
@@ -442,6 +573,8 @@ namespace Vision
                 }
                 Append(prefix + cmd + "\n");
             }
+            // Planlı yeniden başlatma (G52): ardından gelen kopma kırmızı uyarı vermez
+            if (IsRebootCommand(cmd)) lock (_lock) { _plannedRebootUtc = DateTime.UtcNow; _plannedRebootCommand = cmd.Trim(); }
             LastTxUtc = DateTime.UtcNow;
             await _client.SendAsync(cmd + _settings.LineEndingChars).ConfigureAwait(false);
         }

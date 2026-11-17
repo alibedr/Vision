@@ -49,7 +49,7 @@ namespace Vision
         Change,
         /// <summary>Kayıtta boş: alan temizlenecek (".").</summary>
         Clear,
-        /// <summary>Uygulanmaz (parola ya da başka karta uygulanırken kartın kendi adresi).</summary>
+        /// <summary>Uygulanmaz (başka karta uygulanırken kartın kendi adresi).</summary>
         Excluded,
         /// <summary>Kayıtta var, kart bu alanı sormadı.</summary>
         MissingOnCard,
@@ -91,13 +91,6 @@ namespace Vision
             return Spaces.Replace(Parens.Replace(label ?? "", " "), " ").Trim().ToLowerInvariant();
         }
 
-        /// <summary>FTP parolası alanı: kayda yazılmaz, geri yüklemede kartınki korunur (parolalar dosyada tutulmaz, G23).</summary>
-        public static bool IsPassword(string label)
-        {
-            string l = (label ?? "").ToLowerInvariant();
-            return l.Contains("password") || l.Contains("(pw)");
-        }
-
         /// <summary>Kartın kendi IP adresi alanları (inet on ethernet (e), inet on backplane (b)): başka karta uygulanmaz.</summary>
         public static bool IsCardAddress(string label)
         {
@@ -116,13 +109,12 @@ namespace Vision
             return null;
         }
 
-        /// <summary>Okunan alanlardan kayıt oluşturur (parola alanı yazılmaz).</summary>
+        /// <summary>Okunan alanlardan kayıt oluşturur: kartın sorduğu her alan, FTP parolası dahil, olduğu gibi yazılır.</summary>
         public static BootRecord FromFields(string name, string command, string sourceIp, IEnumerable<BootField> fields, DateTime now)
         {
             var r = new BootRecord { Name = (name ?? "").Trim(), Command = command, SourceIp = sourceIp, Created = now };
             foreach (BootField f in fields)
             {
-                if (IsPassword(f.Label)) continue;
                 r.Fields.Add(new BootRecordField { Label = f.Label.Trim(), Value = (f.EffectiveValue ?? "").Trim() });
             }
             return r;
@@ -158,8 +150,7 @@ namespace Vision
         private static BootPlanRow Row(string label, string cur, string saved, bool otherCard, bool onCard)
         {
             var row = new BootPlanRow { Label = label.Trim(), Current = cur, Saved = saved };
-            if (IsPassword(label)) { row.Kind = BootPlanKind.Excluded; row.Note = "parola kaydedilmez, karttaki korunur"; }
-            else if (saved == null) row.Kind = BootPlanKind.NotInRecord;
+            if (saved == null) row.Kind = BootPlanKind.NotInRecord;
             else if (otherCard && IsCardAddress(label)) { row.Kind = BootPlanKind.Excluded; row.Note = "kartın kendi adresi, başka karta uygulanmaz"; }
             else if (!onCard) row.Kind = BootPlanKind.MissingOnCard;
             else if (cur != null && cur == saved.Trim()) row.Kind = BootPlanKind.Same;
@@ -173,7 +164,7 @@ namespace Vision
         /// </summary>
         public static string AnswerFor(BootRecord record, BootField field, bool otherCard)
         {
-            if (IsPassword(field.Label) || (otherCard && IsCardAddress(field.Label))) return "";
+            if (otherCard && IsCardAddress(field.Label)) return "";
             string saved = record.ValueOf(field.Label);
             if (saved == null) return "";
             saved = saved.Trim();
@@ -306,7 +297,7 @@ namespace Vision
         }
 
         /// <summary>
-        /// Kaydı karta yazar: yalnız farklı olan alanlar gönderilir (parola ve başka karta uygulanırken kartın adres
+        /// Kaydı karta yazar: yalnız farklı olan alanlar gönderilir (başka karta uygulanırken kartın adres
         /// alanları atlanır), ardından kart yeniden okunup doğrulanır. Doğrulamada tutmayan alanlar <c>mismatches</c>'e yazılır.
         /// </summary>
         /// <param name="command">Kartın boot komutu (bspBootChange / bootChange); null ise kaydın alındığı komut.</param>

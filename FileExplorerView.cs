@@ -390,7 +390,9 @@ namespace Vision
                     ? "Henüz kart yok.\n\nSoldaki Kart Gezgini'nden \"Kart Ekle\" ile kart ekleyin."
                     : "Bağlı kart yok.\n\nKart Gezgini'nden bir karta bağlanın; bağlanan kartlar yukarıdaki listede görünür.";
             else if (!connected)
-                overlay = (st == CardState.Recovering
+                overlay = (st == CardState.Rebooting
+                              ? "Kart yeniden başlatılıyor.\nKart açılınca bağlantı otomatik kurulacak ve cihazlar yüklenecek."
+                              : st == CardState.Recovering
                               ? "Bu kartın bağlantısı kesildi (" + (_sessionOf(_card).LastError ?? ErrorText.ConnectionLost) + ").\n" +
                                 "Kart yeniden ulaşılabilir olunca bağlantı otomatik kurulacak ve cihazlar yüklenecek."
                               : st == CardState.Error

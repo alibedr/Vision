@@ -189,11 +189,12 @@ namespace VisionTests
         }
 
         [Test]
-        public void Boot_KayittaParolaYok()
+        public void Boot_KayittaHerAlanVarParolaDahil()
         {
             var card = new FakeBootCard();
             BootRecord rec = Record(card, "Fabrika");
-            Check.True(!rec.Fields.Any(f => f.Label.Contains("password")), "parola kayda yazılmamalı");
+            Check.Equal(card.Fields.Count, rec.Fields.Count, "kartın sorduğu her alan kayıtta");
+            Check.Equal("gizli", rec.ValueOf("ftp password (pw) (blank = use rsh)"), "FTP parolası da kaydedilir");
             Check.Equal("10.0.0.5:ffffff00", rec.ValueOf("inet on ethernet (e)"), "adres kayıtta");
             Check.Equal("bspBootChange", rec.Command, "komut");
         }
@@ -211,8 +212,8 @@ namespace VisionTests
             card.Sent.Clear();
 
             List<BootPlanRow> plan = BootRecordLogic.Plan(rec, (await BootChangeRunner.ReadAsync(card, card.CommandName, CancellationToken.None)).Fields, false);
-            Check.Equal(3, plan.Count(p => p.WillWrite), "önizlemede 3 değişiklik: " + string.Join(", ", plan.Where(p => p.WillWrite).Select(p => p.Label)));
-            Check.Equal(BootPlanKind.Excluded, plan.First(p => p.Label.StartsWith("ftp password")).Kind, "parola uygulanmaz");
+            Check.Equal(4, plan.Count(p => p.WillWrite), "önizlemede 4 değişiklik: " + string.Join(", ", plan.Where(p => p.WillWrite).Select(p => p.Label)));
+            Check.Equal(BootPlanKind.Change, plan.First(p => p.Label.StartsWith("ftp password")).Kind, "parola da geri yüklenir");
 
             card.Sent.Clear();
             BootApplyResult a = await BootChangeRunner.ApplyAsync(card, rec, null, false, CancellationToken.None);
@@ -220,8 +221,8 @@ namespace VisionTests
             Check.Equal("/ata0a/vxWorks", card.Value("file name"), "dosya adı geri geldi");
             Check.Equal("10.0.0.5:ffffff00", card.Value("inet on ethernet"), "aynı kartta adres de geri gelir");
             Check.Equal("", card.Value("other"), "boş alan temizlendi");
-            Check.Equal("baska", card.Value("ftp password"), "parola değişmedi");
-            Check.Equal(3, a.Written.Count, "yalnız farklı alanlar yazıldı: " + string.Join("; ", a.Written));
+            Check.Equal("gizli", card.Value("ftp password"), "parola geri geldi");
+            Check.Equal(4, a.Written.Count, "yalnız farklı alanlar yazıldı: " + string.Join("; ", a.Written));
             Check.True(card.Sent.Contains("."), "temizleme için \".\" gönderildi");
         }
 

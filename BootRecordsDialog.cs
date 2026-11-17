@@ -12,7 +12,7 @@ namespace Vision
     /// Boot ayarı kayıtları penceresi (G51). Kartın boot ayarları kullanıcı istediğinde adıyla kaydedilir (otomatik kayıt
     /// yok, kart başına en fazla 5), kartın şu anki ayarlarıyla karşılaştırılır ve önizleme + onayla karta geri yüklenir.
     /// Başka kartın kaydı da uygulanabilir; o zaman kartın kendi adres alanları (inet on ethernet / backplane) atlanır.
-    /// FTP parolası kaydedilmez, geri yüklemede karttaki korunur. Uygulamadan sonra kart yeniden okunup doğrulanır ve
+    /// Kartın sorduğu her alan (FTP parolası dahil) kaydedilir. Uygulamadan sonra kart yeniden okunup doğrulanır ve
     /// yeniden başlatma önerilir. Kart Gezgini'nde ve terminalde sağ tık → "Boot ayarı kayıtları…".
     /// </summary>
     public sealed class BootRecordsDialog : DarkDialog
@@ -40,7 +40,7 @@ namespace Vision
         private readonly Button _cancel = Theme.MakeButton("Durdur", Theme.ButtonKind.Secondary);
         private readonly Button _close = Theme.MakeButton("Kapat", Theme.ButtonKind.Secondary);
         private readonly Label _hint = Theme.MakeLabel("Kayıtlar otomatik alınmaz  ·  kart başına en fazla " + BootRecordLogic.MaxPerCard +
-                                                       "  ·  FTP parolası kaydedilmez", Theme.UiSmall, Theme.TextFaint);
+                                                       "  ·  kartın sorduğu her alan kaydedilir", Theme.UiSmall, Theme.TextFaint);
         private readonly System.Windows.Forms.Timer _timer = new System.Windows.Forms.Timer { Interval = 1000 };
         private readonly ToolTip _tips = new DarkToolTip();
 
@@ -247,8 +247,7 @@ namespace Vision
                 rows = _current.Select(f => new BootPlanRow
                 {
                     Label = f.Label, Current = f.Uncertain ? null : (f.CardValue ?? "").Trim(), Saved = null,
-                    Kind = BootRecordLogic.IsPassword(f.Label) ? BootPlanKind.Excluded : BootPlanKind.NotInRecord,
-                    Note = BootRecordLogic.IsPassword(f.Label) ? "parola kaydedilmez" : null,
+                    Kind = BootPlanKind.NotInRecord,
                 }).ToList();
             else rows = new List<BootPlanRow>();
             _plan.CardRead = _current != null;
@@ -397,7 +396,7 @@ namespace Vision
             Save();
             LogEvent(CardEventLog.Boot, "Boot ayarları \"" + rec.Name + "\" adıyla kaydedildi (" + rec.Fields.Count + " alan" +
                                         (replace != null ? "; en eski kayıt \"" + replace.Name + "\" yerine" : "") + ").");
-            SetMessage("✓  \"" + rec.Name + "\" kaydedildi (" + rec.Fields.Count + " alan; FTP parolası kaydedilmez).", Theme.Success);
+            SetMessage("✓  \"" + rec.Name + "\" kaydedildi (" + rec.Fields.Count + " alan).", Theme.Success);
             FillRecords(rec);
         }
 
@@ -679,7 +678,7 @@ namespace Vision
             msg.Location = new Point(18, 14);
             string detail = writes + " alan değişecek (vurgulu satırlar); yalnız bunlar " + command + " ile yazılır, diğer alanlara dokunulmaz." +
                             (other ? "\nKayıt " + (rec.SourceIp ?? owner.Ip) + " kartının: bu kartın kendi adres alanları uygulanmaz." : "") +
-                            "\nFTP parolası kaydedilmediği için karttaki korunur. Yazdıktan sonra kart yeniden okunup doğrulanır.";
+                            "\nYazdıktan sonra kart yeniden okunup doğrulanır.";
             var det = Theme.MakeLabel(detail, Theme.UiSmall, Theme.TextMuted);
             det.Location = new Point(18, 40);
             det.MaximumSize = new Size(680, 0);

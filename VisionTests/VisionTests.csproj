@@ -43,6 +43,7 @@
     <Compile Include="TransferTests.cs" />
     <Compile Include="EventLogTests.cs" />
     <Compile Include="BootRecordTests.cs" />
+    <Compile Include="ConnectionTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Ornekler\**\*.txt">

@@ -50,7 +50,8 @@ namespace Vision
         {
             // Recovering: bağlantı koptu ve otomatik yeniden bağlanılıyor → kullanıcı açısından hâlâ "bağlanmak istenen" kart;
             // "Bağlantıyı Kes" ile yeniden bağlanma durdurulabilir.
-            return s == CardState.Connected || s == CardState.Connecting || s == CardState.Recovering;
+            // Rebooting (G52): karta reboot gönderildi, açılınca kendiliğinden bağlanılacak — o da "bağlanmak istenen" kart.
+            return s == CardState.Connected || s == CardState.Connecting || s == CardState.Recovering || s == CardState.Rebooting;
         }
 
         /// <summary>Aynı anda gösterilebilecek en fazla kart sayısı (uygulama sınırı; kullanıcı değiştiremez).</summary>

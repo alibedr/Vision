@@ -119,7 +119,17 @@ namespace Vision
             TelnetNopHeartbeat = false;
             HeartbeatIntervalMs = 5000;
             MonitorTickMs = 1000;
+            StableAfterMs = 5000;
+            RebootDropWindowMs = 60000;
+            RebootReturnMs = 180000;
         }
+
+        /// <summary>Yeniden kurulan bağlantı bu kadar sürünce kalıcı sayılır; daha önce koparsa aynı kesintinin devamıdır (G52).</summary>
+        public int StableAfterMs { get; set; }
+        /// <summary>Reboot gönderildikten sonra bu süre içindeki kopma beklenen (planlı) kopmadır (G52).</summary>
+        public int RebootDropWindowMs { get; set; }
+        /// <summary>Planlı yeniden başlatmada kart bu süre içinde geri gelmezse kırmızı uyarı verilir (G52).</summary>
+        public int RebootReturnMs { get; set; }
 
         /// <summary>Son trafikten sonra ilk sağlık yoklamasına kadar geçen süre.</summary>
         public int KeepAliveIdleMs { get; set; }
