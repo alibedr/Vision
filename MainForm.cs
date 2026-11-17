@@ -1336,10 +1336,11 @@ namespace Vision
                  "Komut satırındakini karta gönderir (Enter ile aynı).",
                  v => new[] { v.TourSend });
             card("Hızlı komut",
-                 "Bu kart için belirlediğiniz bir komutu tek tıkla gönderir. Ayarlı değilse ilk tıklamada komutu atarsınız; sağ tık: düzenle / kaldır.",
+                 "Seçili hızlı komutu tek tıkla yalnız bu karta gönderir. Sağdaki ▾ (ya da sağ tık) en fazla 5 komutluk listeyi açar: " +
+                 "bir komuta tıklamak onu seçer (göndermez); ekle, düzenle, sırala, kaldır.",
                  v => new[] { v.TourQuick });
             card("Reboot",
-                 "Sol taraf karta reboot komutunu gönderir (kart yeniden başlar). Sağdaki ⇄ reboot ↔ reboot 2 seçimini değiştirir, bir şey göndermez.",
+                 "Sol taraf onay alarak karta reboot komutunu gönderir (kart yeniden başlar). Sağdaki ⇄ reboot ↔ reboot 2 seçimini değiştirir, bir şey göndermez.",
                  v => new[] { v.TourReboot });
             card("Sentinel düğmesi",
                  "Nabız düğmesi kartın Sentinel web sunucusunu başlatır / durdurur (yeşil: çalışıyor). Sentinel'e turun sonunda ayrıca bakacağız.",

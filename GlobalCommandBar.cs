@@ -235,6 +235,15 @@ namespace Vision
 
         private async Task RunRebootAsync()
         {
+            // Onay (G45): tüm kartlar yeniden başlar; varsayılan "Vazgeç"
+            string cmd = RebootCommands.CommandFor(_settings.GlobalRebootOption);
+            int n = _targets().Count(s => s.State == CardState.Connected);
+            if (n == 0) { ShowResult("Ekranda bağlı kart yok — " + cmd + " gönderilmedi.", Theme.Warning, null); return; }
+            int c = ChoiceDialog.Ask(FindForm(), "Tüm kartları yeniden başlat",
+                "Ekrandaki " + n + " bağlı karta \"" + cmd + "\" gönderilsin mi?",
+                "Kartların hepsi yeniden başlar; bağlantılar kopar, kartlar açılınca Vision kendiliğinden yeniden bağlanır. Kartlarda süren işler yarıda kalır.",
+                new[] { "Vazgeç", n == 1 ? "Yeniden başlat" : n + " kartı yeniden başlat" }, 0, 1);
+            if (c != 1) return;
             if (!Guard.TryEnter(this, DateTime.UtcNow)) return;      // art arda tıklama: 4 sn içinde ikinci kez gitmez
             _rebootCooldown.Stop();
             _rebootCooldown.Start();

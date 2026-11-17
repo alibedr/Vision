@@ -355,6 +355,15 @@ namespace Vision
         public IconKind MainIcon { get { return _icon; } set { _icon = value; Invalidate(); } }
         public Color IconColor { get { return _iconColor.IsEmpty ? Theme.Danger : _iconColor; } set { _iconColor = value; Invalidate(); } }
 
+        private IconKind _toggleIcon = IconKind.Swap;
+        private bool _accentIcon;
+
+        /// <summary>Sağ bölmenin simgesi (varsayılan ⇄; açılır menü için ChevronDown).</summary>
+        public IconKind ToggleIcon { get { return _toggleIcon; } set { _toggleIcon = value; Invalidate(); } }
+
+        /// <summary>Simge temanın vurgu renginde çizilir (tema değişince güncel kalır).</summary>
+        public bool AccentIcon { get { return _accentIcon; } set { _accentIcon = value; Invalidate(); } }
+
         public override Size GetPreferredSize(Size proposedSize)
         {
             Size ts = TextRenderer.MeasureText(_text, Font, Size.Empty, TextFormatFlags.NoPadding);
@@ -417,12 +426,13 @@ namespace Vision
             int x = 9;
             if (_icon != IconKind.None)
             {
-                IconRenderer.Draw(g, _icon, new RectangleF(x, (Height - 14) / 2f, 14, 14), Enabled ? (_iconColor.IsEmpty ? Theme.Danger : _iconColor) : Theme.TextFaint);
+                Color ic = _accentIcon ? Theme.Accent : (_iconColor.IsEmpty ? Theme.Danger : _iconColor);
+                IconRenderer.Draw(g, _icon, new RectangleF(x, (Height - 14) / 2f, 14, 14), Enabled ? ic : Theme.TextFaint);
                 x += 21;
             }
             TextRenderer.DrawText(g, _text, Font, new Rectangle(x, 0, Width - ToggleWidth - x - 4, Height), fore,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
-            IconRenderer.Draw(g, IconKind.Swap, new RectangleF(Width - ToggleWidth + 5, (Height - 13) / 2f, 13, 13), Enabled ? (_hoverToggle ? Theme.Text : Theme.TextMuted) : Theme.TextFaint);
+            IconRenderer.Draw(g, _toggleIcon, new RectangleF(Width - ToggleWidth + 5, (Height - 13) / 2f, 13, 13), Enabled ? (_hoverToggle ? Theme.Text : Theme.TextMuted) : Theme.TextFaint);
         }
     }
 }

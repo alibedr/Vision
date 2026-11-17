@@ -20,8 +20,41 @@ namespace Vision
         /// <summary>Kartın bağlı olduğu grup (kaydedilmez, yüklemede bağlanır).</summary>
         [XmlIgnore] public CardGroup Group { get; set; }
 
-        /// <summary>Kartın hızlı komut düğmesine atanmış komut (yalnız bu karta gönderilir; boş: ayarlanmamış).</summary>
+        /// <summary>
+        /// Kartın hızlı komut düğmesinde SEÇİLİ komut (tıklayınca yalnız bu karta gönderilir; boş: ayarlanmamış).
+        /// Önceki sürümler yalnız bunu okur; listeden biri seçilince güncellenir.
+        /// </summary>
         [XmlAttribute("HizliKomut")] public string QuickCommand { get; set; }
+
+        /// <summary>Hızlı komut düğmesindeki komutlar (en fazla <see cref="MaxQuickCommands"/>; G46). Biri seçili olur.</summary>
+        [XmlArray("HizliKomutlar"), XmlArrayItem("Komut")] public List<string> QuickCommands { get; set; }
+
+        public bool ShouldSerializeQuickCommands() { return QuickCommands != null && QuickCommands.Count > 0; }
+
+        public const int MaxQuickCommands = 5;
+
+        /// <summary>
+        /// Hızlı komut listesini düzenler: eski tek komutlu kayıt listeye alınır, boş / yinelenen / fazla komutlar atılır,
+        /// seçili komut listede değilse ilki seçilir.
+        /// </summary>
+        public void NormalizeQuickCommands()
+        {
+            var list = new List<string>();
+            if (QuickCommands != null)
+                foreach (string c in QuickCommands)
+                {
+                    string t = (c ?? "").Trim();
+                    if (t.Length > 0 && !list.Contains(t) && list.Count < MaxQuickCommands) list.Add(t);
+                }
+            string active = (QuickCommand ?? "").Trim();
+            if (active.Length > 0 && !list.Contains(active))
+            {
+                if (list.Count < MaxQuickCommands) list.Insert(0, active);
+                else active = "";
+            }
+            QuickCommands = list;
+            QuickCommand = active.Length > 0 ? active : (list.Count > 0 ? list[0] : null);
+        }
 
         /// <summary>Kartın yeniden başlatma düğmesinde seçili komut ("reboot" / "reboot 2").</summary>
         [XmlAttribute("Yeniden")] public RebootOption RebootOption { get; set; }
@@ -438,6 +471,7 @@ namespace Vision
             {
                 if (g.Cards == null) g.Cards = new List<CardConfig>();
                 g.LinkCards();
+                foreach (CardConfig c in g.Cards) c.NormalizeQuickCommands();
             }
             return cfg;
         }
