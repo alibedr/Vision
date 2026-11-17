@@ -500,6 +500,8 @@ namespace Vision
         IDisposable BeginTransfer();
         void AddCleanup(string key, string command, int order, bool sameBootOnly, uint? bootTick);
         void RemoveCleanup(string key);
+        /// <summary>Kartın olay günlüğüne kullanıcıya yönelik bir kayıt ekler (G49).</summary>
+        void LogEvent(string category, string message);
     }
 
     public sealed class FileBrowser
@@ -1038,6 +1040,7 @@ namespace Vision
                 if (failed.Count > 0) ShowWarning(msg); else Notice = msg;
             }
             Raise();
+            LogEvent(CardEventLog.Files, "Çoklu silme: " + msg + (lost && Error != null ? "  Bağlantı koptu: " + Error : ""));
             return new OpResult { Ok = failed.Count == 0 && !lost, Message = msg };
         }
 
@@ -1120,7 +1123,10 @@ namespace Vision
                 timeout = bytes >= 0 ? CopyTimeoutSec(bytes) : CopyTimeoutSec(4L * 1024 * 1024 * 1024);
                 if (entry.Kind == FsKind.File && bytes >= PartThresholdBytes)
                 {
+                    int rejects = _rejectCount;
                     OpResult large = await CardCopyLargeAsync(entry, dst, !copy, destDir, verb);
+                    LogResult(large, rejects, CardEventLog.Transfer, "\"" + entry.FullPath + "\" (" + DeviceSpace.FormatBytes(bytes) + ") → " +
+                                                                     destDir + " " + verb + " (kart içinde, büyük dosya).");
                     await RefreshSpaceAsync(destDir, copy ? null : entry.FullPath);
                     return large;
                 }
@@ -1273,7 +1279,18 @@ namespace Vision
             _tp = tp ?? new TransferProgress(TransferDirection.ToCard);
             using (BeginTransferScope())
             {
-                try { return await UploadCoreAsync(localPaths, uploader, settings, progress, destDir, tracker); }
+                try
+                {
+                    int rejects = _rejectCount;
+                    OpResult r = await UploadCoreAsync(localPaths, uploader, settings, progress, destDir, tracker);
+                    string names = string.Join(", ", localPaths.Select(p => System.IO.Path.GetFileName(p.TrimEnd('\\', '/'))).Take(6)) +
+                                   (localPaths.Count > 6 ? " …" : "");
+                    long total = _tp != null ? _tp.Read().Total : 0;
+                    if (!r.Ok && Cancelled) LogEvent(CardEventLog.Transfer, "Yükleme kullanıcı tarafından iptal edildi: " + names);
+                    else LogResult(r, rejects, CardEventLog.Transfer,
+                                   r.Message + "  ·  " + names + (total > 0 ? " (" + DeviceSpace.FormatBytes(total) + ")" : ""));
+                    return r;
+                }
                 finally { _tp.Finished = true; _tp = null; }
             }
         }
@@ -1496,7 +1513,15 @@ namespace Vision
             _tp = tp;
             using (BeginTransferScope())
             {
-                try { return await FetchCopyCoreAsync(entry, localPath, ftp, settings, textFallback); }
+                try
+                {
+                    int rejects = _rejectCount;
+                    OpResult r = await FetchCopyCoreAsync(entry, localPath, ftp, settings, textFallback);
+                    LogResult(r, rejects, CardEventLog.Transfer,
+                              "\"" + entry.FullPath + "\"" + (entry.Size.HasValue ? " (" + DeviceSpace.FormatBytes(entry.Size.Value) + ")" : "") +
+                              " karttan bilgisayara alındı → " + localPath);
+                    return r;
+                }
                 finally { _tp = previous; }
             }
         }
@@ -2443,7 +2468,8 @@ namespace Vision
             {
                 ShellResponse resp = await Exec(cmd, timeoutSec);
                 OpResult bad = CheckReturn(resp, failPrefix, failHint);
-                if (bad != null) { SetError(bad); return bad; }
+                if (bad != null) { SetError(bad); LogEvent(CardEventLog.Files, "Başarısız: " + bad.Message + "  (" + cmd + ")"); return bad; }
+                LogEvent(CardEventLog.Files, successMessage + "  (" + cmd + ")");
                 await RefreshListingQuietly();
                 Notice = successMessage;
                 return new OpResult { Ok = true, Message = successMessage, Response = resp };
@@ -2453,6 +2479,7 @@ namespace Vision
                 ErrorText.LogTechnical("dosya gezgini " + cmd, ex);
                 var r = OpResult.Fail(failPrefix + ": " + ErrorText.Describe(ex));
                 SetError(r);
+                LogEvent(CardEventLog.Files, "Başarısız: " + r.Message + "  (" + cmd + ")");
                 return r;
             }
             finally
@@ -2523,8 +2550,27 @@ namespace Vision
             return c >= 0 ? p.Substring(0, c + 1) : "/";
         }
 
+        /// <summary>Reddedilen (başlamadan geri çevrilen) istek sayısı: olay günlüğüne yalnız başlamış işlerin sonucu yazılır.</summary>
+        private int _rejectCount;
+
+        /// <summary>Kartın olay günlüğüne yazar (G49); oturumsuz yürütücüyle kurulduysa yazmaz.</summary>
+        private void LogEvent(string category, string message)
+        {
+            if (_host == null || string.IsNullOrEmpty(message)) return;
+            try { _host.LogEvent(category, message); } catch { }
+        }
+
+        /// <summary>Başlamış işin sonucunu günlüğe yazar; istek reddedildiyse (<paramref name="rejectsBefore"/> değişmişse) yazmaz.</summary>
+        private void LogResult(OpResult r, int rejectsBefore, string category, string okMessage = null)
+        {
+            if (r == null) return;
+            if (r.Ok) LogEvent(category, okMessage ?? r.Message);
+            else if (_rejectCount == rejectsBefore) LogEvent(category, "Başarısız: " + r.Message);
+        }
+
         private OpResult Reject(string message)
         {
+            _rejectCount++;
             Error = message;
             ErrorIsWarning = true;
             Notice = null;

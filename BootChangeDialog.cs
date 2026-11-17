@@ -203,6 +203,7 @@ namespace Vision
             else _tap.Take();   // önceki komuttan kalan veri atılır
             _command = (command ?? "").Trim();
             _parser = new BootChangeParser();
+            _outcomeLogged = false;
             _startedUtc = DateTime.UtcNow;
             _skipAll = false;
             _goTo = null;
@@ -236,6 +237,7 @@ namespace Vision
 
             if (_parser.IsOver)
             {
+                LogOutcomeOnce();
                 _session.InteractiveInputActive = false;
                 _skipAll = false;
                 _goTo = null;
@@ -244,6 +246,23 @@ namespace Vision
             else RunAutoStep();
 
             UpdateView(false);
+        }
+
+        private bool _outcomeLogged;
+
+        /// <summary>Sonucu kartın olay günlüğüne bir kez yazar (G49): değişen alanlar eski → yeni.</summary>
+        private void LogOutcomeOnce()
+        {
+            if (_outcomeLogged) return;
+            _outcomeLogged = true;
+            List<BootField> changed = _parser.Fields.Where(f => f.Changed).ToList();
+            string fields = string.Join("; ", changed.Select(f => f.Label + ": \"" + (f.OriginalValue ?? "") + "\" → \"" + f.EffectiveValue + "\""));
+            if (_parser.Phase == BootChangePhase.Finished)
+                _session.LogEvent(CardEventLog.Boot, changed.Count == 0 ? _command + " tamamlandı — hiçbir alan değiştirilmedi."
+                                                                        : _command + " tamamlandı — " + changed.Count + " alan değişti: " + fields);
+            else
+                _session.LogEvent(CardEventLog.Boot, _command + " tamamlanamadı: " + (_parser.FailMessage ?? "bilinmeyen neden") +
+                                                     (changed.Count > 0 ? "  Gönderilen değişiklikler: " + fields : ""));
         }
 
         /// <summary>"Kalanları geçip bitir" / "bu alana git": her yeni istemde bir adım gönderilir.</summary>
@@ -376,6 +395,14 @@ namespace Vision
 
         private void Cleanup()
         {
+            if (_parser != null && !_parser.IsOver && !_outcomeLogged && _parser.Fields.Any(f => f.Entered != null))
+            {
+                _outcomeLogged = true;
+                List<BootField> changed = _parser.Fields.Where(f => f.Changed).ToList();
+                _session.LogEvent(CardEventLog.Boot, _command + " penceresi komut bitmeden kapatıldı (terminalden devam edilebilir)" +
+                    (changed.Count > 0 ? "; o ana kadar gönderilen değişiklikler: " +
+                        string.Join("; ", changed.Select(f => f.Label + ": \"" + (f.OriginalValue ?? "") + "\" → \"" + f.EffectiveValue + "\"")) : "."));
+            }
             _timer.Stop();
             _timer.Dispose();
             if (_tap != null) { _tap.Dispose(); _tap = null; }

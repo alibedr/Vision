@@ -135,9 +135,19 @@ namespace Vision
         private readonly bool _danger;
 
         public ChoiceDialog(string title, string message, string detail, string[] buttons, int primaryIndex, int dangerIndex)
+            : this(title, message, detail, buttons, primaryIndex, dangerIndex >= 0 ? new[] { dangerIndex } : new int[0])
+        {
+        }
+
+        /// <param name="dangerIndices">Tehlikeli (kırmızı) düğmeler; birden çok olabilir (ör. reboot: "Yeniden başlat" ve "Temizleyip yeniden başlat").</param>
+        public ChoiceDialog(string title, string message, string detail, string[] buttons, int primaryIndex, int[] dangerIndices)
             : base(title, new Size(540, 200))
         {
-            _danger = dangerIndex >= 0;
+            _danger = dangerIndices.Length > 0;
+            // Düğmeler sığmazsa pencere genişler
+            int need = 40;
+            foreach (string t in buttons) need += Math.Max(92, TextRenderer.MeasureText(t, Theme.UiBold).Width + 32) + 8;
+            if (need > ClientSize.Width) ClientSize = new Size(need, ClientSize.Height);
             const int textX = 80, textW = 436;
             var msg = Theme.MakeLabel(message, MessageFont, Theme.Text);
             msg.Location = new Point(textX, 22);
@@ -160,7 +170,7 @@ namespace Vision
             int x = ClientSize.Width - 20;
             for (int i = buttons.Length - 1; i >= 0; i--)
             {
-                Theme.ButtonKind kind = i == dangerIndex ? Theme.ButtonKind.Danger : i == primaryIndex ? Theme.ButtonKind.Primary : Theme.ButtonKind.Secondary;
+                Theme.ButtonKind kind = Array.IndexOf(dangerIndices, i) >= 0 ? Theme.ButtonKind.Danger : i == primaryIndex ? Theme.ButtonKind.Primary : Theme.ButtonKind.Secondary;
                 var b = Theme.MakeButton(buttons[i], kind);
                 int w = Math.Max(92, TextRenderer.MeasureText(buttons[i], Theme.UiBold).Width + 32);
                 x -= w;
@@ -188,6 +198,15 @@ namespace Vision
         public static int Ask(IWin32Window owner, string title, string message, string detail, string[] buttons, int primaryIndex, int dangerIndex)
         {
             using (var d = new ChoiceDialog(title, message, detail, buttons, primaryIndex, dangerIndex))
+            {
+                d.ShowDialog(owner);
+                return d._choice;
+            }
+        }
+
+        public static int Ask(IWin32Window owner, string title, string message, string detail, string[] buttons, int primaryIndex, int[] dangerIndices)
+        {
+            using (var d = new ChoiceDialog(title, message, detail, buttons, primaryIndex, dangerIndices))
             {
                 d.ShowDialog(owner);
                 return d._choice;

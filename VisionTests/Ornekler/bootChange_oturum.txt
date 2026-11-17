@@ -1,0 +1,15 @@
+'.' = clear field;  '-' = go to previous field;  ^D = quit
+
+boot device          : motetsec0 
+processor number     : 0 
+host name            : host 
+file name            : /ata0a/vxWorks 
+inet on ethernet (e) : 10.0.0.5:ffffff00 
+host inet (h)        : 10.0.0.1 
+user (u)             : target 
+ftp password (pw) (blank = use rsh): vxTarget 
+flags (f)            : 0x0 
+target name (tn)     : kart5 
+other (o)            : 
+value = 0 = 0x0
+-> 

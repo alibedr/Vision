@@ -54,6 +54,19 @@ jobs:
           }
           exit $code
 
+      # Testler (G48): ayrı test projesi (VisionTests) — ayrıştırıcılar gerçek kart çıktılarıyla, aktarımlar sahte kartla.
+      # Bir test bile kalırsa iş durur: paket, ön sürüm ve resmî sürüm oluşmaz.
+      - name: Testleri derle ve çalıştır
+        shell: pwsh
+        run: |
+          $root = (Resolve-Path refasm\build).Path + "\"
+          msbuild VisionTests\VisionTests.csproj /p:Configuration=Release /p:Platform=AnyCPU "/p:TargetFrameworkRootPath=$root" /v:minimal /nologo 2>&1 | Tee-Object test-build.log
+          $code = $LASTEXITCODE
+          Select-String -Path test-build.log -Pattern ': error ' | ForEach-Object { Write-Output "::error::$($_.Line.Trim())" }
+          if ($code -ne 0) { exit $code }
+          & VisionTests\bin\Release\VisionTests.exe
+          exit $LASTEXITCODE
+
       - name: Paketle
         shell: pwsh
         run: |

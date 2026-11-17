@@ -323,6 +323,8 @@ namespace Vision
             _explorer.OpenRequested += OpenCards;
             _explorer.ShowExactlyRequested += ShowExactly;
             _explorer.BrowseFilesRequested += card => { _fileExplorer.ShowCard(card); ShowTab(MainTab.Files); };
+            _explorer.EventLogRequested += card => EventLogDialog.ShowFor(this, card);
+            EventLogDialog.CardSource = () => _config.Groups.SelectMany(g => g.Cards).ToList();
             _fileExplorer.StateOf = StateOf;   // kart listesinde yalnız bağlı kartlar (G33.5)
             _fileExplorer.RefreshCards();
             _explorer.RenameCardRequested += RenameCard;

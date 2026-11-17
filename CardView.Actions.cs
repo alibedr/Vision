@@ -202,18 +202,23 @@ namespace Vision
         {
             if (Session.State != CardState.Connected) { ShowToast("⚠  Kart bağlı değil — " + RebootCommands.CommandFor(Session.Card.RebootOption) + " gönderilmedi.", false, null); return; }
             string cmd = RebootCommands.CommandFor(Session.Card.RebootOption);
-            // Onay (G45): yanlışlıkla basılıp kartın gereksiz yere yeniden başlatılmasını önler. Varsayılan "Vazgeç"
+            // Onay (G45): yanlışlıkla basılıp kartın gereksiz yere yeniden başlatılmasını önler. Varsayılan "Vazgeç".
+            // Üçüncü seçenek (G50): önce kartın Temizle düğmesinin yaptığı temizlik (ekran + geçmiş), sonra reboot.
             int c = ChoiceDialog.Ask(FindForm(), "Kartı yeniden başlat",
                 Session.Card.Label + " kartına \"" + cmd + "\" gönderilsin mi?",
-                "Kart yeniden başlar; bağlantı kopar, kart açılınca Vision kendiliğinden yeniden bağlanır. Kartta süren işler yarıda kalır.",
-                new[] { "Vazgeç", "Yeniden başlat" }, 0, 1);
-            if (c != 1) return;
+                "Kart yeniden başlar; bağlantı kopar, kart açılınca Vision kendiliğinden yeniden bağlanır. Kartta süren işler yarıda kalır.\n" +
+                "\"Temizleyip yeniden başlat\" önce kartın ekranını temizler (Temizle düğmesiyle aynı), böylece açılış çıktısı temiz ekranda görünür.",
+                new[] { "Vazgeç", "Yeniden başlat", "Temizleyip yeniden başlat" }, 0, new[] { 1, 2 });
+            if (c != 1 && c != 2) return;
+            bool clear = c == 2;
             if (Session.State != CardState.Connected) { ShowToast("⚠  Kart bağlı değil — " + cmd + " gönderilmedi.", false, null); return; }
             // Yanlışlıkla art arda tıklama: 4 sn içinde ikinci kez çalışmaz, düğme bu sürede pasif kalır
             if (!RebootGuard.TryEnter(Session, DateTime.UtcNow)) return;
             _rebootCooldown.Stop();
             _rebootCooldown.Start();
             RefreshActionButtons();
+            if (clear) ClearTerminal();
+            Session.LogEvent(CardEventLog.Reboot, "\"" + cmd + "\" gönderildi (kart penceresinden" + (clear ? ", ekran temizlenerek" : "") + ").");
             await SendActionCommandAsync(cmd, "reboot");
             ShowToast("✓  \"" + cmd + "\" gönderildi.", true, null);
         }

@@ -180,6 +180,10 @@ namespace Vision
                 StyleDropDown(list);
                 _outputMenu.Items.Add(list);
             }
+
+            // Kartın olay günlüğü (G49)
+            _outputMenu.Items.Add(new ToolStripSeparator());
+            _outputMenu.Items.Add(MakeMenuItem("Olay günlüğü…", () => EventLogDialog.ShowFor(FindForm(), Session.Card)));
         }
 
         private ToolStripMenuItem MakeMenuItem(string text, Action action)

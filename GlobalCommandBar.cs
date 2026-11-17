@@ -246,16 +246,22 @@ namespace Vision
             string cmd = RebootCommands.CommandFor(_settings.GlobalRebootOption);
             int n = _targets().Count(s => s.State == CardState.Connected);
             if (n == 0) { ShowResult("Ekranda bağlı kart yok — " + cmd + " gönderilmedi.", Theme.Warning, null); return; }
+            // Üçüncü seçenek (G50): önce genel Temizle düğmesinin yaptığı temizlik (ekrandaki tüm kartlar), sonra reboot
             int c = ChoiceDialog.Ask(FindForm(), "Tüm kartları yeniden başlat",
                 "Ekrandaki " + n + " bağlı karta \"" + cmd + "\" gönderilsin mi?",
-                "Kartların hepsi yeniden başlar; bağlantılar kopar, kartlar açılınca Vision kendiliğinden yeniden bağlanır. Kartlarda süren işler yarıda kalır.",
-                new[] { "Vazgeç", n == 1 ? "Yeniden başlat" : n + " kartı yeniden başlat" }, 0, 1);
-            if (c != 1) return;
+                "Kartların hepsi yeniden başlar; bağlantılar kopar, kartlar açılınca Vision kendiliğinden yeniden bağlanır. Kartlarda süren işler yarıda kalır.\n" +
+                "\"Temizleyip yeniden başlat\" önce ekrandaki tüm kartların ekranını temizler (genel Temizle düğmesiyle aynı).",
+                new[] { "Vazgeç", n == 1 ? "Yeniden başlat" : n + " kartı yeniden başlat", "Temizleyip yeniden başlat" }, 0, new[] { 1, 2 });
+            if (c != 1 && c != 2) return;
+            bool clear = c == 2;
             if (!Guard.TryEnter(this, DateTime.UtcNow)) return;      // art arda tıklama: 4 sn içinde ikinci kez gitmez
             _rebootCooldown.Stop();
             _rebootCooldown.Start();
             UpdateTargets();
-            await BroadcastAsync(RebootCommands.CommandFor(_settings.GlobalRebootOption), "genel reboot", false);
+            if (clear) { var h = ClearAllRequested; if (h != null) h(); }
+            foreach (CardSession s in _targets().Where(t => t.State == CardState.Connected))
+                s.LogEvent(CardEventLog.Reboot, "\"" + cmd + "\" gönderildi (genel komut çubuğundan" + (clear ? ", ekranlar temizlenerek" : "") + ").");
+            await BroadcastAsync(cmd, "genel reboot", false);
         }
 
         /// <summary>Komutu ekrandaki kartlara (her birine bir kez) gönderir ve sonucu gösterir.</summary>
