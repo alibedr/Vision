@@ -1247,7 +1247,7 @@ namespace Vision
             {
                 Title = "Kart Gezgini",
                 Body = () => "Gruplar ve kartlar burada. Kartın yanındaki nokta bağlantı durumunu gösterir. Üstteki kutuyla IP ya da ada göre arayın.\n\n" +
-                             "Sağ tık: bağlan / kes, adını değiştir (F2), dosyalarını gez, olay günlüğü, kaldır; grupta: gruba kart ekle, grubun adını değiştir, grubu sil.",
+                             "Sağ tık: bağlan / kes, adını değiştir (F2), dosyalarını gez, boot ayarı kayıtları, olay günlüğü, kaldır; grupta: gruba kart ekle, grubun adını değiştir, grubu sil.",
                 Target = () => TourRect(_explorer.TourSearch, _explorer.TourTree),
                 Enter = telnet,
             });
@@ -1396,7 +1396,9 @@ namespace Vision
             steps.Add(new TourStep
             {
                 Title = "Boot penceresini kapatın",
-                Body = () => "Pencere kapanınca tur kaldığı yerden devam eder.",
+                Body = () => "Pencere kapanınca tur kaldığı yerden devam eder.\n\n" +
+                             "Boot ayarlarını adıyla saklamak için terminalde ya da Kart Gezgini'nde karta sağ tık → \"Boot ayarı kayıtları…\": " +
+                             "kartın ayarları kaydedilir, şu anki ayarlarla karşılaştırılır ve önizleme + onayla aynı ya da başka bir karta geri yüklenir.",
                 Task = "Bir şey değiştirmeden bitirmek için \"Kalanları geçip bitir\"e basın, sonra pencereyi kapatın.",
                 Host = bootDialog,
                 Target = () => TourWhole(TourBootDialog()),

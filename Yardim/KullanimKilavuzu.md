@@ -11,7 +11,7 @@ Vision ilk açıldığında **uygulama turu** başlar: ekran kararır, anlatıla
 1. **Kart ekleme:** Kart Ekle'ye basmanız istenir; açılan pencerede grup adı, Telnet portu, başlangıç IP'si, kart sayısı, Sıralı doldur ve IP listesi tek tek anlatılır; alanları kendi kartınıza göre doldurup **Grubu Oluştur**'a basarsınız.
 2. **Bağlanma:** Kart Gezgini anlatılır, eklediğiniz karta çift tıklayıp bağlanmanız istenir.
 3. **Kart penceresi:** ad / grup, bağlı kalma süresi, RX / TX ışıkları, durum şeridi, Bağlan / Kes, Dosyaya kaydet, Temizle, Büyüt, Kapat, çıktı alanı, dönüş değerleri, komut satırı, komut geçmişi, Gönder, hızlı komut, reboot ve Sentinel düğmeleri tek tek gösterilir.
-4. **Boot ayarları:** kartınıza uygun olarak `bspBootChange` ya da `bootChange` yazmanız istenir; açılan Boot ayarları penceresinin bölümleri (durum, sorulan alan, yeni değer, alan düğmeleri, alan listesi, araya giren loglar) anlatılır, pencereyi kapatınca tur sürer.
+4. **Boot ayarları:** kartınıza uygun olarak `bspBootChange` ya da `bootChange` yazmanız istenir; açılan Boot ayarları penceresinin bölümleri (durum, sorulan alan, yeni değer, alan düğmeleri, alan listesi, araya giren loglar) anlatılır, pencereyi kapatınca tur sürer. Boot ayarı kayıtlarının nereden açıldığı da söylenir.
 5. **Renklendirme:** terminalde bir kelime seçip sağ tık → Renklendir ile bir renk seçmeniz istenir; aynı menüdeki **Olay günlüğü…** anlatılır.
 6. Terminal ayarları ve genel komut çubuğu.
 7. **Kart Dosya Gezgini** bağlandığınız kartla açılır: kart seçimi, adres çubuğu / Geri / Yenile, cihaz listesi ve disk alanı, Yeni klasör, Yükle, FTP ayarları, Ham cevap; bir öğeye sağ tıklamanız istenir ve **Yeniden adlandır / Sil / Bilgisayara kaydet** anlatılır; karta ve bilgisayara sürükle-bırak açıklanır.
@@ -178,7 +178,7 @@ Gruplar, kartlar ve tüm ayarlar bilgisayarınızda, **`%APPDATA%\TelnetCards\co
 | Öğe | Seçenekler |
 |---|---|
 | Grup | Tümünü ekranda göster · Seçilileri ekranda göster · Tümünü bağla · Tümünün bağlantısını kes · Gruba kart ekle… · Grubun adını değiştir… · Grubu sil |
-| Kart | Ekranda göster · Bağlan / Bağlantıyı kes · Dosya Gezgininde aç · Olay günlüğü… · Adı değiştir… · Kartı kaldır |
+| Kart | Ekranda göster · Bağlan / Bağlantıyı kes · Dosya Gezgininde aç · Boot ayarı kayıtları… · Olay günlüğü… · Adı değiştir… · Kartı kaldır |
 
 Klavye: **Enter** seçili kartı (ya da grubu) ekranda gösterir, **Delete** seçili kartı / grubu siler (onay istenir).
 
@@ -371,6 +371,24 @@ Kart terminalinden (komut satırı, hızlı komut ya da genel komut çubuğu) `b
 - Pencere kart bitirmeden kapatılırsa sorulur: **Kalanları geçip bitir**, **Yalnız pencereyi kapat** (terminalden devam edersiniz) ya da **Vazgeç**.
 - Pencere açıkken o kartta Dosya Gezgini gibi arka plan komutları gönderilmez (gönderilseler alan değeri olarak yazılırdı); pencere bitince yeniden çalışır.
 - Genel komut çubuğundan gönderildiyse bağlı her kart için ayrı pencere açılır.
+
+### Boot ayarı kayıtları (kaydet, karşılaştır, geri yükle)
+
+Kartın boot ayarlarını adıyla saklayıp sonra aynı karta ya da başka bir karta geri yükleyebilirsiniz. Terminalde sağ tık → **Boot ayarı kayıtları…** ya da Kart Gezgini'nde karta sağ tık → **Boot ayarı kayıtları…** ile açılır.
+
+- **Komut:** sağ üstte bu kartın boot komutunu seçin (`bspBootChange` ya da `bootChange`); seçim kartla birlikte saklanır.
+- **Kartı oku:** kartın şu anki ayarlarını okur. Vision komutu gönderir ve kartın sorduğu her alanı **değiştirmeden geçer** — kartta hiçbir şey değişmez. Bu sırada komut ve alanlar terminalde görünür; işlem bitene kadar o karta başka komut gönderilmez. Araya giren log yüzünden bir alan okunamazsa kart bir kez daha okunur.
+- **Karttan oku ve kaydet…:** bir ad verirsiniz (ör. "Fabrika ayarı"), kart okunur ve kayıt alınır. Kayıtlar **otomatik alınmaz**; yalnız siz kaydettiğinizde oluşur. Kart başına en fazla **5** kayıt tutulur; doluysa en eski kaydın yerine kaydetmek önerilir. Bir alan güvenle okunamadıysa kayıt alınmaz (tekrar deneyin).
+- **FTP parolası kaydedilmez** (`ftp password (pw)`); geri yüklemede karttaki parola korunur.
+- **Karşılaştırma:** soldan bir kayıt seçin; sağda her alan için **kayıttaki** ve **karttaki (şu an)** değer yan yana görünür, farklı olanlar vurgulanır. Karttaki değerler için önce **Kartı oku**.
+- **Karta uygula…:**
+  1. Kart yeniden okunur ve **önizleme** açılır: hangi alanın neyden neye değişeceği, uygulanmayacak alanlar ve kartın sormadığı alanlar. Varsayılan düğme **Vazgeç**.
+  2. Onaylarsanız yalnız **farklı olan alanlar** yazılır (kayıtta boş olan alan temizlenir); diğer alanlara dokunulmaz.
+  3. Kart yeniden okunup **doğrulanır**; kayıttaki değere gelmeyen alan varsa listelenir.
+  4. Başarılıysa kartı yeniden başlatmak önerilir (**Sonra** ya da kartın seçili `reboot` / `reboot 2` komutuyla). Yeni boot ayarları genellikle kart yeniden başlayınca geçerli olur.
+- **Başka kartın kaydı:** listede diğer kartların kayıtları da (kartın adıyla, soluk) görünür ve bu karta uygulanabilir. O zaman bu kartın **kendi IP adresi alanları** (`inet on ethernet (e)`, `inet on backplane (b)`) uygulanmaz, kartın adresi korunur.
+- Kayıtlar yeniden adlandırılabilir ve silinebilir (yalnız Vision'daki kayıt silinir, kart değişmez). Kaydetme, uygulama, silme ve yeniden adlandırma olay günlüğüne yazılır.
+- Kayıtlar `config.xml`'de kartla birlikte tutulur.
 
 ### Bağlı olmayan kart
 
@@ -791,7 +809,7 @@ Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındak
 
 | Konum | İçerik |
 |---|---|
-| `%APPDATA%\TelnetCards\config.xml` | Gruplar, kartlar (adları, hızlı komutları, reboot seçimleri), terminal, yakınlaştırma, izleme ve ortak FTP ayarları (otomatik kaydedilir; FTP parolası dosyada tutulmaz). |
+| `%APPDATA%\TelnetCards\config.xml` | Gruplar, kartlar (adları, hızlı komutları, reboot seçimleri, boot ayarı kayıtları — FTP parolası hariç), terminal, yakınlaştırma, izleme ve ortak FTP ayarları (otomatik kaydedilir; FTP parolası dosyada tutulmaz). |
 | `%APPDATA%\TelnetCards\KomutGecmisi.txt` | Komut geçmişi: yazılan tüm komutlar, satır başına bir komut, eskiden yeniye (en fazla 5.000; tüm kartlar ve genel çubuk ortak; otomatik kaydedilir). Silinirse geçmiş boş başlar. |
 | `logs\GrupAdı_IP_anlik_tarih_saat.log` | "Dosyaya kaydet" ile alınan anlık terminal görüntüleri (her tıklama ayrı dosya). |
 | `logs\olaylar\IP.log` | Kartın olay günlüğü (port 23 değilse `IP_port.log`): satır başına zaman, tür ve olay. Kart başına en fazla 5 MB; dolunca en eski olaylar silinir. |

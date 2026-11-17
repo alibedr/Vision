@@ -17,6 +17,7 @@ Geliştiren: **Ali Bedir**
 - Boot ayarları penceresi: `bspBootChange` / `bootChange` alanları araya giren loglardan ayrı, tek ekranda izlenir ve düzenlenir
 - Genel komut çubuğu: ekrandaki tüm kartlara aynı komut
 - reboot onayında "Temizleyip yeniden başlat": önce ekranı temizler, açılış çıktısı temiz ekranda görünür (kartta ve genel komut çubuğunda)
+- Boot ayarı kayıtları: kartın boot ayarlarını adıyla saklama (kart başına 5), şu anki ayarlarla karşılaştırma, önizleme + onayla aynı ya da başka karta geri yükleme ve doğrulama
 - Kart başına olay günlüğü: bağlantı / kopma, reboot, boot ayarı değişiklikleri (eski → yeni), Sentinel, dosya işlemleri ve aktarımlar; süzme, arama, CSV'ye kaydetme
 - Periyodik bağlantı izleme ve otomatik yeniden bağlanma
 - Kart Dosya Gezgini: `devs` ile hızlı cihaz listesi, `ll`, klasör ve dosya işlemleri; bilgisayardan karta ve karttan bilgisayara (masaüstüne / herhangi bir klasöre) sürükle-bırak, FTP üzerinden karta yükleme ve karttan alma (büyük dosyalar iki yönde de parça parça; ilerleme penceresinde anlık hız, kalan süre ve anında iptal; yüklemede boş alan denetimi), salt okunur "Birlikte aç"
