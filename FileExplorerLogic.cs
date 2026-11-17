@@ -2073,6 +2073,7 @@ namespace Vision
             string failure = null;
             string buf = await CardAllocAsync(w => failure = w);
             int done = 0;
+            string pendingPart = null;   // FTP'ye gönderilmiş, henüz silinmemiş parça
             for (int p = 0; p < parts && failure == null; p++)
             {
                 if (Cancelled) { failure = "iptal edildi"; break; }
@@ -2083,6 +2084,7 @@ namespace Vision
 
                 show("FTP'ye gönderiliyor " + pstep);
                 if (tracker != null) tracker.Add(partName, false);
+                pendingPart = partName;
                 if (_tp != null) _tp.StartFtp("Parça " + (p + 1) + "/" + parts + ": FTP'ye gönderiliyor", len);
                 try
                 {
@@ -2119,6 +2121,14 @@ namespace Vision
                 done++;
                 try { await uploader.DeleteAsync(partName, false); if (tracker != null) tracker.Remove(partName); }
                 catch (Exception ex) { ErrorText.LogTechnical("FTP parça silme " + partName, ex); }
+                pendingPart = null;
+            }
+
+            // Hata / iptalde o anki parça FTP'de kalmasın (silinemezse "FTP kopyalarını sil" listesinde kalır)
+            if (pendingPart != null)
+            {
+                try { await uploader.DeleteAsync(pendingPart, false); if (tracker != null) tracker.Remove(pendingPart); }
+                catch (Exception ex) { ErrorText.LogTechnical("FTP parça silme " + pendingPart, ex); }
             }
 
             if (Error != null && failure != null) return failure + "; " + done + "/" + parts + " parça aktarılmıştı";

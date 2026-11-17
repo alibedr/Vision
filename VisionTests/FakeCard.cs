@@ -158,7 +158,9 @@ namespace VisionTests
                 OpenFile f; byte[] buf;
                 if (!_fds.TryGetValue(int.Parse(m.Groups[1].Value), out f) || !_buffers.TryGetValue(m.Groups[2].Value, out buf)) return Reply(c, -1);
                 int n = int.Parse(m.Groups[3].Value);
-                f.Data.Write(buf, 0, n);
+                // Gerçek kart ara belleğin ötesini de yazar (bellekteki çöp): taklitte sıfırla doldurulur
+                f.Data.Write(buf, 0, Math.Min(n, buf.Length));
+                if (n > buf.Length) f.Data.Write(new byte[n - buf.Length], 0, n - buf.Length);
                 return Reply(c, n);
             }
             if ((m = Regex.Match(c, @"^lseek (\d+), 0, 1$")).Success)
