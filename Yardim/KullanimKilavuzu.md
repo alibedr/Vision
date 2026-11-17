@@ -372,10 +372,12 @@ Kart terminalinden (komut satırı, hızlı komut ya da genel komut çubuğu) `b
 - Pencere kart bitirmeden kapatılırsa sorulur: **Kalanları geçip bitir**, **Yalnız pencereyi kapat** (terminalden devam edersiniz) ya da **Vazgeç**.
 - Pencere açıkken o kartta Dosya Gezgini gibi arka plan komutları gönderilmez (gönderilseler alan değeri olarak yazılırdı); pencere bitince yeniden çalışır.
 - Genel komut çubuğundan gönderildiyse bağlı her kart için ayrı pencere açılır.
+- **Bu ayarları kaydet…** (alt bant): komut bitince kartın boot ayarlarını, bu pencerenin okuduğu değerlerle (gönderdiğiniz yeni değerler dahil) adıyla kaydeder; kart yeniden okunmaz. Değeri güvenle okunamayan alan varsa kaydetmez. Kayıt **Boot ayarı kayıtları** penceresinde görünür.
+- **Boot ayarı kayıtları…** (alt bant): bu kartın kayıt penceresini açar (aşağıya bakın). Boot ayarları penceresi komut sürerken açıksa kayıt penceresi kartı okuyamaz; komut bitince okur.
 
 ### Boot ayarı kayıtları (kaydet, karşılaştır, geri yükle)
 
-Kartın boot ayarlarını adıyla saklayıp sonra aynı karta ya da başka bir karta geri yükleyebilirsiniz. Terminalde sağ tık → **Boot ayarı kayıtları…** ya da Kart Gezgini'nde karta sağ tık → **Boot ayarı kayıtları…** ile açılır.
+Kartın boot ayarlarını adıyla saklayıp sonra aynı karta ya da başka bir karta geri yükleyebilirsiniz. Terminalde sağ tık → **Boot ayarı kayıtları…**, Kart Gezgini'nde karta sağ tık → **Boot ayarı kayıtları…** ya da Boot ayarları penceresinin alt bandındaki **Boot ayarı kayıtları…** ile açılır. Boot ayarları penceresinde elle değişiklik yaptıktan sonra o pencerenin **Bu ayarları kaydet…** düğmesiyle de kayıt alınabilir.
 
 - **Komut:** sağ üstte bu kartın boot komutunu seçin (`bspBootChange` ya da `bootChange`); seçim kartla birlikte saklanır.
 - **Kartı oku:** kartın şu anki ayarlarını okur. Vision komutu gönderir ve kartın sorduğu her alanı **değiştirmeden geçer** — kartta hiçbir şey değişmez. Bu sırada komut ve alanlar terminalde görünür; işlem bitene kadar o karta başka komut gönderilmez. Araya giren log yüzünden bir alan okunamazsa kart bir kez daha okunur.
