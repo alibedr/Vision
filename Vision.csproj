@@ -153,6 +153,8 @@
       <DependentUpon>FileExplorerView.cs</DependentUpon>
     </Compile>
     <Compile Include="ExplorerDialogs.cs" />
+    <Compile Include="EventLog.cs" />
+    <Compile Include="EventLogDialog.cs" />
     <Compile Include="CardGrid.cs">
       <SubType>Component</SubType>
     </Compile>

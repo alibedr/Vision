@@ -65,6 +65,19 @@ namespace Vision
 
         public SentinelStatus Status { get { lock (_lock) return _status; } }
 
+        /// <summary>
+        /// Bağlı karttaki kendiliğinden durum geçişi (önceki, yeni, uyarı ya da null). Olay günlüğü için (G49); kart
+        /// bağlantısı kopunca yapılan sıfırlama bildirilmez. Arka plan iş parçacığından gelebilir.
+        /// </summary>
+        public event Action<SentinelStatus, SentinelStatus, string> Changed;
+
+        private void RaiseChanged(SentinelStatus before, SentinelStatus after, string message)
+        {
+            if (before == after) return;
+            var h = Changed;
+            if (h != null) try { h(before, after, message); } catch { }
+        }
+
         /// <summary>Son geçişle ilgili uyarı (ör. "20 sn içinde açılmadı"); yoksa null.</summary>
         public string Message { get { lock (_lock) return _message; } }
 
@@ -103,6 +116,9 @@ namespace Vision
         /// <summary>Ana pencerenin zamanlayıcısından sık çağrılır; zamanı gelince arka planda port denemesi başlatır.</summary>
         public void Tick(DateTime nowUtc, bool connected, string ip)
         {
+            SentinelStatus before, after;
+            string timeoutMessage = null;
+            bool start;
             lock (_lock)
             {
                 if (!connected)
@@ -118,6 +134,7 @@ namespace Vision
                     _nextProbeUtc = nowUtc;
                     return;
                 }
+                before = _status;
                 _connected = true;
 
                 if (_status == SentinelStatus.Starting && nowUtc - _transitionUtc > StartTimeout)
@@ -125,18 +142,23 @@ namespace Vision
                     _status = SentinelStatus.Stopped;
                     _message = "Sentinel " + (int)StartTimeout.TotalSeconds + " sn içinde açılmadı (port " + Port + " cevap vermiyor). " +
                                "Komutun kartta tanımlı olduğunu terminalden kontrol edin.";
+                    timeoutMessage = _message;
                     _version++;
                 }
                 else if (_status == SentinelStatus.Stopping && nowUtc - _transitionUtc > StopTimeout)
                 {
                     _status = SentinelStatus.Running;
                     _message = "Sentinel " + (int)StopTimeout.TotalSeconds + " sn içinde kapanmadı (port " + Port + " hâlâ açık).";
+                    timeoutMessage = _message;
                     _version++;
                 }
+                after = _status;
 
-                if (_probing || nowUtc < _nextProbeUtc || string.IsNullOrWhiteSpace(ip)) return;
-                _probing = true;
+                start = !(_probing || nowUtc < _nextProbeUtc || string.IsNullOrWhiteSpace(ip));
+                if (start) _probing = true;
             }
+            RaiseChanged(before, after, timeoutMessage);
+            if (!start) return;
             string target = ip.Trim();
             Task.Run(async () =>
             {
@@ -147,11 +169,12 @@ namespace Vision
 
         private void Apply(SentinelProbe result, DateTime nowUtc)
         {
+            SentinelStatus before, after;
             lock (_lock)
             {
                 _probing = false;
                 if (!_connected) return;
-                SentinelStatus before = _status;
+                before = _status;
                 bool open = result == SentinelProbe.Open;
                 if (open) _refused = 0;
                 switch (_status)
@@ -185,7 +208,9 @@ namespace Vision
                               : IdleInterval;
                 _nextProbeUtc = nowUtc + next;
                 if (before != _status) _version++;
+                after = _status;
             }
+            RaiseChanged(before, after, null);
         }
 
         /// <summary>

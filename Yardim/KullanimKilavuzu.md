@@ -12,7 +12,7 @@ Vision ilk açıldığında **uygulama turu** başlar: ekran kararır, anlatıla
 2. **Bağlanma:** Kart Gezgini anlatılır, eklediğiniz karta çift tıklayıp bağlanmanız istenir.
 3. **Kart penceresi:** ad / grup, bağlı kalma süresi, RX / TX ışıkları, durum şeridi, Bağlan / Kes, Dosyaya kaydet, Temizle, Büyüt, Kapat, çıktı alanı, dönüş değerleri, komut satırı, komut geçmişi, Gönder, hızlı komut, reboot ve Sentinel düğmeleri tek tek gösterilir.
 4. **Boot ayarları:** kartınıza uygun olarak `bspBootChange` ya da `bootChange` yazmanız istenir; açılan Boot ayarları penceresinin bölümleri (durum, sorulan alan, yeni değer, alan düğmeleri, alan listesi, araya giren loglar) anlatılır, pencereyi kapatınca tur sürer.
-5. **Renklendirme:** terminalde bir kelime seçip sağ tık → Renklendir ile bir renk seçmeniz istenir.
+5. **Renklendirme:** terminalde bir kelime seçip sağ tık → Renklendir ile bir renk seçmeniz istenir; aynı menüdeki **Olay günlüğü…** anlatılır.
 6. Terminal ayarları ve genel komut çubuğu.
 7. **Kart Dosya Gezgini** bağlandığınız kartla açılır: kart seçimi, adres çubuğu / Geri / Yenile, cihaz listesi ve disk alanı, Yeni klasör, Yükle, FTP ayarları, Ham cevap; bir öğeye sağ tıklamanız istenir ve **Yeniden adlandır / Sil / Bilgisayara kaydet** anlatılır; karta ve bilgisayara sürükle-bırak açıklanır.
 8. **Komut Kütüphanesi:** liste, arama, komut sayfası ve Karta aktar.
@@ -178,7 +178,7 @@ Gruplar, kartlar ve tüm ayarlar bilgisayarınızda, **`%APPDATA%\TelnetCards\co
 | Öğe | Seçenekler |
 |---|---|
 | Grup | Tümünü ekranda göster · Seçilileri ekranda göster · Tümünü bağla · Tümünün bağlantısını kes · Gruba kart ekle… · Grubun adını değiştir… · Grubu sil |
-| Kart | Ekranda göster · Bağlan / Bağlantıyı kes · Dosya Gezgininde aç · Kartı kaldır |
+| Kart | Ekranda göster · Bağlan / Bağlantıyı kes · Dosya Gezgininde aç · Olay günlüğü… · Adı değiştir… · Kartı kaldır |
 
 Klavye: **Enter** seçili kartı (ya da grubu) ekranda gösterir, **Delete** seçili kartı / grubu siler (onay istenir).
 
@@ -281,7 +281,12 @@ Hızlı komutun yanındaki düğme iki bölmelidir:
 - **Sol bölme** (güç simgesi + seçili komut): seçili komutu — `reboot` ya da `reboot 2` — **yalnız bu karta** gönderir.
 - **Sağ bölme (⇄)**: seçimi `reboot` ↔ `reboot 2` arasında değiştirir. **Seçimi değiştirmek hiçbir komut göndermez**; çalıştırmak için her zaman sol bölmeye tıklamak gerekir.
 - Seçili komut düğmenin üzerinde her zaman yazar ve kartla birlikte kaydedilir.
-- **Onay:** sol bölmeye basınca *"… kartına "reboot" gönderilsin mi?"* diye sorulur; **Yeniden başlat** denmedikçe hiçbir şey gönderilmez (varsayılan düğme **Vazgeç**; Enter / Esc göndermez). Genel komut çubuğundaki reboot da kaç kartın yeniden başlayacağını yazarak onay ister.
+- **Onay:** sol bölmeye basınca *"… kartına "reboot" gönderilsin mi?"* diye sorulur. Üç seçenek vardır:
+  - **Vazgeç** (varsayılan; Enter / Esc de bunu seçer): hiçbir şey gönderilmez.
+  - **Yeniden başlat**: reboot komutu gönderilir.
+  - **Temizleyip yeniden başlat**: önce kartın **Temizle** düğmesinin yaptığı yapılır (ekran ve geçmiş temizlenir), sonra reboot gönderilir. Kartın açılış çıktısı temiz ekranda görünür.
+
+  Genel komut çubuğundaki reboot da kaç kartın yeniden başlayacağını yazarak aynı üç seçenekle onay ister; orada **Temizleyip yeniden başlat** genel **Temizle** düğmesi gibi ekrandaki tüm kartların ekranını temizler.
 - Yanlışlıkla art arda tıklamaya karşı: gönderdikten sonra düğme **4 saniye** pasif kalır; bu sürede ikinci kez gönderilmez.
 
 ### Komut dönüş değerleri
@@ -330,6 +335,25 @@ Akan loglar arasında bir kelimeyi (ör. `error`) kolayca görmek için:
 - Kaldırmak için metnin üzerinde sağ tık → **Renklendirmeyi kaldır**, ya da **Renklendirmeler** alt menüsünden tek tek / **Tüm renklendirmeleri kaldır**.
 - Renklendirmeler **o karta** aittir ve yalnız ekrandaki görünümü değiştirir (karta bir şey gönderilmez, kayıt dosyalarına renk yazılmaz). Kart penceresi kapatılıp yeniden açılsa da korunur; uygulama kapanınca silinir.
 - Seçim tek satırda olmalıdır (en fazla 200 karakter); baştaki ve sondaki boşluklar yok sayılır.
+
+### Olay günlüğü
+
+Her kartın kendi **olay günlüğü** vardır: kartla ilgili önemli olayların zaman çizelgesi. Terminalde sağ tık → **Olay günlüğü…** ya da Kart Gezgini'nde karta sağ tık → **Olay günlüğü…** ile açılır.
+
+| Tür | Ne kaydedilir |
+|---|---|
+| Bağlantı | Bağlandı · bağlanılamadı (neden) · bağlantı koptu (neden) · yeniden kuruldu (kesinti süresi) · kullanıcı kesti |
+| Yeniden başlatma | reboot / reboot 2 gönderildi — kart penceresinden mi genel çubuktan mı, ekran temizlenerek mi |
+| Boot ayarı | `bspBootChange` / `bootChange` tamamlandı: değişen alanlar **eski → yeni** değerleriyle; tamamlanamadıysa nedeni; pencere yarıda kapatıldıysa o ana kadar gönderilenler |
+| Sentinel | Sentinel çalışıyor · durdu · süresinde açılmadı / kapanmadı |
+| Dosya | Yeni klasör, sil (tek ve çoklu), yeniden adlandır, taşı / kopyala — başarılı ya da başarısız, kullanılan komutla |
+| Aktarım | Karta yükleme (dosya adları, boyut), karttan bilgisayara alma (nereye), kart içinde büyük dosya kopyalama / taşıma, iptal, bağlantı kopunca yarım kalan aktarımın temizlenmesi |
+
+- Pencerede **kart**, **tür** ve **arama** ile süzülür; en yeni olay en üsttedir, başarısız olaylar kırmızıdır. Seçili olayın tamamı altta görünür.
+- Pencere açıkken yeni olaylar kendiliğinden eklenir; pencere açık dururken Vision'da çalışmaya devam edebilirsiniz.
+- **CSV olarak kaydet…** listelenen olayları (süzgeç ve arama uygulanmış) Excel'de açılabilen bir dosyaya kaydeder. **Klasörü aç** günlük dosyalarının klasörünü açar.
+- Kart başına en fazla **5 MB** tutulur; dolunca **en eski** olaylar silinir.
+- Olay günlüğü kullanıcı içindir; `logs\hatalar.log` ise sorun bildirirken geliştiriciye gönderilecek teknik ayrıntıları (hata kodları, yığın izi) tutar.
 
 ### Boot ayarları penceresi (bspBootChange / bootChange)
 
@@ -383,7 +407,7 @@ Gönder düğmesinin yanında, kart penceresindekilerin genel karşılıkları v
 | Düğme | İşlev |
 |---|---|
 | **Hızlı komut** (şimşek ▾) | Seçili genel hızlı komutu ekrandaki tüm bağlı kartlara birer kez gönderir. Kartlardaki gibi en fazla **5** komut: ▾ ya da sağ tık listeyi açar (komuta tıklamak seçer, göndermez; ekle / düzenle / sırala / kaldır). Kaydedilir. |
-| **reboot ⇄** | Sol: seçili `reboot` / `reboot 2` komutunu (onay alarak) ekrandaki tüm bağlı kartlara birer kez gönderir. Sağ ⇄: yalnız seçimi değiştirir (göndermez). Gönderdikten sonra 4 sn pasif. |
+| **reboot ⇄** | Sol: seçili `reboot` / `reboot 2` komutunu (onay alarak; isterseniz önce tüm ekranları temizleyerek) ekrandaki tüm bağlı kartlara birer kez gönderir. Sağ ⇄: yalnız seçimi değiştirir (göndermez). Gönderdikten sonra 4 sn pasif. |
 | **Dosyaya kaydet** (disket) | Ekrandaki **her** kartın terminal içeriğini o anda alır ve **her kartı kendi dosyasına** kaydeder (aşağıya bakın). |
 | **Tümünü temizle** (silgi) | Ekrandaki **her** kartın terminal ekranını ve geçmişini bir kerede temizler (kart başlığındaki silgiyle aynı iş; karta komut gönderilmez). |
 
@@ -770,6 +794,7 @@ Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındak
 | `%APPDATA%\TelnetCards\config.xml` | Gruplar, kartlar (adları, hızlı komutları, reboot seçimleri), terminal, yakınlaştırma, izleme ve ortak FTP ayarları (otomatik kaydedilir; FTP parolası dosyada tutulmaz). |
 | `%APPDATA%\TelnetCards\KomutGecmisi.txt` | Komut geçmişi: yazılan tüm komutlar, satır başına bir komut, eskiden yeniye (en fazla 5.000; tüm kartlar ve genel çubuk ortak; otomatik kaydedilir). Silinirse geçmiş boş başlar. |
 | `logs\GrupAdı_IP_anlik_tarih_saat.log` | "Dosyaya kaydet" ile alınan anlık terminal görüntüleri (her tıklama ayrı dosya). |
+| `logs\olaylar\IP.log` | Kartın olay günlüğü (port 23 değilse `IP_port.log`): satır başına zaman, tür ve olay. Kart başına en fazla 5 MB; dolunca en eski olaylar silinir. |
 | `logs\hatalar.log` | Bağlantı ve işlem hatalarının teknik ayrıntıları (hata kodu, özgün İngilizce mesaj) ve beklenmeyen hataların yığın izi. Her zaman açıktır. 5 MB'ı geçince `hatalar.log.1` olarak saklanıp yenisine başlanır (en fazla iki dosya). |
 | `%TEMP%\TelnetCards\SaltOkunur\` | "Birlikte aç" ile açılan salt okunur kopyalar (kapanışta silinir). |
 | `%TEMP%\TelnetCards\Surukle\` | Karttan Windows Gezgini'ne sürüklenen öğelerin geçici kopyaları (kapanışta silinir). |

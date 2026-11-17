@@ -323,6 +323,8 @@ namespace Vision
             _explorer.OpenRequested += OpenCards;
             _explorer.ShowExactlyRequested += ShowExactly;
             _explorer.BrowseFilesRequested += card => { _fileExplorer.ShowCard(card); ShowTab(MainTab.Files); };
+            _explorer.EventLogRequested += card => EventLogDialog.ShowFor(this, card);
+            EventLogDialog.CardSource = () => _config.Groups.SelectMany(g => g.Cards).ToList();
             _fileExplorer.StateOf = StateOf;   // kart listesinde yalnız bağlı kartlar (G33.5)
             _fileExplorer.RefreshCards();
             _explorer.RenameCardRequested += RenameCard;
@@ -1241,7 +1243,7 @@ namespace Vision
             {
                 Title = "Kart Gezgini",
                 Body = () => "Gruplar ve kartlar burada. Kartın yanındaki nokta bağlantı durumunu gösterir. Üstteki kutuyla IP ya da ada göre arayın.\n\n" +
-                             "Sağ tık: bağlan / kes, adını değiştir (F2), dosyalarını gez, kaldır; grupta: gruba kart ekle, grubun adını değiştir, grubu sil.",
+                             "Sağ tık: bağlan / kes, adını değiştir (F2), dosyalarını gez, olay günlüğü, kaldır; grupta: gruba kart ekle, grubun adını değiştir, grubu sil.",
                 Target = () => TourRect(_explorer.TourSearch, _explorer.TourTree),
                 Enter = telnet,
             });
@@ -1340,7 +1342,8 @@ namespace Vision
                  "bir komuta tıklamak onu seçer (göndermez); ekle, düzenle, sırala, kaldır.",
                  v => new[] { v.TourQuick });
             card("Reboot",
-                 "Sol taraf onay alarak karta reboot komutunu gönderir (kart yeniden başlar). Sağdaki ⇄ reboot ↔ reboot 2 seçimini değiştirir, bir şey göndermez.",
+                 "Sol taraf onay alarak karta reboot komutunu gönderir (kart yeniden başlar). Onayda \"Temizleyip yeniden başlat\" önce ekranı temizler " +
+                 "(Temizle düğmesiyle aynı), açılış çıktısı temiz ekranda görünür. Sağdaki ⇄ reboot ↔ reboot 2 seçimini değiştirir, bir şey göndermez.",
                  v => new[] { v.TourReboot });
             card("Sentinel düğmesi",
                  "Nabız düğmesi kartın Sentinel web sunucusunu başlatır / durdurur (yeşil: çalışıyor). Sentinel'e turun sonunda ayrıca bakacağız.",
@@ -1420,7 +1423,9 @@ namespace Vision
             {
                 Title = "Renklendirme kuralları",
                 Body = () => "Seçtiğiniz metnin ekrandaki ve bundan sonra gelecek tüm eşleşmeleri o renge boyanır. Kurallar karta aittir ve " +
-                             "saklanır; aynı sağ tık menüsünden tek tek ya da hepsi birden kaldırılır.",
+                             "saklanır; aynı sağ tık menüsünden tek tek ya da hepsi birden kaldırılır.\n\n" +
+                             "Aynı menüdeki \"Olay günlüğü…\" bu kartın zaman çizelgesini açar: bağlantılar, kopmalar, reboot'lar, boot ayarı " +
+                             "değişiklikleri, Sentinel, dosya işlemleri ve aktarımlar.",
                 Target = cardPart(v => new[] { v.TourOutput }),
                 Available = hasView,
                 Enter = telnet,
@@ -1441,7 +1446,7 @@ namespace Vision
             {
                 Title = "Genel komut çubuğu",
                 Body = () => "Buraya yazılan komut ekrandaki TÜM kartlara aynı anda gönderilir; her kartın cevabı kendi penceresinde görünür. " +
-                             "Hızlı komut (en fazla 5 komut, ▾ ile seçilir) ve reboot (onay ister) da buradan tüm kartlara uygulanabilir. " +
+                             "Hızlı komut (en fazla 5 komut, ▾ ile seçilir) ve reboot (onay ister; isterseniz önce tüm ekranları temizler) da buradan tüm kartlara uygulanabilir. " +
                              "Dosya aktarımı süren kart atlanır.",
                 Target = () => TourRect(_globalBar),
                 Enter = telnet,

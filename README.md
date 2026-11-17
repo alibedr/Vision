@@ -16,6 +16,8 @@ Geliştiren: **Ali Bedir**
 - İlk açılışta kullanıcıyla birlikte adım adım ilerleyen etkileşimli uygulama turu: kart ekletir, bağlatır, kart penceresini, boot ayarlarını, renklendirmeyi, Kart Dosya Gezgini'ni, Komut Kütüphanesi'ni ve Sentinel'i tek tek anlatır (atlanabilir, Yardım → Uygulama turu ile yeniden açılır)
 - Boot ayarları penceresi: `bspBootChange` / `bootChange` alanları araya giren loglardan ayrı, tek ekranda izlenir ve düzenlenir
 - Genel komut çubuğu: ekrandaki tüm kartlara aynı komut
+- reboot onayında "Temizleyip yeniden başlat": önce ekranı temizler, açılış çıktısı temiz ekranda görünür (kartta ve genel komut çubuğunda)
+- Kart başına olay günlüğü: bağlantı / kopma, reboot, boot ayarı değişiklikleri (eski → yeni), Sentinel, dosya işlemleri ve aktarımlar; süzme, arama, CSV'ye kaydetme
 - Periyodik bağlantı izleme ve otomatik yeniden bağlanma
 - Kart Dosya Gezgini: `devs` ile hızlı cihaz listesi, `ll`, klasör ve dosya işlemleri; bilgisayardan karta ve karttan bilgisayara (masaüstüne / herhangi bir klasöre) sürükle-bırak, FTP üzerinden karta yükleme ve karttan alma (büyük dosyalar iki yönde de parça parça; ilerleme penceresinde anlık hız, kalan süre ve anında iptal; yüklemede boş alan denetimi), salt okunur "Birlikte aç"
 - Sentinel: kartın içindeki web sunucusunu tek tıkla başlatma / durdurma ve kartın sağlık sayfasını (CPU, task, socket) tarayıcı açmadan uygulama içinde görüntüleme
@@ -36,6 +38,10 @@ Geliştiren: **Ali Bedir**
 2. **Build → Build Solution** (Ctrl+Shift+B).
 3. Çıktı `bin\Debug\` (ya da `bin\Release\`) klasöründedir. Kullanım Kılavuzu ve komut kütüphanesi exe'ye gömülüdür.
 
+### Testler
+
+`VisionTests\VisionTests.csproj` ayrı bir konsol projesidir (çözümde; pakete girmez). Derleyip `VisionTests\bin\Release\VisionTests.exe` çalıştırılır (ad filtresi verilebilir: `VisionTests.exe Yukleme`). Kart çıktısı ayrıştırıcıları `VisionTests\Ornekler\` altındaki kart çıktısı örnekleriyle, dosya aktarımları gerçek kart gerektirmeyen sahte kartla (`FakeCard`) sınanır. GitHub Actions her derlemede testleri çalıştırır; bir test bile kalırsa paket ve sürüm oluşmaz.
+
 Hazır paket (`Vision.zip`) düzeni: `Vision\Vision.exe` ve `Vision\lib\` (Sentinel sayfası için Edge WebView2 DLL'leri). Klasör bütün olarak kopyalanmalıdır.
 
 ## Klasör yapısı
@@ -45,6 +51,7 @@ Hazır paket (`Vision.zip`) düzeni: `Vision\Vision.exe` ve `Vision\lib\` (Senti
 | `*.cs` | Kaynak kod (WinForms) |
 | `Yardim\` | Kullanım Kılavuzu (exe'ye gömülür, uygulama içi yardımda gösterilir) ve Gereksinimler (yalnız geliştirici belgesi, uygulamada yok) |
 | `Komutlar\Komutlar.xml` | Komut Kütüphanesi içeriği (VxWorks 6.4 komutları); derlemede exe'ye gömülür, dışarıya kopyalanmaz |
+| `VisionTests\` | Otomatik testler (ayrı proje; `Ornekler\`: kart çıktısı örnekleri) |
 | `Vision.ico` | Uygulama simgesi (`docs/simge.png`: büyük önizleme) |
 
 Gruplar, kartlar ve ayarlar kullanıcının bilgisayarında `%APPDATA%\TelnetCards\config.xml` dosyasında tutulur (yeni sürüme geçişte korunur). Çalışırken exe'nin yanında `logs\` oluşur; depoya alınmaz.

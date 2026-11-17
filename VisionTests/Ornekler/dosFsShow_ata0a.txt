@@ -1,0 +1,30 @@
+volume descriptor ptr (pVolDesc):  0x2a3b4c0
+cache block I/O descriptor ptr (cbio):  0x2a3a010
+auto disk check on mount:              NOT ENABLED
+max # of simultaneously open files:    22
+file descriptors in use:               1
+# of different files in use:           1
+# of descriptors for deleted files:    0
+# of obsolete descriptors:             0
+
+current volume configuration:
+ - volume label:      NO LABEL ; (in boot sector:  NO NAME    )
+ - volume Id:          0x4b2a1c3d
+ - total number of sectors:         7,815,024
+ - bytes per sector:                512
+ - # of sectors per cluster:        8
+ - # of reserved sectors:           32
+ - FAT entry size:                  FAT32
+ - # of sectors per FAT copy:       7,623
+ - # of FAT table copies:           2
+ - # of hidden sectors:             0
+ - first cluster is in sector #     15,278
+ - Update last access date for open-read-close = FALSE
+ - directory structure:             VFAT
+ - file name format:                8-bit (extended-ASCII)
+ - root dir start cluster:          2
+
+FAT handler information:
+------------------------
+ - allocation group size:     4 clusters
+ - free space on volume:      3,701,858,304 bytes

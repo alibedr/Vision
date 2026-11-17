@@ -1,0 +1,8 @@
+drv refs name
+  0 [ 3] /null
+  1 [ 1] /tyCo/0
+  1 [ 1] /tyCo/1
+  6 [ 0] host.host:
+  7 [ 2] /vio
+  8 [ 1] /ata0a
+  9 [ 0] /bd0

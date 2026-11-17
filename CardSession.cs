@@ -67,6 +67,20 @@ namespace Vision
             _settings = settings;
             _client.DataReceived += OnData;
             _client.Disconnected += OnClientDisconnected;
+            Sentinel.Changed += OnSentinelChanged;
+        }
+
+        /// <summary>Kartın olay günlüğüne (logs\\olaylar) kayıt ekler (G49).</summary>
+        public void LogEvent(string category, string message)
+        {
+            CardEventLog.Write(Card, category, message);
+        }
+
+        private void OnSentinelChanged(SentinelStatus before, SentinelStatus after, string message)
+        {
+            if (message != null) LogEvent(CardEventLog.Sentinel, message);
+            else if (after == SentinelStatus.Running) LogEvent(CardEventLog.Sentinel, "Sentinel çalışıyor (port " + SentinelTracker.Port + " açık).");
+            else if (after == SentinelStatus.Stopped && before != SentinelStatus.Starting) LogEvent(CardEventLog.Sentinel, "Sentinel durdu.");
         }
 
         public CardConfig Card { get; private set; }
@@ -219,6 +233,7 @@ namespace Vision
                 lock (_lock) cancelled = gen != _connectGeneration;
                 if (cancelled) { _client.Disconnect(); return; }
                 AppendSystem("Bağlandı.");
+                LogEvent(CardEventLog.Connection, "Bağlandı (" + ip + ":" + port + ").");
                 lock (_lock) _connectedSinceUtc = DateTime.UtcNow;   // süre gerçek bağlantı anından başlar
                 SetState(CardState.Connected, null);
                 RunTransferCleanupSoon();
@@ -231,6 +246,7 @@ namespace Vision
                 string tr = ErrorText.Describe(ex);          // kullanıcıya Türkçe
                 ErrorText.LogTechnical(Card.DisplayName + " bağlanma", ex);   // teknik ayrıntı log'a
                 AppendSystem("Bağlanılamadı: " + tr);
+                LogEvent(CardEventLog.Connection, "Bağlanılamadı: " + tr);
                 SetState(CardState.Error, tr);
             }
         }
@@ -247,6 +263,7 @@ namespace Vision
             _client.Disconnect();
             ResetResponses("bağlantı kesildi");
             AppendSystem("Bağlantı kapatıldı.");
+            LogEvent(CardEventLog.Connection, "Bağlantı kullanıcı tarafından kesildi.");
             SetState(CardState.Disconnected, null);
         }
 
@@ -277,6 +294,7 @@ namespace Vision
             // Uyarı her kopmada YALNIZ BİR KEZ yazılır; yeniden bağlanma denemeleri sessizdir
             AppendLine(AlertPrefix + "BAĞLANTI KESİLDİ (" + now.ToLocalTime().ToString("HH:mm:ss") + "): " + tr);
             if (auto) AppendSystem("Kart yeniden ulaşılabilir olduğunda bağlantı otomatik olarak kurulacak.");
+            LogEvent(CardEventLog.Connection, "Bağlantı koptu: " + tr);
             SetState(auto ? CardState.Recovering : CardState.Error, tr);
         }
 
@@ -366,6 +384,7 @@ namespace Vision
                 }
                 AppendSystem("Bağlantı yeniden kuruldu (" + now.ToLocalTime().ToString("HH:mm:ss") +
                              ") — kesinti süresi " + FormatDuration(outage) + ".");
+                LogEvent(CardEventLog.Connection, "Bağlantı yeniden kuruldu — kesinti süresi " + FormatDuration(outage) + ".");
                 SetState(CardState.Connected, null);
                 RunTransferCleanupSoon();
                 return true;
@@ -522,8 +541,10 @@ namespace Vision
                     ShellResponse r = await ExecuteAsync(c.Command, 10).ConfigureAwait(false);
                     if (r.Failure == null) done++;
                 }
-                AppendSystem("Yarıda kalan dosya aktarımının kartta bıraktıkları temizlendi (" + done + " işlem" +
-                             (skipped > 0 ? "; kart yeniden başladığı için " + skipped + " açık dosya / bellek zaten bırakılmış" : "") + ").");
+                string note = "Yarıda kalan dosya aktarımının kartta bıraktıkları temizlendi (" + done + " işlem" +
+                              (skipped > 0 ? "; kart yeniden başladığı için " + skipped + " açık dosya / bellek zaten bırakılmış" : "") + ").";
+                AppendSystem(note);
+                LogEvent(CardEventLog.Transfer, note);
             }
             catch (Exception ex)
             {

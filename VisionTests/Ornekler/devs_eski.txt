@@ -1,0 +1,5 @@
+drv name
+  0 /null
+  1 /tyCo/0
+  6 host.host:
+  8 /ata0a

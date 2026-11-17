@@ -1,0 +1,6 @@
+Listing Directory /ata0a:
+drwxrwxrwx  1 0       0             8192 Jan  1  1980 EFI/
+-rwxrwxrwx  1 0       0         12345678 Nov 12 14:30 app.bin
+drwxrwxrwx  1 0       0             8192 Nov 10 09:15 logs/
+-rwxrwxrwx  1 0       0              532 Nov 12 14:31 config.txt
+-rwxrwxrwx  1 0       0       2684354560 Nov 13 11:02 kara.bin
