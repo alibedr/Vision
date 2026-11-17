@@ -176,7 +176,8 @@ namespace Vision
                 _card.BootCommand = c;
                 Save();
             };
-            _timer.Tick += (s, e) => RefreshState();
+            _timer.Tick += (s, e) => { RefreshState(); AutoReadIfNeeded(); };
+            Shown += (s, e) => AutoReadIfNeeded();
             FormClosing += (s, e) =>
             {
                 if (_cts == null) return;
@@ -192,18 +193,63 @@ namespace Vision
         }
 
         /// <summary>Kartın kayıt penceresini açar (açıksa öne getirir).</summary>
-        public static void ShowFor(IWin32Window owner, CardConfig card)
+        /// <param name="current">Kartın şu anki alanları zaten biliniyorsa (Boot ayarları penceresi az önce okudu): kart yeniden okunmaz.</param>
+        public static void ShowFor(IWin32Window owner, CardConfig card, IList<BootField> current = null, string command = null)
         {
             BootRecordsDialog d;
             if (Open.TryGetValue(card, out d) && !d.IsDisposed)
             {
+                if (current != null) d.TakeCurrent(current, command, "Boot ayarları penceresinden");
                 if (d.WindowState == FormWindowState.Minimized) d.WindowState = FormWindowState.Normal;
                 d.Activate();
                 return;
             }
             d = new BootRecordsDialog(card);
             Open[card] = d;
+            if (current != null) d.TakeCurrent(current, command, "Boot ayarları penceresinden");
             if (owner != null) d.Show(owner); else d.Show();
+        }
+
+        /// <summary>
+        /// Boot ayarları penceresinde komut bitti: kayıt penceresi açıksa "Karttaki (şu an)" sütunu bu değerlerle güncellenir
+        /// (kart yeniden okunmaz).
+        /// </summary>
+        internal static void ProvideCurrent(CardConfig card, IList<BootField> fields, string command)
+        {
+            BootRecordsDialog d;
+            if (card != null && Open.TryGetValue(card, out d) && !d.IsDisposed) d.TakeCurrent(fields, command, "Boot ayarları penceresinden");
+        }
+
+        private void TakeCurrent(IList<BootField> fields, string command, string from)
+        {
+            if (fields == null || fields.Count == 0 || Busy) return;
+            if (command != null && !string.Equals(BootRecordLogic.NormalizeCommand(command), Command, StringComparison.Ordinal)) return;
+            // Kopya: pencere kendi alanlarını değiştirmeye devam edebilir
+            _current = fields.Select(f => new BootField
+            {
+                Label = f.Label, OriginalValue = f.OriginalValue, CardValue = f.EffectiveValue, Uncertain = f.Uncertain && f.Entered == null,
+            }).ToList();
+            _currentAt = DateTime.Now;
+            _autoRead = false;
+            SetMessage("✓  Kartın şu anki ayarları " + from.ToLowerInvariant() + " alındı (" + _current.Count + " alan).", Theme.Success);
+            RefreshPlan();
+        }
+
+        // ---------- Kendiliğinden okuma ----------
+
+        // Pencere açılınca ve kart (yeniden) bağlanınca kartın şu anki ayarları kendiliğinden okunur; "Karttaki (şu an)" boş kalmaz.
+        private bool _autoRead = true;
+        private bool _wasConnected;
+
+        private void AutoReadIfNeeded()
+        {
+            CardSession s = Session;
+            bool connected = s != null && s.State == CardState.Connected;
+            if (connected && !_wasConnected && _current == null) _autoRead = true;   // yeniden bağlandı: bir kez daha dene
+            _wasConnected = connected;
+            if (!_autoRead || _current != null || Busy || !Visible || CannotRun() != null) return;
+            _autoRead = false;
+            var ignored = ReadCurrentAsync();
         }
 
         private CardSession Session { get { return SessionOf != null ? SessionOf(_card) : null; } }
@@ -260,9 +306,9 @@ namespace Vision
             _empty.Visible = rows.Count == 0;
             _empty.Text = OwnRecords.Count == 0 && _records.Items.Count == 0
                 ? "Bu kart için kayıt yok.\n\"Karttan oku ve kaydet…\" ile kartın şu anki boot ayarlarını kaydedin."
-                : "Kartın şu anki ayarlarını görmek için \"Kartı oku\".";
+                : "Kartın şu anki ayarları okunuyor ya da kart bağlı değil (bağlanınca kendiliğinden okunur).";
             if (it == null) _summary.Text = _current != null ? "Kartın şu anki ayarları (" + _currentAt.ToString("HH:mm:ss") + ")" : "";
-            else if (_current == null) _summary.Text = "\"" + it.Record.Name + "\"  ·  kartla karşılaştırmak için \"Kartı oku\"";
+            else if (_current == null) _summary.Text = "\"" + it.Record.Name + "\"  ·  " + (Busy ? "kart okunuyor…" : "kart bağlanınca şu anki ayarları kendiliğinden okunur");
             else
             {
                 int change = rows.Count(r => r.WillWrite), excluded = rows.Count(r => r.Kind == BootPlanKind.Excluded),

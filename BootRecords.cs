@@ -98,6 +98,16 @@ namespace Vision
             return b.StartsWith("inet on ethernet") || b.StartsWith("inet on backplane");
         }
 
+        /// <summary>"bspBootChange()" / "bootChange ;" gibi yazımları komut adına indirger.</summary>
+        public static string NormalizeCommand(string cmd)
+        {
+            string c = (cmd ?? "").Trim().TrimEnd(';', ' ');
+            int p = c.IndexOf('(');
+            if (p >= 0) c = c.Substring(0, p);
+            c = c.Trim();
+            return Commands.FirstOrDefault(x => x == c) ?? c;
+        }
+
         public static string ValidateName(string name, IEnumerable<BootRecord> existing, BootRecord self)
         {
             string n = (name ?? "").Trim();

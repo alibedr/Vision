@@ -269,6 +269,13 @@ namespace VisionTests
         }
 
         [Test]
+        public void Boot_KomutYazimiSadelesir()
+        {
+            Check.Equal("bspBootChange", BootRecordLogic.NormalizeCommand(" bspBootChange() ;"), "parantez ve noktalı virgül");
+            Check.Equal("bootChange", BootRecordLogic.NormalizeCommand("bootChange"), "yalın");
+        }
+
+        [Test]
         public void Boot_KarsilastirmaDurumlari()
         {
             var rec = new BootRecord { Name = "x", Command = "bootChange" };

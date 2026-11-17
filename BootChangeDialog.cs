@@ -149,7 +149,9 @@ namespace Vision
                                           "Kayıtlar \"Boot ayarı kayıtları\" penceresinde karşılaştırılır ve geri yüklenir.");
             _tips.SetToolTip(_records, "Bu kartın boot ayarı kayıtlarını açar (kaydet, karşılaştır, geri yükle).");
             _saveRecord.Click += (s, e) => SaveAsRecord();
-            _records.Click += (s, e) => BootRecordsDialog.ShowFor(Owner ?? (IWin32Window)this, _session.Card);
+            // Komut bittiyse pencerenin okuduğu değerler "Karttaki (şu an)" olarak verilir: kart yeniden okunmaz
+            _records.Click += (s, e) => BootRecordsDialog.ShowFor(Owner ?? (IWin32Window)this, _session.Card,
+                _parser.Phase == BootChangePhase.Finished ? _parser.Fields : null, _command);
 
             Controls.Add(middle);
             Controls.Add(_logBar);
@@ -270,6 +272,8 @@ namespace Vision
             _outcomeLogged = true;
             List<BootField> changed = _parser.Fields.Where(f => f.Changed).ToList();
             string fields = string.Join("; ", changed.Select(f => f.Label + ": \"" + (f.OriginalValue ?? "") + "\" → \"" + f.EffectiveValue + "\""));
+            // Kayıt penceresi açıksa kartın şu anki ayarları oraya da geçer (G51.10)
+            if (_parser.Phase == BootChangePhase.Finished) BootRecordsDialog.ProvideCurrent(_session.Card, _parser.Fields, _command);
             if (_parser.Phase == BootChangePhase.Finished)
                 _session.LogEvent(CardEventLog.Boot, changed.Count == 0 ? _command + " tamamlandı — hiçbir alan değiştirilmedi."
                                                                         : _command + " tamamlandı — " + changed.Count + " alan değişti: " + fields);
@@ -296,7 +300,7 @@ namespace Vision
             BootRecord replace;
             string name = BootRecordsDialog.AskNewRecord(this, _session.Card, out replace);
             if (name == null) return;
-            string cmd = _command.TrimEnd(';', ' ').Replace("()", "").Trim();
+            string cmd = BootRecordLogic.NormalizeCommand(_command);
             BootRecord rec = BootRecordLogic.FromFields(name, cmd, _session.Card.Ip, _parser.Fields, DateTime.Now);
             BootRecordsDialog.AddRecord(_session.Card, rec, replace, cmd, _session, "Boot ayarları penceresinden");
             _status.Text = "✓  \"" + rec.Name + "\" kaydedildi (" + rec.Fields.Count + " alan). Boot ayarı kayıtları penceresinden karşılaştırılıp geri yüklenebilir.";
