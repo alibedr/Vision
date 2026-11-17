@@ -1351,7 +1351,8 @@ namespace Vision
                  v => new[] { v.TourQuick });
             card("Reboot",
                  "Sol taraf onay alarak karta reboot komutunu gönderir (kart yeniden başlar). Onayda \"Temizleyip yeniden başlat\" önce ekranı temizler " +
-                 "(Temizle düğmesiyle aynı), açılış çıktısı temiz ekranda görünür. Sağdaki ⇄ reboot ↔ reboot 2 seçimini değiştirir, bir şey göndermez.",
+                 "(Temizle düğmesiyle aynı), açılış çıktısı temiz ekranda görünür. Sağdaki ⇄ reboot ↔ reboot 2 seçimini değiştirir, bir şey göndermez.\n\n" +
+                 "Reboot'tan sonraki kopma beklenir: kırmızı uyarı yerine sarı \"Kart yeniden başlatılıyor\" görünür, kart açılınca kendiliğinden bağlanılır.",
                  v => new[] { v.TourReboot });
             card("Sentinel düğmesi",
                  "Nabız düğmesi kartın Sentinel web sunucusunu başlatır / durdurur (yeşil: çalışıyor). Sentinel'e turun sonunda ayrıca bakacağız.",
@@ -1397,12 +1398,15 @@ namespace Vision
             boot("Araya giren loglar",
                  "Bu sırada karttan gelen loglar alanlara karışmaz, burada toplanır; tıklayınca açılır. Kartın tüm çıktısı terminalde de görünür.",
                  d => new[] { d.TourLogs });
+            boot("Boot ayarı kayıtları",
+                 "Komut bitince \"Bu ayarları kaydet…\" kartın boot ayarlarını (gönderdiğiniz yeni değerler dahil) adıyla saklar. " +
+                 "\"Boot ayarı kayıtları…\" bu kartın kayıtlarını açar: kayıt şu anki ayarlarla karşılaştırılır ve önizleme + onayla aynı ya da " +
+                 "başka bir karta geri yüklenir. Kayıtlar terminalde ya da Kart Gezgini'nde karta sağ tıklayınca da açılır.",
+                 d => d.TourRecords);
             steps.Add(new TourStep
             {
                 Title = "Boot penceresini kapatın",
-                Body = () => "Pencere kapanınca tur kaldığı yerden devam eder.\n\n" +
-                             "Boot ayarlarını adıyla saklamak için terminalde ya da Kart Gezgini'nde karta sağ tık → \"Boot ayarı kayıtları…\": " +
-                             "kartın ayarları kaydedilir, şu anki ayarlarla karşılaştırılır ve önizleme + onayla aynı ya da başka bir karta geri yüklenir.",
+                Body = () => "Pencere kapanınca tur kaldığı yerden devam eder.",
                 Task = "Bir şey değiştirmeden bitirmek için \"Kalanları geçip bitir\"e basın, sonra pencereyi kapatın.",
                 Host = bootDialog,
                 Target = () => TourWhole(TourBootDialog()),
