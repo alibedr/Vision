@@ -183,6 +183,7 @@ namespace Vision
 
             // Kartın olay günlüğü (G49)
             _outputMenu.Items.Add(new ToolStripSeparator());
+            _outputMenu.Items.Add(MakeMenuItem("Boot ayarı kayıtları…", () => BootRecordsDialog.ShowFor(FindForm(), Session.Card)));
             _outputMenu.Items.Add(MakeMenuItem("Olay günlüğü…", () => EventLogDialog.ShowFor(FindForm(), Session.Card)));
         }
 

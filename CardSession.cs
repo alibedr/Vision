@@ -410,6 +410,7 @@ namespace Vision
         {
             if (State != CardState.Connected) throw new InvalidOperationException("Kart bağlı değil.");
             if (TransferActive) throw new InvalidOperationException(TransferBusyMessage);
+            if (BootAutomationActive) throw new InvalidOperationException(BootAutomationBusyMessage);
             await _commandGate.WaitAsync().ConfigureAwait(false);
             try
             {
@@ -464,6 +465,46 @@ namespace Vision
         /// dosyayı sessizce bozabilirdi (G42.10).
         /// </summary>
         public bool TransferActive { get { return Volatile.Read(ref _transferDepth) > 0; } }
+
+        // ---------- Boot ayarı kaydı okuma / uygulama (G51) ----------
+
+        private int _bootAutomation;
+
+        /// <summary>Vision kartta bspBootChange / bootChange'i kendisi yürütüyor (boot ayarı kaydı): kullanıcı komutları gönderilmez.</summary>
+        public bool BootAutomationActive { get { return Volatile.Read(ref _bootAutomation) > 0; } }
+
+        public const string BootAutomationBusyMessage =
+            "Kartta boot ayarları okunuyor / uygulanıyor (Boot ayarı kayıtları); komut gönderilmedi. İşlem bitince tekrar deneyin.";
+
+        public IDisposable BeginBootAutomation()
+        {
+            Interlocked.Increment(ref _bootAutomation);
+            return new ActionScope(() => Interlocked.Decrement(ref _bootAutomation));
+        }
+
+        /// <summary>Boot ayarı kaydının komutu: kullanıcı komutu gibi terminalde görünür, ama boot işlemi sürerken de gönderilebilir.</summary>
+        internal async Task SendAutomationCommandAsync(string cmd, string source)
+        {
+            if (State != CardState.Connected) throw new InvalidOperationException("Kart bağlı değil.");
+            if (TransferActive) throw new InvalidOperationException(TransferBusyMessage);
+            await _commandGate.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                if (State != CardState.Connected) throw new InvalidOperationException("Kart bağlı değil.");
+                await SendTerminalCommandAsync(cmd, source).ConfigureAwait(false);
+            }
+            finally
+            {
+                _commandGate.Release();
+            }
+        }
+
+        private sealed class ActionScope : IDisposable
+        {
+            private Action _a;
+            public ActionScope(Action a) { _a = a; }
+            public void Dispose() { Action a = Interlocked.Exchange(ref _a, null); if (a != null) a(); }
+        }
 
         public const string TransferBusyMessage =
             "Kartta dosya aktarımı sürüyor (Kart Dosya Gezgini); komut gönderilmedi. Aktarım bitince tekrar deneyin.";

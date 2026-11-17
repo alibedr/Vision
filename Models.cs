@@ -46,6 +46,14 @@ namespace Vision
             QuickCommand = active;
         }
 
+        /// <summary>Kullanıcının adıyla kaydettiği boot ayarları (en fazla <see cref="BootRecordLogic.MaxPerCard"/>; G51). Otomatik kaydedilmez.</summary>
+        [XmlArray("BootKayitlari"), XmlArrayItem("Kayit")] public List<BootRecord> BootRecords { get; set; }
+
+        public bool ShouldSerializeBootRecords() { return BootRecords != null && BootRecords.Count > 0; }
+
+        /// <summary>Bu kartın boot ayarları için kullanılan komut (bspBootChange / bootChange); boşsa bspBootChange.</summary>
+        [XmlAttribute("BootKomutu")] public string BootCommand { get; set; }
+
         /// <summary>Kartın yeniden başlatma düğmesinde seçili komut ("reboot" / "reboot 2").</summary>
         [XmlAttribute("Yeniden")] public RebootOption RebootOption { get; set; }
 

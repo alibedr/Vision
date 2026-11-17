@@ -325,6 +325,10 @@ namespace Vision
             _explorer.BrowseFilesRequested += card => { _fileExplorer.ShowCard(card); ShowTab(MainTab.Files); };
             _explorer.EventLogRequested += card => EventLogDialog.ShowFor(this, card);
             EventLogDialog.CardSource = () => _config.Groups.SelectMany(g => g.Cards).ToList();
+            _explorer.BootRecordsRequested += card => BootRecordsDialog.ShowFor(this, card);
+            BootRecordsDialog.CardSource = () => _config.Groups.SelectMany(g => g.Cards).ToList();
+            BootRecordsDialog.SessionOf = FindSession;
+            BootRecordsDialog.SaveConfig = SaveConfig;
             _fileExplorer.StateOf = StateOf;   // kart listesinde yalnız bağlı kartlar (G33.5)
             _fileExplorer.RefreshCards();
             _explorer.RenameCardRequested += RenameCard;

@@ -41,6 +41,7 @@
     <Compile Include="FakeCard.cs" />
     <Compile Include="TransferTests.cs" />
     <Compile Include="EventLogTests.cs" />
+    <Compile Include="BootRecordTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Ornekler\**\*.txt">
