@@ -137,7 +137,12 @@ namespace Vision
                 if (e.Kind == FsKind.Folder && (destDir + "/").StartsWith(e.FullPath + "/", StringComparison.OrdinalIgnoreCase))
                 { failed.Add(e.Name + " (kendi içine)"); continue; }
                 await InCardTransferAsync(e, destDir, copy);
-                if (b.Error != null) { failed.Add(e.Name); if (b.Error.MissingCommand != null || b.LastResponse == null || b.LastResponse.Failure != null) break; }
+                if (b.Error != null)
+                {
+                    failed.Add(e.Name);
+                    // Bağlantı koptu ya da gereken komut imajda yok: kalanlar denenmez
+                    if (b.LastResponse == null || b.LastResponse.Failure != null || b.Error.Contains("imajında")) break;
+                }
                 else ok++;
             }
             string msg = ok + " öğe " + destDir + " klasörüne " + (copy ? "kopyalandı" : "taşındı") +
