@@ -38,6 +38,7 @@ namespace Vision
         internal Control TourList { get { return _list; } }
         internal Control TourLogs { get { return _logBar; } }
         internal Control TourClose { get { return _close; } }
+        internal Control[] TourRecords { get { return new Control[] { _records, _saveRecord }; } }
     }
 
     public sealed partial class FileExplorerView

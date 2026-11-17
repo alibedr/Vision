@@ -682,7 +682,8 @@ namespace Vision
             switch (s)
             {
                 case CardState.Connected: return Success;
-                case CardState.Connecting: return Warning;
+                case CardState.Connecting:
+                case CardState.Rebooting: return Warning;      // planlı yeniden başlatma: kırmızı değil (G52)
                 case CardState.Error:
                 case CardState.Recovering: return Danger;     // kopmuş kart mevcut kırmızı göstergeyle
                 default: return Idle;
@@ -697,6 +698,7 @@ namespace Vision
                 case CardState.Connecting: return "Bağlanıyor";
                 case CardState.Error: return "Bağlantı yok";
                 case CardState.Recovering: return "Bağlantı kesildi · yeniden bağlanılacak";
+                case CardState.Rebooting: return "Yeniden başlatılıyor · açılınca bağlanılacak";
                 default: return "Bağlı değil";
             }
         }

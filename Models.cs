@@ -46,6 +46,14 @@ namespace Vision
             QuickCommand = active;
         }
 
+        /// <summary>Kullanıcının adıyla kaydettiği boot ayarları (en fazla <see cref="BootRecordLogic.MaxPerCard"/>; G51). Otomatik kaydedilmez.</summary>
+        [XmlArray("BootKayitlari"), XmlArrayItem("Kayit")] public List<BootRecord> BootRecords { get; set; }
+
+        public bool ShouldSerializeBootRecords() { return BootRecords != null && BootRecords.Count > 0; }
+
+        /// <summary>Bu kartın boot ayarları için kullanılan komut (bspBootChange / bootChange); boşsa bspBootChange.</summary>
+        [XmlAttribute("BootKomutu")] public string BootCommand { get; set; }
+
         /// <summary>Kartın yeniden başlatma düğmesinde seçili komut ("reboot" / "reboot 2").</summary>
         [XmlAttribute("Yeniden")] public RebootOption RebootOption { get; set; }
 
@@ -111,7 +119,17 @@ namespace Vision
             TelnetNopHeartbeat = false;
             HeartbeatIntervalMs = 5000;
             MonitorTickMs = 1000;
+            StableAfterMs = 5000;
+            RebootDropWindowMs = 60000;
+            RebootReturnMs = 180000;
         }
+
+        /// <summary>Yeniden kurulan bağlantı bu kadar sürünce kalıcı sayılır; daha önce koparsa aynı kesintinin devamıdır (G52).</summary>
+        public int StableAfterMs { get; set; }
+        /// <summary>Reboot gönderildikten sonra bu süre içindeki kopma beklenen (planlı) kopmadır (G52).</summary>
+        public int RebootDropWindowMs { get; set; }
+        /// <summary>Planlı yeniden başlatmada kart bu süre içinde geri gelmezse kırmızı uyarı verilir (G52).</summary>
+        public int RebootReturnMs { get; set; }
 
         /// <summary>Son trafikten sonra ilk sağlık yoklamasına kadar geçen süre.</summary>
         public int KeepAliveIdleMs { get; set; }

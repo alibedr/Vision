@@ -71,6 +71,8 @@ namespace Vision
         public event Action<CardConfig> BrowseFilesRequested;
         /// <summary>Kartın olay günlüğü istendi (sağ tık → Olay günlüğü, G49).</summary>
         public event Action<CardConfig> EventLogRequested;
+        /// <summary>Kartın boot ayarı kayıtları istendi (sağ tık → Boot ayarı kayıtları, G51).</summary>
+        public event Action<CardConfig> BootRecordsRequested;
         /// <summary>Kartın görünen adı değiştirilmek isteniyor.</summary>
         public event Action<CardConfig> RenameCardRequested;
         /// <summary>Grubun adı değiştirilmek isteniyor.</summary>
@@ -504,6 +506,7 @@ namespace Vision
                 AddItem("Ekranda göster", () => RaiseOpen(new List<CardConfig> { card }), true);
                 AddItem(live ? "Bağlantıyı kes" : "Bağlan", () => RaiseConnect(new List<CardConfig> { card }, !live), true);
                 AddItem("Dosya Gezgininde aç", () => { var h = BrowseFilesRequested; if (h != null) h(card); }, true);
+                AddItem("Boot ayarı kayıtları…", () => { var h = BootRecordsRequested; if (h != null) h(card); }, true);
                 AddItem("Olay günlüğü…", () => { var h = EventLogRequested; if (h != null) h(card); }, true);
                 AddItem(card.HasName ? "Adı değiştir…" : "Ad ver…", () => { var h = RenameCardRequested; if (h != null) h(card); }, true);
                 _menu.Items.Add(new ToolStripSeparator());

@@ -325,6 +325,10 @@ namespace Vision
             _explorer.BrowseFilesRequested += card => { _fileExplorer.ShowCard(card); ShowTab(MainTab.Files); };
             _explorer.EventLogRequested += card => EventLogDialog.ShowFor(this, card);
             EventLogDialog.CardSource = () => _config.Groups.SelectMany(g => g.Cards).ToList();
+            _explorer.BootRecordsRequested += card => BootRecordsDialog.ShowFor(this, card);
+            BootRecordsDialog.CardSource = () => _config.Groups.SelectMany(g => g.Cards).ToList();
+            BootRecordsDialog.SessionOf = FindSession;
+            BootRecordsDialog.SaveConfig = SaveConfig;
             _fileExplorer.StateOf = StateOf;   // kart listesinde yalnız bağlı kartlar (G33.5)
             _fileExplorer.RefreshCards();
             _explorer.RenameCardRequested += RenameCard;
@@ -970,9 +974,11 @@ namespace Vision
             int total = _config.Groups.Sum(g => g.Cards.Count);
             int connected = _sessions.Values.Count(s => s.State == CardState.Connected);
             int lost = _sessions.Values.Count(s => s.State == CardState.Recovering);
+            int rebooting = _sessions.Values.Count(s => s.State == CardState.Rebooting);
             int errors = _sessions.Values.Count(s => s.State == CardState.Error);
             string text = _config.Groups.Count + " grup  ·  " + total + " kart  ·  " + connected + " bağlı";
             if (lost > 0) text += "  ·  " + lost + " bağlantısı kesik (izleniyor)";
+            if (rebooting > 0) text += "  ·  " + rebooting + " yeniden başlatılıyor";
             if (errors > 0) text += "  ·  " + errors + " hatalı";
             if (_configNote != null) text += "  ·  " + _configNote;
             errors += lost;
@@ -1243,7 +1249,7 @@ namespace Vision
             {
                 Title = "Kart Gezgini",
                 Body = () => "Gruplar ve kartlar burada. Kartın yanındaki nokta bağlantı durumunu gösterir. Üstteki kutuyla IP ya da ada göre arayın.\n\n" +
-                             "Sağ tık: bağlan / kes, adını değiştir (F2), dosyalarını gez, olay günlüğü, kaldır; grupta: gruba kart ekle, grubun adını değiştir, grubu sil.",
+                             "Sağ tık: bağlan / kes, adını değiştir (F2), dosyalarını gez, boot ayarı kayıtları, olay günlüğü, kaldır; grupta: gruba kart ekle, grubun adını değiştir, grubu sil.",
                 Target = () => TourRect(_explorer.TourSearch, _explorer.TourTree),
                 Enter = telnet,
             });
@@ -1275,7 +1281,9 @@ namespace Vision
             {
                 Title = "Kart ekranları ve durum renkleri",
                 Body = () => "Açılan her kart burada kendi terminaliyle görünür; pencere genişledikçe ızgara kendiliğinden yerleşir. " +
-                             "Kartın rengi bağlantı durumunu gösterir. Bağlantı koparsa Vision kendiliğinden yeniden bağlanmayı dener.",
+                             "Kartın rengi bağlantı durumunu gösterir. Bağlantı koparsa Vision kendiliğinden yeniden bağlanmayı dener; kopma bir kez " +
+                             "yazılır, bağlantı gelince toplam kesinti süresi yazılır. Karta reboot gönderdiyseniz kopma beklenir: kırmızı uyarı " +
+                             "yerine sarı \"yeniden başlatılıyor\" görünür.",
                 Target = () => TourRect(_grid),
                 Enter = telnet,
                 Illustration = DrawTourStates,
@@ -1343,7 +1351,8 @@ namespace Vision
                  v => new[] { v.TourQuick });
             card("Reboot",
                  "Sol taraf onay alarak karta reboot komutunu gönderir (kart yeniden başlar). Onayda \"Temizleyip yeniden başlat\" önce ekranı temizler " +
-                 "(Temizle düğmesiyle aynı), açılış çıktısı temiz ekranda görünür. Sağdaki ⇄ reboot ↔ reboot 2 seçimini değiştirir, bir şey göndermez.",
+                 "(Temizle düğmesiyle aynı), açılış çıktısı temiz ekranda görünür. Sağdaki ⇄ reboot ↔ reboot 2 seçimini değiştirir, bir şey göndermez.\n\n" +
+                 "Reboot'tan sonraki kopma beklenir: kırmızı uyarı yerine sarı \"Kart yeniden başlatılıyor\" görünür, kart açılınca kendiliğinden bağlanılır.",
                  v => new[] { v.TourReboot });
             card("Sentinel düğmesi",
                  "Nabız düğmesi kartın Sentinel web sunucusunu başlatır / durdurur (yeşil: çalışıyor). Sentinel'e turun sonunda ayrıca bakacağız.",
@@ -1389,6 +1398,11 @@ namespace Vision
             boot("Araya giren loglar",
                  "Bu sırada karttan gelen loglar alanlara karışmaz, burada toplanır; tıklayınca açılır. Kartın tüm çıktısı terminalde de görünür.",
                  d => new[] { d.TourLogs });
+            boot("Boot ayarı kayıtları",
+                 "Komut bitince \"Bu ayarları kaydet…\" kartın boot ayarlarını (gönderdiğiniz yeni değerler dahil) adıyla saklar. " +
+                 "\"Boot ayarı kayıtları…\" bu kartın kayıtlarını açar: kayıt şu anki ayarlarla karşılaştırılır ve önizleme + onayla aynı ya da " +
+                 "başka bir karta geri yüklenir. Kayıtlar terminalde ya da Kart Gezgini'nde karta sağ tıklayınca da açılır.",
+                 d => d.TourRecords);
             steps.Add(new TourStep
             {
                 Title = "Boot penceresini kapatın",
@@ -1423,14 +1437,41 @@ namespace Vision
             {
                 Title = "Renklendirme kuralları",
                 Body = () => "Seçtiğiniz metnin ekrandaki ve bundan sonra gelecek tüm eşleşmeleri o renge boyanır. Kurallar karta aittir ve " +
-                             "saklanır; aynı sağ tık menüsünden tek tek ya da hepsi birden kaldırılır.\n\n" +
-                             "Aynı menüdeki \"Olay günlüğü…\" bu kartın zaman çizelgesini açar: bağlantılar, kopmalar, reboot'lar, boot ayarı " +
-                             "değişiklikleri, Sentinel, dosya işlemleri ve aktarımlar.",
+                             "saklanır; aynı sağ tık menüsünden tek tek ya da hepsi birden kaldırılır.",
                 Target = cardPart(v => new[] { v.TourOutput }),
                 Available = hasView,
                 Enter = telnet,
                 Illustration = DrawTourHighlights,
                 IllustrationHeight = 78,
+            });
+
+            // ---------------- Sağ tık: boot ayarı kayıtları ve olay günlüğü ----------------
+            steps.Add(new TourStep
+            {
+                Title = "Boot ayarı kayıtları (sağ tık)",
+                Body = () => "Terminalde sağ tıklayınca (ya da Kart Gezgini'nde karta sağ tıklayınca) \"Boot ayarı kayıtları…\" açılır. " +
+                             "Burada kartın boot ayarları — FTP parolası dahil her alan — adıyla kaydedilir (kart başına en fazla 5, " +
+                             "otomatik kayıt yok).\n\n" +
+                             "Pencere açılınca kartın şu anki ayarları kendiliğinden okunur (kartta hiçbir şey değişmez); seçtiğiniz kayıt " +
+                             "\"Kayıttaki\" ve \"Karttaki (şu an)\" olarak yan yana görünür, farklı alanlar vurgulanır.\n\n" +
+                             "\"Karta uygula…\" önce değişecek alanları gösterir; onaylarsanız yalnız farklı alanlar yazılır, kart yeniden okunup " +
+                             "doğrulanır ve yeniden başlatma önerilir. Başka kartın kaydı da uygulanabilir: o zaman kartın kendi IP adresi korunur.",
+                Target = cardPart(v => new[] { v.TourOutput }),
+                Available = hasView,
+                Enter = telnet,
+            });
+            steps.Add(new TourStep
+            {
+                Title = "Olay günlüğü (sağ tık)",
+                Body = () => "Terminalde sağ tıklayınca (ya da Kart Gezgini'nde karta sağ tıklayınca) \"Olay günlüğü…\" açılır: bu kartın " +
+                             "zaman çizelgesi. Bağlandı / koptu (nedeni ve kesinti süresi), reboot'lar, boot ayarı değişiklikleri (eski → yeni), " +
+                             "boot ayarı kayıtları, Sentinel, dosya işlemleri ve aktarımlar kaydedilir.\n\n" +
+                             "\"Kart dün gece ne zaman koptu?\", \"Boot ayarını kim, ne zaman değiştirdi?\" gibi sorulara buradan bakılır. " +
+                             "Kart, tür ve aramayla süzülür; en yeni olay üstte, hatalar kırmızı. CSV olarak kaydedilebilir. " +
+                             "Kart başına en fazla 5 MB tutulur; dolunca en eski olaylar silinir.",
+                Target = cardPart(v => new[] { v.TourOutput }),
+                Available = hasView,
+                Enter = telnet,
             });
 
             // ---------------- Tüm kartlar için ----------------
@@ -1661,8 +1702,8 @@ namespace Vision
 
         private static void DrawTourStates(Graphics g, Rectangle r)
         {
-            var items = new[] { CardState.Connected, CardState.Connecting, CardState.Recovering, CardState.Error, CardState.Disconnected };
-            var labels = new[] { "Bağlı", "Bağlanıyor", "Yeniden bağlanıyor", "Hata", "Bağlı değil" };
+            var items = new[] { CardState.Connected, CardState.Connecting, CardState.Recovering, CardState.Error, CardState.Disconnected, CardState.Rebooting };
+            var labels = new[] { "Bağlı", "Bağlanıyor", "Yeniden bağlanıyor", "Hata", "Bağlı değil", "Yeniden başlatılıyor" };
             int colW = (r.Width - 16) / 3;
             for (int i = 0; i < items.Length; i++)
             {

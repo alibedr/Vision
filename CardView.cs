@@ -397,6 +397,14 @@ namespace Vision
                     _stateStrip.BackColor = Theme.StripConnecting;
                     _stateStrip.ForeColor = Theme.Warning;
                     break;
+                case CardState.Rebooting:
+                    DateTime? rb = Session.PlannedRebootUtc;
+                    _stateStrip.Text = "↻  Kart yeniden başlatılıyor" +
+                        (rb.HasValue ? " (\"" + (Session.PlannedRebootCommand ?? "reboot") + "\", " + rb.Value.ToLocalTime().ToString("HH:mm:ss") + ")" : "") +
+                        "  —  kart açılınca bağlantı otomatik kurulacak";
+                    _stateStrip.BackColor = Theme.StripConnecting;
+                    _stateStrip.ForeColor = Theme.Warning;
+                    break;
                 case CardState.Error:
                     _stateStrip.Text = "●  Bağlantı yok: " + (Session.LastError ?? "hata") + "  —  komut gönderilemez";
                     _stateStrip.BackColor = Theme.StripError;
