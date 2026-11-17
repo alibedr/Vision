@@ -1437,14 +1437,41 @@ namespace Vision
             {
                 Title = "Renklendirme kuralları",
                 Body = () => "Seçtiğiniz metnin ekrandaki ve bundan sonra gelecek tüm eşleşmeleri o renge boyanır. Kurallar karta aittir ve " +
-                             "saklanır; aynı sağ tık menüsünden tek tek ya da hepsi birden kaldırılır.\n\n" +
-                             "Aynı menüdeki \"Olay günlüğü…\" bu kartın zaman çizelgesini açar: bağlantılar, kopmalar, reboot'lar, boot ayarı " +
-                             "değişiklikleri, Sentinel, dosya işlemleri ve aktarımlar.",
+                             "saklanır; aynı sağ tık menüsünden tek tek ya da hepsi birden kaldırılır.",
                 Target = cardPart(v => new[] { v.TourOutput }),
                 Available = hasView,
                 Enter = telnet,
                 Illustration = DrawTourHighlights,
                 IllustrationHeight = 78,
+            });
+
+            // ---------------- Sağ tık: boot ayarı kayıtları ve olay günlüğü ----------------
+            steps.Add(new TourStep
+            {
+                Title = "Boot ayarı kayıtları (sağ tık)",
+                Body = () => "Terminalde sağ tıklayınca (ya da Kart Gezgini'nde karta sağ tıklayınca) \"Boot ayarı kayıtları…\" açılır. " +
+                             "Burada kartın boot ayarları — FTP parolası dahil her alan — adıyla kaydedilir (kart başına en fazla 5, " +
+                             "otomatik kayıt yok).\n\n" +
+                             "Pencere açılınca kartın şu anki ayarları kendiliğinden okunur (kartta hiçbir şey değişmez); seçtiğiniz kayıt " +
+                             "\"Kayıttaki\" ve \"Karttaki (şu an)\" olarak yan yana görünür, farklı alanlar vurgulanır.\n\n" +
+                             "\"Karta uygula…\" önce değişecek alanları gösterir; onaylarsanız yalnız farklı alanlar yazılır, kart yeniden okunup " +
+                             "doğrulanır ve yeniden başlatma önerilir. Başka kartın kaydı da uygulanabilir: o zaman kartın kendi IP adresi korunur.",
+                Target = cardPart(v => new[] { v.TourOutput }),
+                Available = hasView,
+                Enter = telnet,
+            });
+            steps.Add(new TourStep
+            {
+                Title = "Olay günlüğü (sağ tık)",
+                Body = () => "Terminalde sağ tıklayınca (ya da Kart Gezgini'nde karta sağ tıklayınca) \"Olay günlüğü…\" açılır: bu kartın " +
+                             "zaman çizelgesi. Bağlandı / koptu (nedeni ve kesinti süresi), reboot'lar, boot ayarı değişiklikleri (eski → yeni), " +
+                             "boot ayarı kayıtları, Sentinel, dosya işlemleri ve aktarımlar kaydedilir.\n\n" +
+                             "\"Kart dün gece ne zaman koptu?\", \"Boot ayarını kim, ne zaman değiştirdi?\" gibi sorulara buradan bakılır. " +
+                             "Kart, tür ve aramayla süzülür; en yeni olay üstte, hatalar kırmızı. CSV olarak kaydedilebilir. " +
+                             "Kart başına en fazla 5 MB tutulur; dolunca en eski olaylar silinir.",
+                Target = cardPart(v => new[] { v.TourOutput }),
+                Available = hasView,
+                Enter = telnet,
             });
 
             // ---------------- Tüm kartlar için ----------------
