@@ -39,21 +39,11 @@ namespace Vision
         /// </summary>
         public void NormalizeQuickCommands()
         {
-            var list = new List<string>();
-            if (QuickCommands != null)
-                foreach (string c in QuickCommands)
-                {
-                    string t = (c ?? "").Trim();
-                    if (t.Length > 0 && !list.Contains(t) && list.Count < MaxQuickCommands) list.Add(t);
-                }
-            string active = (QuickCommand ?? "").Trim();
-            if (active.Length > 0 && !list.Contains(active))
-            {
-                if (list.Count < MaxQuickCommands) list.Insert(0, active);
-                else active = "";
-            }
+            List<string> list = QuickCommands;
+            string active = QuickCommand;
+            QuickCommandSet.Normalize(ref list, ref active);
             QuickCommands = list;
-            QuickCommand = active.Length > 0 ? active : (list.Count > 0 ? list[0] : null);
+            QuickCommand = active;
         }
 
         /// <summary>Kartın yeniden başlatma düğmesinde seçili komut ("reboot" / "reboot 2").</summary>
@@ -208,6 +198,11 @@ namespace Vision
         /// <summary>Genel komut çubuğunun hızlı komutu (boş: ayarlanmamış).</summary>
         public string GlobalQuickCommand { get; set; }
 
+        /// <summary>Genel komut çubuğunun hızlı komutları (en fazla 5; seçili olan GlobalQuickCommand; G46).</summary>
+        public List<string> GlobalQuickCommands { get; set; }
+
+        public bool ShouldSerializeGlobalQuickCommands() { return GlobalQuickCommands != null && GlobalQuickCommands.Count > 0; }
+
         /// <summary>Genel komut çubuğunda seçili yeniden başlatma komutu.</summary>
         public RebootOption GlobalRebootOption { get; set; }
 
@@ -290,6 +285,11 @@ namespace Vision
             if (MaxTerminalLines > MaxTerminalLinesLimit) MaxTerminalLines = MaxTerminalLinesLimit;
             TerminalZoom = ClampZoom(TerminalZoom);
             if (!Enum.IsDefined(typeof(RebootOption), GlobalRebootOption)) GlobalRebootOption = RebootOption.Reboot;
+            List<string> gq = GlobalQuickCommands;
+            string ga = GlobalQuickCommand;
+            QuickCommandSet.Normalize(ref gq, ref ga);
+            GlobalQuickCommands = gq;
+            GlobalQuickCommand = ga;
             if (!Enum.IsDefined(typeof(ThemeMode), UiTheme)) UiTheme = ThemeMode.Dark;
             // Önceki sürümden geçiş: yalnız koyu / açık vardı
             if (ThemeCatalog.Find(UiThemeId) == null)

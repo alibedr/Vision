@@ -471,7 +471,16 @@ Ana metin (≈ 14:1), terminal metni (≈ 13:1) ve başarı / uyarı renkleri za
 
 | No | Gereksinim | Durum | Nasıl karşılandı |
 |---|---|---|---|
-| G46.1 | Hızlı komut düğmesine en fazla 5 komut konulabilmeli, aralarında geçiş yapılabilmeli | Karşılandı | `CardConfig.QuickCommands` (`<HizliKomutlar><Komut>…`, en fazla `MaxQuickCommands` = 5) + seçili komut `QuickCommand` (eski `HizliKomut` özniteliği; önceki sürümler yalnız bunu okur). Yüklemede `NormalizeQuickCommands`: eski tek komut listeye alınır, boş / yinelenen / fazla atılır. Düğme `SplitActionButton` (şimşek + seçili komut, sağda ▾; `ToggleIcon`, `AccentIcon`): sol seçili komutu gönderir, ▾ / sağ tık listeyi açar (komuta tıklamak seçer, göndermez; ekle / düzenle / yukarı-aşağı taşı / kaldır; aynı komut iki kez eklenemez). Genel komut çubuğunun hızlı komutu tek komut olarak kalır. |
+| G46.1 | Hızlı komut düğmesine en fazla 5 komut konulabilmeli, aralarında geçiş yapılabilmeli | Karşılandı | `CardConfig.QuickCommands` (`<HizliKomutlar><Komut>…`, en fazla `MaxQuickCommands` = 5) + seçili komut `QuickCommand` (eski `HizliKomut` özniteliği; önceki sürümler yalnız bunu okur). Yüklemede `NormalizeQuickCommands`: eski tek komut listeye alınır, boş / yinelenen / fazla atılır. Düğme `SplitActionButton` (şimşek + seçili komut, sağda ▾; `ToggleIcon`, `AccentIcon`): sol seçili komutu gönderir, ▾ / sağ tık listeyi açar (komuta tıklamak seçer, göndermez; ekle / düzenle / yukarı-aşağı taşı / kaldır; aynı komut iki kez eklenemez). Genel komut çubuğu da aynı: `AppSettings.GlobalQuickCommands` + seçili `GlobalQuickCommand`, `Normalize`'da düzenlenir. Ortak davranış `QuickCommandSet` (QuickCommands.cs). |
+
+### G47 — Dosya Gezgini'nde çoklu seçim
+
+| No | Gereksinim | Durum | Nasıl karşılandı |
+|---|---|---|---|
+| G47.1 | Birden çok öğe seçilebilmeli: Ctrl+A tümü, Ctrl + tık, Shift + tık | Karşılandı | `DarkListView.MultiSelect = true`; liste `KeyDown`'da Ctrl+A. `SelectedEntry` yalnız tek seçimde döner (aç / görüntüle / yeniden adlandır / birlikte aç tek öğe); `SelectedEntries` cihazlar hariç listedeki sırayla. Durum satırında seçim özeti. |
+| G47.2 | Seçili öğeler birlikte silinebilmeli | Karşılandı | `FileBrowser.DeleteManyAsync`: tek iş içinde sırayla rm / rmdir / xdelete; EFI korumalı öğe ve (içindekilerle silmede) EFI içeren klasör atlanır (`FindProtectedInsideCoreAsync`); liste ve boş alan sonda bir kez yenilenir; bağlantı koparsa durur; özet şeritte. Onay tek pencerede (adlar, korumalı sayısı; klasör varsa "yalnız boşsa" / "içindekilerle birlikte"). |
+| G47.3 | Seçili öğeler bilgisayara kaydedilebilmeli ve Windows'a sürüklenebilmeli | Karşılandı | `DownloadManyToAsync`: klasörler taranır, toplam boyutla bilgisayarda yer denetlenir, tüm dosyalar tek `DownloadProgressDialog`'da (`RunTransferDialogMany`). Sürüklemede her öğe için yer tutucu (`DragState.Entries / Paths`), bırakınca hepsi indirilir. |
+| G47.4 | Seçili öğeler kart içinde taşınabilmeli / kopyalanabilmeli | Karşılandı | Sağ tık Taşı… / Kopyala… (tek hedef) ve sürükle-bırak (iç biçim `FsEntry[]`; `CanDropInto`: kendisine / alt klasörüne bırakılamaz) → `InCardTransferManyAsync` (sırayla `TransferAsync`; korumalı / zaten orada olan atlanır; özet şeritte). |
 
 ## Sürüm notları
 
@@ -483,4 +492,4 @@ Ana metin (≈ 14:1), terminal metni (≈ 13:1) ve başarı / uyarı renkleri za
 | 1.1 | Büyük dosya yükleme: kartta kopyalama süresi dosya boyutuna göre, yüklemeden önce boş alan denetimi, FAT 4 GB sınırı, 1 GB üstü dosyaların parça parça aktarımı (G39); yükleme ilerleme penceresi (G40). |
 | 1.2 | Karttan büyük dosya alma (parçalı), anında iptal, anlık hıza göre kalan süre, indirmede ilerleme penceresi; parçalı aktarım eşiği 64 MB (G41). |
 | 1.3 | Klasör içindeki büyük dosyaların parçalı yüklenmesi, kart içi kopyalama / diskler arası taşımada boyuta göre bekleme + ilerleme + iptal, karttan almadan önce bilgisayarda yer denetimi, işlemlerden sonra boş alanın güncellenmesi, Birlikte aç'ta ilerleme penceresi; parça 64 MB / ara bellek 8 MB; aktarım güvenliği: komut karışmasının önlenmesi, doğrulama, kopma ve kapanışta temizlik, FTP artıkları (G42); beklenmeyen hatalar için genel yakalayıcı ve log döndürme (G43); tema renkleri: yardım sayfası ve menüler temanın renklerinde (G44; Yüksek kontrast'tan geçişteki renk sorunu açık, 1.4'te). |
-| 1.4 | Yüksek kontrast'tan başka temaya geçişteki renk sorunu (G44.3), reboot onayı (G45), kart başına en fazla 5 hızlı komut (G46). |
+| 1.4 | Yüksek kontrast'tan başka temaya geçişteki renk sorunu (G44.3), reboot onayı (G45), kartta ve genel komut çubuğunda en fazla 5 hızlı komut (G46), Dosya Gezgini'nde çoklu seçim (G47); uygulama turu güncellendi. |

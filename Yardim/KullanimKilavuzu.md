@@ -382,7 +382,7 @@ Gönder düğmesinin yanında, kart penceresindekilerin genel karşılıkları v
 
 | Düğme | İşlev |
 |---|---|
-| **Hızlı komut** (şimşek) | Genel hızlı komutu ekrandaki tüm bağlı kartlara birer kez gönderir. İlk tıklamada komut sorulur; sağ tık: düzenle / kaldır. Kaydedilir. |
+| **Hızlı komut** (şimşek ▾) | Seçili genel hızlı komutu ekrandaki tüm bağlı kartlara birer kez gönderir. Kartlardaki gibi en fazla **5** komut: ▾ ya da sağ tık listeyi açar (komuta tıklamak seçer, göndermez; ekle / düzenle / sırala / kaldır). Kaydedilir. |
 | **reboot ⇄** | Sol: seçili `reboot` / `reboot 2` komutunu (onay alarak) ekrandaki tüm bağlı kartlara birer kez gönderir. Sağ ⇄: yalnız seçimi değiştirir (göndermez). Gönderdikten sonra 4 sn pasif. |
 | **Dosyaya kaydet** (disket) | Ekrandaki **her** kartın terminal içeriğini o anda alır ve **her kartı kendi dosyasına** kaydeder (aşağıya bakın). |
 | **Tümünü temizle** (silgi) | Ekrandaki **her** kartın terminal ekranını ve geçmişini bir kerede temizler (kart başlığındaki silgiyle aynı iş; karta komut gönderilmez). |
@@ -487,6 +487,16 @@ Bir klasörün içindeyken araç çubuğu, sağ tık menüsü ve klavye kısayol
 - Görüntüleyicide satır kaydırma ve **Bilgisayara kaydet…** vardır. 1 MB'tan büyük dosyalar ve metin olmayan (ikili) dosyalar için önce onay istenir. Telnet bağlantısı ASCII karakterleri taşıdığı için Türkçe karakterler `?` olarak görünebilir.
 
 > **Eksik komut uyarısı:** Kartın imajında (sembol tablosunda) olmayan bir komut gerektiren işlemde kart `undefined symbol: …` cevabı verir ve komutu çalıştırmaz. Uygulama bunu turuncu bir uyarı olarak gösterir: *Bu işlem için gereken "xdelete" komutu kartın imajında (sembol tablosunda) yok. Kartta hiçbir değişiklik yapılmadı.*
+
+### Çoklu seçim
+
+Listede birden çok öğe seçilebilir:
+
+- **Ctrl+A** tümünü seçer, **Ctrl + tık** öğe ekler / çıkarır, **Shift + tık** aralık seçer.
+- Seçimle yapılabilenler: **Sil** (Delete; tek onay, kaç öğe olduğu ve adları yazar; klasör varsa "yalnız boşsa" ya da "içindekilerle birlikte"), **Bilgisayara kaydet…** (tek klasör seçilir, hepsi tek ilerleme penceresiyle iner), **Taşı… / Kopyala…** (tek hedef klasör), **sürükle-bırak** (Windows Gezgini'ne ya da masaüstüne, liste içinde bir klasöre ya da adres çubuğundaki bir klasöre; Ctrl ile kopyalama).
+- **Yeniden adlandır, Görüntüle, Birlikte aç** tek öğe içindir; birden çok öğe seçiliyken menüde görünmez.
+- Korumalı öğeler (**EFI**) silme ve taşımada atlanır; sonuç şeritte "N öğe silindi; M silinemedi: …" diye özetlenir. Bağlantı koparsa kalan öğeler denenmez.
+- Durum satırında seçimin özeti görünür (ör. "4 öğe seçili · dosyalar 12 MB · 1 klasör").
 
 ### Birlikte aç (salt okunur)
 

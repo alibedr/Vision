@@ -96,7 +96,8 @@ namespace Vision
 
         private FsEntry SelectedEntry
         {
-            get { return _list.SelectedItems.Count > 0 ? _list.SelectedItems[0].Tag as FsEntry : null; }
+            // Tek öğe işlemleri (aç, görüntüle, yeniden adlandır) yalnız tek seçimde
+            get { return _list.SelectedItems.Count == 1 ? _list.SelectedItems[0].Tag as FsEntry : null; }
         }
 
         // ---------- Klavye ve çift tık ----------
@@ -130,6 +131,12 @@ namespace Vision
             _itemMenu.Items.Clear();
             if (!CanOperate) return;
             FsEntry e = SelectedEntry;
+            List<FsEntry> many = SelectedEntries;
+            if (SelectedCount > 1 && many.Count > 1)
+            {
+                BuildMultiItemMenu(many);
+                e = null;
+            }
 
             if (e != null && e.Kind != FsKind.Device)
             {
@@ -217,6 +224,7 @@ namespace Vision
 
         private async Task DeleteSelectedAsync()
         {
+            if (SelectedCount > 1) { await DeleteManyAsync(SelectedEntries); return; }
             FsEntry e = SelectedEntry;
             if (e == null || e.Kind == FsKind.Device || !CanOperate) return;
             FileBrowser b = _browser;
@@ -515,8 +523,10 @@ namespace Vision
             var item = e.Item as ListViewItem;
             var entry = item != null ? item.Tag as FsEntry : null;
             if (entry == null || entry.Kind == FsKind.Device || !CanOperate) return;
-            // Kart içinde taşıma / kopyalama ve Windows Gezgini'ne (bilgisayara) bırakma — G31
-            StartCardDrag(entry);
+            // Kart içinde taşıma / kopyalama ve Windows Gezgini'ne (bilgisayara) bırakma — G31; çoklu seçim G47
+            List<FsEntry> sel = SelectedEntries;
+            if (item.Selected && sel.Count > 1) StartCardDrag(sel);
+            else StartCardDrag(new List<FsEntry> { entry });
             SetDropHighlight(-1);
         }
 
@@ -538,10 +548,9 @@ namespace Vision
                 return;
             }
 
-            var dragged = e.Data.GetData(InternalDragFormat) as FsEntry;
+            FsEntry[] dragged = DraggedEntries(e.Data);
             if (dragged == null) return;
-            if (overEntry != null && overEntry.Kind == FsKind.Folder && overEntry != dragged &&
-                !overEntry.FullPath.StartsWith(dragged.FullPath + "/"))
+            if (overEntry != null && overEntry.Kind == FsKind.Folder && CanDropInto(dragged, overEntry))
             {
                 bool ctrl = (e.KeyState & 8) != 0;
                 e.Effect = ctrl ? DragDropEffects.Copy : DragDropEffects.Move;
@@ -567,9 +576,9 @@ namespace Vision
                 BeginInvoke(new Action(async () => await UploadPathsAsync(copy, folderTarget)));
                 return;
             }
-            var dragged = e.Data.GetData(InternalDragFormat) as FsEntry;
+            FsEntry[] dragged = DraggedEntries(e.Data);
             if (dragged != null && folderTarget != null)
-                await InCardTransferAsync(dragged, folderTarget, (e.KeyState & 8) != 0);
+                await InCardTransferManyAsync(dragged, folderTarget, (e.KeyState & 8) != 0);
         }
 
         /// <summary>Breadcrumb bölümleri de bırakma hedefidir (üst klasöre taşıma / yükleme).</summary>
@@ -594,8 +603,8 @@ namespace Vision
                     BeginInvoke(new Action(async () => await UploadPathsAsync(copy, target.Path)));
                     return;
                 }
-                var dragged = e.Data.GetData(InternalDragFormat) as FsEntry;
-                if (dragged != null) await InCardTransferAsync(dragged, target.Path, (e.KeyState & 8) != 0);
+                FsEntry[] dragged = DraggedEntries(e.Data);
+                if (dragged != null) await InCardTransferManyAsync(dragged, target.Path, (e.KeyState & 8) != 0);
             };
         }
 

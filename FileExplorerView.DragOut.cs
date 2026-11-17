@@ -30,9 +30,9 @@ namespace Vision
 
         private sealed class DragState
         {
-            public FsEntry Entry;
+            public List<FsEntry> Entries;
             public string Dir;              // geçici klasör
-            public string Path;             // Gezgin'e verilen yol (Dird)
+            public List<string> Paths;      // Gezgin'e verilen yollar (Dir altında; öğe başına bir yer tutucu)
             public bool Handled;            // bırakma bir kez işlenir
             public DragDropEffects LastEffect = DragDropEffects.None;   // hedefin kabul ettiği etki (None: kabul etmiyor)
         }
@@ -76,22 +76,27 @@ namespace Vision
         }
 
         /// <summary>Listeden sürükleme başladı: kart içi taşıma + Windows'a (bilgisayara) bırakma için veri.</summary>
-        private void StartCardDrag(FsEntry entry)
+        private void StartCardDrag(List<FsEntry> entries)
         {
             var data = new DataObject();
-            data.SetData(InternalDragFormat, entry);
+            data.SetData(InternalDragFormat, entries.ToArray());
             DragState st = null;
-            if (entry.Kind == FsKind.File || entry.Kind == FsKind.Folder || entry.Kind == FsKind.Unknown)
+            if (entries.All(entry => entry.Kind == FsKind.File || entry.Kind == FsKind.Folder || entry.Kind == FsKind.Unknown))
             {
                 try
                 {
                     string dir = DragOutCopies.NewDir(_card != null ? _card.Ip : null);
-                    string path = Path.Combine(dir, ReadOnlyCopies.SafeSegment(entry.Name));
-                    // Yer tutucu: Gezgin sürüklerken var olan bir öğe görsün (içerik bırakınca indirilir)
-                    if (entry.Kind == FsKind.Folder) Directory.CreateDirectory(path);
-                    else File.WriteAllBytes(path, new byte[0]);
-                    st = new DragState { Entry = entry, Dir = dir, Path = path };
-                    data.SetData(DataFormats.FileDrop, new[] { path });
+                    var paths = new List<string>();
+                    foreach (FsEntry entry in entries)
+                    {
+                        string path = Path.Combine(dir, ReadOnlyCopies.SafeSegment(entry.Name));
+                        // Yer tutucu: Gezgin sürüklerken var olan bir öğe görsün (içerik bırakınca indirilir)
+                        if (entry.Kind == FsKind.Folder) Directory.CreateDirectory(path);
+                        else File.WriteAllBytes(path, new byte[0]);
+                        paths.Add(path);
+                    }
+                    st = new DragState { Entries = entries, Dir = dir, Paths = paths };
+                    data.SetData(DataFormats.FileDrop, paths.ToArray());
                 }
                 catch (Exception ex)
                 {
@@ -118,15 +123,16 @@ namespace Vision
             if (!CanOperate) { e.Action = DragAction.Cancel; return; }
 
             ReleaseCapture();   // ilerleme penceresi (İptal) fareyle kullanılabilsin
-            string result = null;
-            try { result = RunTransferDialog(st.Entry, st.Dir); }
+            List<string> result = null;
+            try { result = RunTransferDialogMany(st.Entries, st.Dir); }
             catch (Exception ex) { ErrorText.LogTechnical("karttan sürükle-bırak", ex); }
-            if (result == null || !string.Equals(result, st.Path, StringComparison.OrdinalIgnoreCase))
+            if (result == null || result.Count != st.Paths.Count)
             {
                 e.Action = DragAction.Cancel;   // hata / iptal: hiçbir şey kopyalanmaz (neden şeritte)
                 return;
             }
-            _browser.ShowNotice("\"" + st.Entry.Name + "\" karttan bilgisayara alındı (Windows Gezgini bırakılan yere kopyalıyor).");
+            _browser.ShowNotice((st.Entries.Count == 1 ? "\"" + st.Entries[0].Name + "\"" : st.Entries.Count + " öğe") +
+                                " karttan bilgisayara alındı (Windows Gezgini bırakılan yere kopyalıyor).");
         }
 
         // ---------- Bilgisayara kaydet (sağ tık) ----------

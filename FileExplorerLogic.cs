@@ -911,12 +911,18 @@ namespace Vision
         /// </summary>
         private async Task<string> FindProtectedInsideAsync(string folder)
         {
+            BeginWork("EFI denetimi  ·  " + _listCommand + " " + FsPath.Quote(folder));
+            try { return await FindProtectedInsideCoreAsync(folder); }
+            finally { EndWork(); }
+        }
+
+        /// <summary>FindProtectedInsideAsync'in işi (çağıranın süren işi içinde; BeginWork / EndWork yapmaz).</summary>
+        private async Task<string> FindProtectedInsideCoreAsync(string folder)
+        {
             const int MaxFolders = 300;
             var queue = new Queue<string>();
             queue.Enqueue(folder);
             int visited = 0;
-            BeginWork("EFI denetimi  ·  " + _listCommand + " " + FsPath.Quote(folder));
-            try
             {
                 while (queue.Count > 0)
                 {
@@ -934,10 +940,6 @@ namespace Vision
                     }
                 }
                 return null;
-            }
-            finally
-            {
-                EndWork();
             }
         }
 
@@ -974,6 +976,69 @@ namespace Vision
             OpResult result = await RunAsync(cmd, timeout, "\"" + entry.Name + "\" silinemedi", "\"" + entry.Name + "\" silindi.", failHint);
             if (result.Ok || result.Response != null) await RefreshSpaceAsync(entry.FullPath);
             return result;
+        }
+
+        /// <summary>
+        /// Birden çok öğeyi siler (G47, çoklu seçim). Her öğe için tek silmedeki kurallar geçerli (EFI korumalı öğe ve
+        /// EFI içeren klasör atlanır; klasörler recursive ise xdelete, değilse rmdir). Liste ve boş alan bir kez, en sonda
+        /// yenilenir. Bağlantı koparsa kalanlar denenmez. Sonuç şeritte: kaç öğe silindi, hangileri silinemedi (neden).
+        /// </summary>
+        public async Task<OpResult> DeleteManyAsync(IList<FsEntry> entries, bool recursive)
+        {
+            if (Busy) return Reject("Başka bir işlem sürüyor.");
+            var targets = entries.Where(e => e.Kind != FsKind.Device).ToList();
+            int ok = 0;
+            var failed = new List<string>();
+            bool lost = false;
+            BeginWork(targets.Count + " öğe siliniyor");
+            try
+            {
+                for (int i = 0; i < targets.Count; i++)
+                {
+                    FsEntry e = targets[i];
+                    PendingCommand = "Siliniyor (" + (i + 1) + "/" + targets.Count + ")  ·  " + e.FullPath;
+                    Raise();
+                    if (IsProtected(e)) { failed.Add(e.Name + " (korumalı)"); continue; }
+                    if (recursive && e.Kind != FsKind.File)
+                    {
+                        // EFI içeren klasör xdelete ile silinmez (tek silmedeki denetimle aynı)
+                        string found = await FindProtectedInsideCoreAsync(e.FullPath);
+                        if (found != null) { failed.Add(e.Name + " (içinde " + ProtectedName + " var ya da denetlenemedi)"); continue; }
+                    }
+                    string cmd;
+                    int timeout = ShortTimeoutSec;
+                    if (e.Kind == FsKind.File) cmd = "rm " + FsPath.Quote(e.FullPath);
+                    else if (recursive) { cmd = "xdelete " + FsPath.Quote(e.FullPath); timeout = LongTimeoutSec; }
+                    else cmd = "rmdir " + FsPath.Quote(e.FullPath);
+                    ShellResponse resp = await Exec(cmd, timeout);
+                    OpResult bad = CheckReturn(resp, e.Name, null);
+                    if (bad == null) { ok++; continue; }
+                    if (resp.Failure != null || bad.MissingCommand != null) { SetError(bad); lost = true; break; }
+                    failed.Add(e.Name + (e.Kind != FsKind.File && !recursive ? " (boş değil)" : ""));
+                }
+                if (!lost)
+                {
+                    await RefreshListingQuietly();
+                    await RefreshSpaceAsync(targets.Select(t => t.FullPath).FirstOrDefault());
+                }
+            }
+            catch (Exception ex)
+            {
+                ErrorText.LogTechnical("çoklu silme", ex);
+                failed.Add(ErrorText.Describe(ex));
+            }
+            finally
+            {
+                EndWork();
+            }
+            string msg = ok + " öğe silindi" + (failed.Count > 0 ? "; " + failed.Count + " silinemedi: " + string.Join(", ", failed.Take(6)) + (failed.Count > 6 ? " …" : "") : "") + ".";
+            if (failed.Count > 0 && failed.Any(f => f.EndsWith("(boş değil)"))) msg += "  Dolu klasörler için \"İçindekilerle birlikte sil\"i kullanın.";
+            if (Error == null)
+            {
+                if (failed.Count > 0) ShowWarning(msg); else Notice = msg;
+            }
+            Raise();
+            return new OpResult { Ok = failed.Count == 0 && !lost, Message = msg };
         }
 
         public async Task<OpResult> RenameAsync(FsEntry entry, string newName)
