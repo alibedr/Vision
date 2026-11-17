@@ -19,7 +19,7 @@ namespace Vision
         private static readonly RepeatGuard QuickGuard = new RepeatGuard(TimeSpan.FromMilliseconds(600));
 
         // Hızlı komut + reboot (komut satırının sağında)
-        private readonly IconButton _quickBtn = new IconButton(IconKind.Bolt, IconTone.Secondary) { IconSize = 14 };
+        private readonly SplitActionButton _quickBtn = new SplitActionButton { MainIcon = IconKind.Bolt, AccentIcon = true, ToggleIcon = IconKind.ChevronDown };
         private readonly SplitActionButton _rebootBtn = new SplitActionButton { MainIcon = IconKind.Power };
         private readonly ContextMenuStrip _quickMenu = new ContextMenuStrip();
         private readonly Timer _rebootCooldown = new Timer { Interval = 4000 };
@@ -57,7 +57,8 @@ namespace Vision
             // --- Hızlı komut ve reboot (komut satırında)
             _quickBtn.Font = Theme.Ui;
             _quickBtn.Height = 24;
-            _quickBtn.Click += async (s, e) => await RunQuickCommandAsync();
+            _quickBtn.MainClick += async (s, e) => await RunQuickCommandAsync();
+            _quickBtn.ToggleClick += (s, e) => ShowQuickMenu();
             _quickBtn.MouseUp += (s, e) => { if (e.Button == MouseButtons.Right) ShowQuickMenu(); };
             _quickMenu.Renderer = new DarkMenuRenderer();
             _quickMenu.ShowImageMargin = false;
@@ -125,9 +126,9 @@ namespace Vision
             _sentinelBtn.Visible = _sentinelGap.Visible = show;
             bool compact = w < 470;
             string cmd = (Session.Card.QuickCommand ?? "").Trim();
-            _quickBtn.Label = compact ? "" : (cmd.Length == 0 ? "Hızlı komut" : cmd);
-            Size ts = TextRenderer.MeasureText(_quickBtn.Label, _quickBtn.Font, Size.Empty, TextFormatFlags.NoPadding);
-            _quickBtn.Width = compact ? 30 : Math.Min(150, Math.Max(90, ts.Width + 14 + 8 + 20));
+            _quickBtn.MainText = compact ? "" : (cmd.Length == 0 ? "Hızlı komut" : cmd);
+            Size ts = TextRenderer.MeasureText(_quickBtn.MainText, _quickBtn.Font, Size.Empty, TextFormatFlags.NoPadding);
+            _quickBtn.Width = compact ? 30 + 24 : Math.Min(174, Math.Max(114, ts.Width + 9 + 21 + 8 + 24));
             _rebootBtn.Width = _rebootBtn.GetPreferredSize(Size.Empty).Width;
         }
 
@@ -135,47 +136,43 @@ namespace Vision
         // Hızlı komut
         // =====================================================================
 
+        // Hızlı komutlar (G46): kart başına en fazla 5 komut; biri seçili. Sol bölme seçili komutu gönderir, sağdaki ▾
+        // (ya da sağ tık) listeyi açar: komuta tıklamak onu seçer (göndermez); ekle / düzenle / sırala / kaldır.
+        private QuickCommandSet _quickSet;
+
+        private QuickCommandSet QuickSet
+        {
+            get
+            {
+                if (_quickSet == null)
+                    _quickSet = new QuickCommandSet(
+                        () => { if (Session.Card.QuickCommands == null) Session.Card.NormalizeQuickCommands(); return Session.Card.QuickCommands; },
+                        () => Session.Card.QuickCommand,
+                        v => Session.Card.QuickCommand = v,
+                        () => { RefreshQuickButton(); RaiseConfigChanged(); },
+                        (title, current, validate) => InputDialog.Ask(FindForm(), title + " — " + Session.Card.Label,
+                            "Hızlı komut düğmesinde seçiliyken tıklayınca YALNIZ bu karta gönderilecek komut:", current, validate));
+                return _quickSet;
+            }
+        }
+
         private void RefreshQuickButton()
         {
-            string cmd = (Session.Card.QuickCommand ?? "").Trim();
-            _quickBtn.Icon = IconKind.Bolt;
-            _quickBtn.SetTip(_tips, cmd.Length == 0
-                ? "Hızlı komut ayarlanmadı — tıklayıp bu kart için bir komut atayın"
-                : "Hızlı komut: " + cmd + "\nTıklayınca YALNIZ bu karta gönderilir.  ·  Sağ tık: düzenle / kaldır");
+            string cmd = QuickSet.Active;
+            _tips.SetToolTip(_quickBtn, QuickSet.Tip("YALNIZ bu karta gönderir."));
             _quickBtn.AccessibleName = cmd.Length == 0 ? "Hızlı komut ayarla" : "Hızlı komut: " + cmd;
             LayoutInputActions();
         }
 
         private void ShowQuickMenu()
         {
-            _quickMenu.Items.Clear();
-            var edit = new ToolStripMenuItem(string.IsNullOrWhiteSpace(Session.Card.QuickCommand) ? "Hızlı komut ata…" : "Hızlı komutu düzenle…") { ForeColor = Theme.Text };
-            edit.Click += (s, e) => EditQuickCommand();
-            _quickMenu.Items.Add(edit);
-            if (!string.IsNullOrWhiteSpace(Session.Card.QuickCommand))
-            {
-                var clear = new ToolStripMenuItem("Hızlı komutu kaldır") { ForeColor = Theme.Text };
-                clear.Click += (s, e) => { Session.Card.QuickCommand = null; RefreshQuickButton(); RaiseConfigChanged(); };
-                _quickMenu.Items.Add(clear);
-            }
-            _quickMenu.Show(_quickBtn, new Point(0, _quickBtn.Height));
-        }
-
-        private void EditQuickCommand()
-        {
-            string current = Session.Card.QuickCommand ?? "";
-            string value = InputDialog.Ask(FindForm(), "Hızlı komut — " + Session.Card.Label,
-                "Bu kartın hızlı komut düğmesine tıklayınca YALNIZ bu karta gönderilecek komut:", current, QuickCommandValidator.Validate);
-            if (value == null) return;
-            Session.Card.QuickCommand = value.Trim().Length == 0 ? null : value.Trim();
-            RefreshQuickButton();
-            RaiseConfigChanged();
+            QuickSet.ShowMenu(_quickMenu, _quickBtn);
         }
 
         private async Task RunQuickCommandAsync()
         {
             string cmd = (Session.Card.QuickCommand ?? "").Trim();
-            if (cmd.Length == 0) { EditQuickCommand(); return; }          // ayarlanmamışsa önce ata
+            if (cmd.Length == 0) { QuickSet.AddCommand(); return; }       // ayarlanmamışsa önce ekle
             if (Session.State != CardState.Connected) { ShowToast("⚠  Kart bağlı değil — hızlı komut gönderilmedi.", false, null); return; }
             if (!QuickGuard.TryEnter(this, DateTime.UtcNow)) return;      // çift tıklamayla iki kez gitmesin
             await SendActionCommandAsync(cmd, "hızlı komut");
@@ -204,9 +201,16 @@ namespace Vision
         private async Task RunRebootAsync()
         {
             if (Session.State != CardState.Connected) { ShowToast("⚠  Kart bağlı değil — " + RebootCommands.CommandFor(Session.Card.RebootOption) + " gönderilmedi.", false, null); return; }
+            string cmd = RebootCommands.CommandFor(Session.Card.RebootOption);
+            // Onay (G45): yanlışlıkla basılıp kartın gereksiz yere yeniden başlatılmasını önler. Varsayılan "Vazgeç"
+            int c = ChoiceDialog.Ask(FindForm(), "Kartı yeniden başlat",
+                Session.Card.Label + " kartına \"" + cmd + "\" gönderilsin mi?",
+                "Kart yeniden başlar; bağlantı kopar, kart açılınca Vision kendiliğinden yeniden bağlanır. Kartta süren işler yarıda kalır.",
+                new[] { "Vazgeç", "Yeniden başlat" }, 0, 1);
+            if (c != 1) return;
+            if (Session.State != CardState.Connected) { ShowToast("⚠  Kart bağlı değil — " + cmd + " gönderilmedi.", false, null); return; }
             // Yanlışlıkla art arda tıklama: 4 sn içinde ikinci kez çalışmaz, düğme bu sürede pasif kalır
             if (!RebootGuard.TryEnter(Session, DateTime.UtcNow)) return;
-            string cmd = RebootCommands.CommandFor(Session.Card.RebootOption);
             _rebootCooldown.Stop();
             _rebootCooldown.Start();
             RefreshActionButtons();

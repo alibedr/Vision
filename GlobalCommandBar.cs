@@ -38,7 +38,7 @@ namespace Vision
         private static readonly RepeatGuard Guard = new RepeatGuard(TimeSpan.FromSeconds(4));
         private readonly AppSettings _settings;
         private readonly Action _saveSettings;
-        private readonly IconButton _quickBtn = new IconButton(IconKind.Bolt, IconTone.Secondary) { IconSize = 14 };
+        private readonly SplitActionButton _quickBtn = new SplitActionButton { MainIcon = IconKind.Bolt, AccentIcon = true, ToggleIcon = IconKind.ChevronDown };
         private readonly SplitActionButton _rebootBtn = new SplitActionButton { MainIcon = IconKind.Power };
         private readonly IconButton _saveBtn = new IconButton(IconKind.Save, IconTone.Secondary);
         private readonly IconButton _clearAllBtn = new IconButton(IconKind.Clear, IconTone.Secondary);
@@ -89,7 +89,8 @@ namespace Vision
             _clearAllBtn.SetTip(_tips, "Tümünü temizle — ekrandaki HER kartın terminal ekranını ve geçmişini temizler\n(kartlardaki silgi düğmesiyle aynı işi tüm kartlara bir kerede yapar; karta komut gönderilmez)");
             _clearAllBtn.AccessibleName = "Tüm kartların ekranını temizle";
             Controls.AddRange(new Control[] { _title, _targetInfo, _fieldBorder, _sendBtn, _quickBtn, _rebootBtn, _saveBtn, _clearAllBtn, _result });
-            _quickBtn.Click += async (s, e) => await RunQuickAsync();
+            _quickBtn.MainClick += async (s, e) => await RunQuickAsync();
+            _quickBtn.ToggleClick += (s, e) => ShowQuickMenu();
             _quickBtn.MouseUp += (s, e) => { if (e.Button == MouseButtons.Right) ShowQuickMenu(); };
             _rebootBtn.MainClick += async (s, e) => await RunRebootAsync();
             _rebootBtn.ToggleClick += (s, e) => ToggleReboot();
@@ -170,48 +171,54 @@ namespace Vision
 
         // ---------- Genel hızlı komut ----------
 
+        // Genel hızlı komutlar (G46): en fazla 5, biri seçili; kartlarınkiyle aynı davranış
+        private QuickCommandSet _quickSet;
+
+        private QuickCommandSet QuickSet
+        {
+            get
+            {
+                if (_quickSet == null)
+                    _quickSet = new QuickCommandSet(
+                        () =>
+                        {
+                            if (_settings.GlobalQuickCommands == null)
+                            {
+                                List<string> l = null; string a = _settings.GlobalQuickCommand;
+                                QuickCommandSet.Normalize(ref l, ref a);
+                                _settings.GlobalQuickCommands = l; _settings.GlobalQuickCommand = a;
+                            }
+                            return _settings.GlobalQuickCommands;
+                        },
+                        () => _settings.GlobalQuickCommand,
+                        v => _settings.GlobalQuickCommand = v,
+                        () => { RefreshQuickButton(); if (_saveSettings != null) _saveSettings(); },
+                        (title, current, validate) => InputDialog.Ask(FindForm(), "Genel " + title.Substring(0, 1).ToLowerInvariant() + title.Substring(1),
+                            "Seçiliyken tıklayınca ekrandaki tüm bağlı kartlara gönderilecek komut:", current, validate));
+                return _quickSet;
+            }
+        }
+
         private void RefreshQuickButton()
         {
-            string cmd = (_settings.GlobalQuickCommand ?? "").Trim();
-            _quickBtn.Label = cmd.Length == 0 ? "Hızlı komut" : cmd;
-            Size ts = TextRenderer.MeasureText(_quickBtn.Label, _quickBtn.Font, Size.Empty, TextFormatFlags.NoPadding);
-            _quickBtn.Width = Math.Min(170, Math.Max(104, ts.Width + 14 + 8 + 22));
-            _quickBtn.SetTip(_tips, cmd.Length == 0
-                ? "Genel hızlı komut ayarlanmadı — tıklayıp bir komut atayın"
-                : "Genel hızlı komut: " + cmd + "\nTıklayınca ekrandaki tüm BAĞLI kartlara birer kez gönderilir.  ·  Sağ tık: düzenle / kaldır");
+            string cmd = QuickSet.Active;
+            _quickBtn.MainText = cmd.Length == 0 ? "Hızlı komut" : cmd;
+            Size ts = TextRenderer.MeasureText(_quickBtn.MainText, _quickBtn.Font, Size.Empty, TextFormatFlags.NoPadding);
+            _quickBtn.Width = Math.Min(194, Math.Max(128, ts.Width + 9 + 21 + 8 + 24));
+            _tips.SetToolTip(_quickBtn, QuickSet.Tip("ekrandaki tüm BAĞLI kartlara birer kez gönderir."));
             _quickBtn.AccessibleName = cmd.Length == 0 ? "Genel hızlı komut ayarla" : "Genel hızlı komut: " + cmd;
             OnResize(EventArgs.Empty);
         }
 
         private void ShowQuickMenu()
         {
-            _quickMenu.Items.Clear();
-            var edit = new ToolStripMenuItem(string.IsNullOrWhiteSpace(_settings.GlobalQuickCommand) ? "Genel hızlı komut ata…" : "Genel hızlı komutu düzenle…") { ForeColor = Theme.Text };
-            edit.Click += (s, e) => EditQuick();
-            _quickMenu.Items.Add(edit);
-            if (!string.IsNullOrWhiteSpace(_settings.GlobalQuickCommand))
-            {
-                var clear = new ToolStripMenuItem("Genel hızlı komutu kaldır") { ForeColor = Theme.Text };
-                clear.Click += (s, e) => { _settings.GlobalQuickCommand = null; RefreshQuickButton(); if (_saveSettings != null) _saveSettings(); };
-                _quickMenu.Items.Add(clear);
-            }
-            _quickMenu.Show(_quickBtn, new Point(0, _quickBtn.Height));
-        }
-
-        private void EditQuick()
-        {
-            string v = InputDialog.Ask(FindForm(), "Genel hızlı komut",
-                "Tıklayınca ekrandaki tüm bağlı kartlara gönderilecek komut:", _settings.GlobalQuickCommand ?? "", QuickCommandValidator.Validate);
-            if (v == null) return;
-            _settings.GlobalQuickCommand = v.Trim().Length == 0 ? null : v.Trim();
-            RefreshQuickButton();
-            if (_saveSettings != null) _saveSettings();
+            QuickSet.ShowMenu(_quickMenu, _quickBtn);
         }
 
         private async Task RunQuickAsync()
         {
-            string cmd = (_settings.GlobalQuickCommand ?? "").Trim();
-            if (cmd.Length == 0) { EditQuick(); return; }
+            string cmd = QuickSet.Active;
+            if (cmd.Length == 0) { QuickSet.AddCommand(); return; }
             await BroadcastAsync(cmd, "genel hızlı komut", false);
         }
 
@@ -235,6 +242,15 @@ namespace Vision
 
         private async Task RunRebootAsync()
         {
+            // Onay (G45): tüm kartlar yeniden başlar; varsayılan "Vazgeç"
+            string cmd = RebootCommands.CommandFor(_settings.GlobalRebootOption);
+            int n = _targets().Count(s => s.State == CardState.Connected);
+            if (n == 0) { ShowResult("Ekranda bağlı kart yok — " + cmd + " gönderilmedi.", Theme.Warning, null); return; }
+            int c = ChoiceDialog.Ask(FindForm(), "Tüm kartları yeniden başlat",
+                "Ekrandaki " + n + " bağlı karta \"" + cmd + "\" gönderilsin mi?",
+                "Kartların hepsi yeniden başlar; bağlantılar kopar, kartlar açılınca Vision kendiliğinden yeniden bağlanır. Kartlarda süren işler yarıda kalır.",
+                new[] { "Vazgeç", n == 1 ? "Yeniden başlat" : n + " kartı yeniden başlat" }, 0, 1);
+            if (c != 1) return;
             if (!Guard.TryEnter(this, DateTime.UtcNow)) return;      // art arda tıklama: 4 sn içinde ikinci kez gitmez
             _rebootCooldown.Stop();
             _rebootCooldown.Start();

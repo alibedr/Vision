@@ -20,8 +20,31 @@ namespace Vision
         /// <summary>Kartın bağlı olduğu grup (kaydedilmez, yüklemede bağlanır).</summary>
         [XmlIgnore] public CardGroup Group { get; set; }
 
-        /// <summary>Kartın hızlı komut düğmesine atanmış komut (yalnız bu karta gönderilir; boş: ayarlanmamış).</summary>
+        /// <summary>
+        /// Kartın hızlı komut düğmesinde SEÇİLİ komut (tıklayınca yalnız bu karta gönderilir; boş: ayarlanmamış).
+        /// Önceki sürümler yalnız bunu okur; listeden biri seçilince güncellenir.
+        /// </summary>
         [XmlAttribute("HizliKomut")] public string QuickCommand { get; set; }
+
+        /// <summary>Hızlı komut düğmesindeki komutlar (en fazla <see cref="MaxQuickCommands"/>; G46). Biri seçili olur.</summary>
+        [XmlArray("HizliKomutlar"), XmlArrayItem("Komut")] public List<string> QuickCommands { get; set; }
+
+        public bool ShouldSerializeQuickCommands() { return QuickCommands != null && QuickCommands.Count > 0; }
+
+        public const int MaxQuickCommands = 5;
+
+        /// <summary>
+        /// Hızlı komut listesini düzenler: eski tek komutlu kayıt listeye alınır, boş / yinelenen / fazla komutlar atılır,
+        /// seçili komut listede değilse ilki seçilir.
+        /// </summary>
+        public void NormalizeQuickCommands()
+        {
+            List<string> list = QuickCommands;
+            string active = QuickCommand;
+            QuickCommandSet.Normalize(ref list, ref active);
+            QuickCommands = list;
+            QuickCommand = active;
+        }
 
         /// <summary>Kartın yeniden başlatma düğmesinde seçili komut ("reboot" / "reboot 2").</summary>
         [XmlAttribute("Yeniden")] public RebootOption RebootOption { get; set; }
@@ -175,6 +198,11 @@ namespace Vision
         /// <summary>Genel komut çubuğunun hızlı komutu (boş: ayarlanmamış).</summary>
         public string GlobalQuickCommand { get; set; }
 
+        /// <summary>Genel komut çubuğunun hızlı komutları (en fazla 5; seçili olan GlobalQuickCommand; G46).</summary>
+        public List<string> GlobalQuickCommands { get; set; }
+
+        public bool ShouldSerializeGlobalQuickCommands() { return GlobalQuickCommands != null && GlobalQuickCommands.Count > 0; }
+
         /// <summary>Genel komut çubuğunda seçili yeniden başlatma komutu.</summary>
         public RebootOption GlobalRebootOption { get; set; }
 
@@ -257,6 +285,11 @@ namespace Vision
             if (MaxTerminalLines > MaxTerminalLinesLimit) MaxTerminalLines = MaxTerminalLinesLimit;
             TerminalZoom = ClampZoom(TerminalZoom);
             if (!Enum.IsDefined(typeof(RebootOption), GlobalRebootOption)) GlobalRebootOption = RebootOption.Reboot;
+            List<string> gq = GlobalQuickCommands;
+            string ga = GlobalQuickCommand;
+            QuickCommandSet.Normalize(ref gq, ref ga);
+            GlobalQuickCommands = gq;
+            GlobalQuickCommand = ga;
             if (!Enum.IsDefined(typeof(ThemeMode), UiTheme)) UiTheme = ThemeMode.Dark;
             // Önceki sürümden geçiş: yalnız koyu / açık vardı
             if (ThemeCatalog.Find(UiThemeId) == null)
@@ -438,6 +471,7 @@ namespace Vision
             {
                 if (g.Cards == null) g.Cards = new List<CardConfig>();
                 g.LinkCards();
+                foreach (CardConfig c in g.Cards) c.NormalizeQuickCommands();
             }
             return cfg;
         }

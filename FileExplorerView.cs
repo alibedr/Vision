@@ -164,9 +164,20 @@ namespace Vision
                 if ((ModifierKeys & Keys.Control) != 0) return;   // Ctrl+Enter: "Varsayılan uygulamayla aç (salt okunur)"
                 await ActivateSelectedAsync();
             };
+            _list.SelectedIndexChanged += (s, e) =>
+            {
+                // Durum satırında seçim özeti (çoklu seçim, G47)
+                FileBrowser cb = _browser;
+                bool cbusy = cb != null && cb.Busy;
+                bool cconn = _card != null && _sessionOf(_card).State == CardState.Connected;
+                if (cb == null || cbusy) return;
+                string sum = SelectionSummary();
+                _status.Text = StatusText(cb, false, cconn) + (sum.Length > 0 ? "  ·  " + sum : "");
+            };
             _list.KeyDown += async (s, e) =>
             {
-                if (e.KeyCode == Keys.Back) { e.SuppressKeyPress = true; if (_browser != null) await _browser.BackAsync(); }
+                if (e.Control && e.KeyCode == Keys.A) { e.SuppressKeyPress = true; SelectAll(); }
+                else if (e.KeyCode == Keys.Back) { e.SuppressKeyPress = true; if (_browser != null) await _browser.BackAsync(); }
                 else if (e.KeyCode == Keys.F5) { e.SuppressKeyPress = true; await RefreshCurrentAsync(); }
                 else await HandleOperationKeyAsync(e);
             };
@@ -399,6 +410,7 @@ namespace Vision
 
             // Durum satırı ve ham cevap
             _status.Text = StatusText(b, busy, connected);
+            if (!busy) { string sum = SelectionSummary(); if (sum.Length > 0) _status.Text += "  ·  " + sum; }
             ShellResponse r = b != null ? b.LastResponse : null;
             _raw.Text = r == null ? "(henüz komut çalıştırılmadı)"
                 : "> " + r.Command + Environment.NewLine + r.Raw.Replace("\n", Environment.NewLine) + Environment.NewLine +
@@ -653,7 +665,7 @@ namespace Vision
         {
             View = View.Details;
             FullRowSelect = true;
-            MultiSelect = false;
+            MultiSelect = true;   // çoklu seçim (G47): Ctrl+A, Ctrl+tık, Shift+tık
             HideSelection = false;
             OwnerDraw = true;
             HeaderStyle = ColumnHeaderStyle.Nonclickable;

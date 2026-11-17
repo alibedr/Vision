@@ -248,17 +248,19 @@ Aynı anda en fazla **24 kart** gösterilebilir (uygulama sınırı; değiştiri
 | Kâğıt uçak (komut satırının sağı) | **Gönder** (Enter ile aynı). |
 | Saat simgesi (komut alanının içinde, sağda) | **Komut geçmişi** (Ctrl+R): daha önce yazılan tüm komutlar; içinde arama (aşağıya bakın). |
 | Terminalde sağ tık | **Kopyala** ve **Renklendir**: seçilen kelimeyi ekranda renkli gösterir (aşağıya bakın). |
-| Şimşek düğmesi (komut satırı) | **Hızlı komut**: bu karta atanmış komutu tek tıkla YALNIZ bu karta gönderir (aşağıya bakın). |
-| reboot ⇄ (komut satırı) | Sol bölme seçili komutu (`reboot` ya da `reboot 2`) YALNIZ bu karta gönderir; sağdaki ⇄ yalnız seçimi değiştirir. |
+| Şimşek düğmesi (komut satırı) | **Hızlı komut**: seçili komutu tek tıkla YALNIZ bu karta gönderir; ▾ ile en fazla 5 komut arasından seçilir (aşağıya bakın). |
+| reboot ⇄ (komut satırı) | Sol bölme seçili komutu (`reboot` ya da `reboot 2`) onay alarak YALNIZ bu karta gönderir; sağdaki ⇄ yalnız seçimi değiştirir. |
 | **Dönüş** çubuğu (komut satırının üstü) | Komutların dönüş değerleri (`value = …`); tıklayınca liste açılır (aşağıya bakın). |
 
 ### Hızlı komut
 
-Her kartın komut satırının sağında bir **hızlı komut** düğmesi (şimşek) vardır.
+Her kartın komut satırının sağında iki bölmeli bir **hızlı komut** düğmesi (şimşek) vardır. Her kart için **en fazla 5** hızlı komut tanımlanabilir; biri **seçili**dir ve düğmede onun adı yazar (ör. `i`).
 
-- İlk tıklamada (komut atanmamışsa) komut sorulur; sonra düğmede komutun kendisi yazar (ör. `i`).
-- Tıklayınca komut **yalnız o karta** gönderilir; diğer kartlar etkilenmez. Her kartın hızlı komutu ayrıdır.
-- **Sağ tık**: hızlı komutu düzenle / kaldır. Komut kartla birlikte `config.xml`'e kaydedilir.
+- **Sol bölme**: seçili komutu **yalnız o karta** gönderir; diğer kartlar etkilenmez. Hiç komut yoksa ilk tıklamada komut sorulur.
+- **Sağ bölme (▾)** ya da **sağ tık**: komut listesi açılır.
+  - Listedeki bir komuta tıklamak onu **seçer** (göndermez; ● seçili olanı gösterir).
+  - **Komut ekle…** (5'e kadar; eklenen komut seçili olur), **Seçili komutu düzenle…**, **yukarı / aşağı taşı**, **kaldır**.
+- Her kartın hızlı komutları ayrıdır ve kartla birlikte `config.xml`'e kaydedilir. Önceki sürümlerdeki tek hızlı komut listenin ilk komutu olur.
 - Kart bağlı değilken düğme pasiftir. Çift tıklama komutu iki kez göndermez.
 - Kart penceresi daraldığında düğme yalnız simge olarak görünür (ipucunda komut yazar); çok dar kartlarda gizlenir.
 
@@ -279,6 +281,7 @@ Hızlı komutun yanındaki düğme iki bölmelidir:
 - **Sol bölme** (güç simgesi + seçili komut): seçili komutu — `reboot` ya da `reboot 2` — **yalnız bu karta** gönderir.
 - **Sağ bölme (⇄)**: seçimi `reboot` ↔ `reboot 2` arasında değiştirir. **Seçimi değiştirmek hiçbir komut göndermez**; çalıştırmak için her zaman sol bölmeye tıklamak gerekir.
 - Seçili komut düğmenin üzerinde her zaman yazar ve kartla birlikte kaydedilir.
+- **Onay:** sol bölmeye basınca *"… kartına "reboot" gönderilsin mi?"* diye sorulur; **Yeniden başlat** denmedikçe hiçbir şey gönderilmez (varsayılan düğme **Vazgeç**; Enter / Esc göndermez). Genel komut çubuğundaki reboot da kaç kartın yeniden başlayacağını yazarak onay ister.
 - Yanlışlıkla art arda tıklamaya karşı: gönderdikten sonra düğme **4 saniye** pasif kalır; bu sürede ikinci kez gönderilmez.
 
 ### Komut dönüş değerleri
@@ -379,8 +382,8 @@ Gönder düğmesinin yanında, kart penceresindekilerin genel karşılıkları v
 
 | Düğme | İşlev |
 |---|---|
-| **Hızlı komut** (şimşek) | Genel hızlı komutu ekrandaki tüm bağlı kartlara birer kez gönderir. İlk tıklamada komut sorulur; sağ tık: düzenle / kaldır. Kaydedilir. |
-| **reboot ⇄** | Sol: seçili `reboot` / `reboot 2` komutunu ekrandaki tüm bağlı kartlara birer kez gönderir. Sağ ⇄: yalnız seçimi değiştirir (göndermez). Gönderdikten sonra 4 sn pasif. |
+| **Hızlı komut** (şimşek ▾) | Seçili genel hızlı komutu ekrandaki tüm bağlı kartlara birer kez gönderir. Kartlardaki gibi en fazla **5** komut: ▾ ya da sağ tık listeyi açar (komuta tıklamak seçer, göndermez; ekle / düzenle / sırala / kaldır). Kaydedilir. |
+| **reboot ⇄** | Sol: seçili `reboot` / `reboot 2` komutunu (onay alarak) ekrandaki tüm bağlı kartlara birer kez gönderir. Sağ ⇄: yalnız seçimi değiştirir (göndermez). Gönderdikten sonra 4 sn pasif. |
 | **Dosyaya kaydet** (disket) | Ekrandaki **her** kartın terminal içeriğini o anda alır ve **her kartı kendi dosyasına** kaydeder (aşağıya bakın). |
 | **Tümünü temizle** (silgi) | Ekrandaki **her** kartın terminal ekranını ve geçmişini bir kerede temizler (kart başlığındaki silgiyle aynı iş; karta komut gönderilmez). |
 
@@ -484,6 +487,16 @@ Bir klasörün içindeyken araç çubuğu, sağ tık menüsü ve klavye kısayol
 - Görüntüleyicide satır kaydırma ve **Bilgisayara kaydet…** vardır. 1 MB'tan büyük dosyalar ve metin olmayan (ikili) dosyalar için önce onay istenir. Telnet bağlantısı ASCII karakterleri taşıdığı için Türkçe karakterler `?` olarak görünebilir.
 
 > **Eksik komut uyarısı:** Kartın imajında (sembol tablosunda) olmayan bir komut gerektiren işlemde kart `undefined symbol: …` cevabı verir ve komutu çalıştırmaz. Uygulama bunu turuncu bir uyarı olarak gösterir: *Bu işlem için gereken "xdelete" komutu kartın imajında (sembol tablosunda) yok. Kartta hiçbir değişiklik yapılmadı.*
+
+### Çoklu seçim
+
+Listede birden çok öğe seçilebilir:
+
+- **Ctrl+A** tümünü seçer, **Ctrl + tık** öğe ekler / çıkarır, **Shift + tık** aralık seçer.
+- Seçimle yapılabilenler: **Sil** (Delete; tek onay, kaç öğe olduğu ve adları yazar; klasör varsa "yalnız boşsa" ya da "içindekilerle birlikte"), **Bilgisayara kaydet…** (tek klasör seçilir, hepsi tek ilerleme penceresiyle iner), **Taşı… / Kopyala…** (tek hedef klasör), **sürükle-bırak** (Windows Gezgini'ne ya da masaüstüne, liste içinde bir klasöre ya da adres çubuğundaki bir klasöre; Ctrl ile kopyalama).
+- **Yeniden adlandır, Görüntüle, Birlikte aç** tek öğe içindir; birden çok öğe seçiliyken menüde görünmez.
+- Korumalı öğeler (**EFI**) silme ve taşımada atlanır; sonuç şeritte "N öğe silindi; M silinemedi: …" diye özetlenir. Bağlantı koparsa kalan öğeler denenmez.
+- Durum satırında seçimin özeti görünür (ör. "4 öğe seçili · dosyalar 12 MB · 1 klasör").
 
 ### Birlikte aç (salt okunur)
 

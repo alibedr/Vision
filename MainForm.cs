@@ -1336,10 +1336,11 @@ namespace Vision
                  "Komut satırındakini karta gönderir (Enter ile aynı).",
                  v => new[] { v.TourSend });
             card("Hızlı komut",
-                 "Bu kart için belirlediğiniz bir komutu tek tıkla gönderir. Ayarlı değilse ilk tıklamada komutu atarsınız; sağ tık: düzenle / kaldır.",
+                 "Seçili hızlı komutu tek tıkla yalnız bu karta gönderir. Sağdaki ▾ (ya da sağ tık) en fazla 5 komutluk listeyi açar: " +
+                 "bir komuta tıklamak onu seçer (göndermez); ekle, düzenle, sırala, kaldır.",
                  v => new[] { v.TourQuick });
             card("Reboot",
-                 "Sol taraf karta reboot komutunu gönderir (kart yeniden başlar). Sağdaki ⇄ reboot ↔ reboot 2 seçimini değiştirir, bir şey göndermez.",
+                 "Sol taraf onay alarak karta reboot komutunu gönderir (kart yeniden başlar). Sağdaki ⇄ reboot ↔ reboot 2 seçimini değiştirir, bir şey göndermez.",
                  v => new[] { v.TourReboot });
             card("Sentinel düğmesi",
                  "Nabız düğmesi kartın Sentinel web sunucusunu başlatır / durdurur (yeşil: çalışıyor). Sentinel'e turun sonunda ayrıca bakacağız.",
@@ -1440,7 +1441,8 @@ namespace Vision
             {
                 Title = "Genel komut çubuğu",
                 Body = () => "Buraya yazılan komut ekrandaki TÜM kartlara aynı anda gönderilir; her kartın cevabı kendi penceresinde görünür. " +
-                             "Hızlı komut ve reboot da buradan tüm kartlara uygulanabilir.",
+                             "Hızlı komut (en fazla 5 komut, ▾ ile seçilir) ve reboot (onay ister) da buradan tüm kartlara uygulanabilir. " +
+                             "Dosya aktarımı süren kart atlanır.",
                 Target = () => TourRect(_globalBar),
                 Enter = telnet,
             });
@@ -1492,16 +1494,21 @@ namespace Vision
             {
                 Title = "Silme, kaydetme, ad değiştirme",
                 Body = () => "Yeniden adlandır (F2): adı kartta değiştirir.\n" +
-                             "Sil (Delete): onay sorar; klasör içindekilerle birlikte silinir.\n" +
+                             "Sil (Delete): onay sorar; klasör \"yalnız boşsa\" ya da içindekilerle birlikte silinir.\n" +
                              "Bilgisayara kaydet: dosyayı / klasörü bilgisayarınızda seçtiğiniz yere indirir.\n\n" +
                              "Ayrıca görüntüle, varsayılan uygulamayla / birlikte aç (salt okunur kopya), taşı ve kopyala. " +
                              "EFI klasörü kartın açılışı için gerekli olduğundan silinemez, taşınamaz.",
                 Target = () => _fileExplorer.TourItemMenu.Visible ? _fileExplorer.TourItemMenu.Bounds : TourRect(_fileExplorer.TourList),
                 Enter = files,
             });
+            fileStep("Çoklu seçim",
+                     "Ctrl+A tümünü seçer, Ctrl + tık öğe ekler / çıkarır, Shift + tık aralık seçer. Seçili öğeler birlikte silinir " +
+                     "(tek onay), bilgisayara kaydedilir (tek ilerleme penceresi), taşınır / kopyalanır ve sürüklenir. Yeniden adlandırma, " +
+                     "görüntüleme ve birlikte açma tek öğe içindir. Durum satırında seçimin özeti görünür.",
+                     () => TourRect(_fileExplorer.TourList));
             fileStep("Sürükle-bırak",
                      "Karta: Windows Gezgini'nden ya da masaüstünden dosya / klasörü bu listeye sürükleyin; bulunduğunuz klasöre yüklenir.\n" +
-                     "Bilgisayara: listedeki bir öğeyi masaüstüne ya da açık bir klasöre sürükleyin; bıraktığınızda karttan indirilir.\n" +
+                     "Bilgisayara: listedeki öğeyi (ya da seçili öğeleri) masaüstüne veya açık bir klasöre sürükleyin; bıraktığınızda karttan indirilir.\n" +
                      "Liste içinde: bir klasörün üstüne bırakmak taşır, Ctrl basılıysa kopyalar.",
                      () => TourRect(_fileExplorer.TourList));
             fileStep("Büyük dosyalar ve ilerleme",
@@ -1510,7 +1517,10 @@ namespace Vision
                      "bakılır. Kart içinde büyük dosya kopyalama / taşımada da ilerleme penceresi açılır.\n\n" +
                      "Büyük aktarımlarda ilerleme penceresi açılır: yüzde, aktarılan / toplam, FTP ve kartın o anki hızı, bu hızlarla " +
                      "hesaplanan kalan süre. İptal FTP aktarımını hemen keser, kartta en geç 8 MB'lık bir blok sonra durur ve yarım " +
-                     "kalan dosyayı siler. Yüklemede \"Arka planda sürdür\" pencereyi kapatır, aktarım sürer.",
+                     "kalan dosyayı siler. Yüklemede \"Arka planda sürdür\" pencereyi kapatır, aktarım sürer.\n\n" +
+                     "Aktarım sürerken o karta komut gönderilmez (komut satırda bekler); aktarım sonunda boyut doğrulanır. Bağlantı " +
+                     "koparsa Vision yeniden bağlanınca kartta açık kalan dosyaları kapatır, belleği bırakır ve yarım dosyayı siler; " +
+                     "aktarım sürerken Vision kapatılırsa önce sorar.",
                      () => TourRect(_fileExplorer.TourList));
 
             // ---------------- Komut Kütüphanesi ----------------

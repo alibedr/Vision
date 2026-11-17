@@ -378,7 +378,7 @@ namespace Vision
             // (birincil düğme yazısı, bildirimler, tur katmanı…). Palette bir alan tam beyaz / siyah olursa (Yüksek kontrast'ta
             // türetilen renkler 255'e dayanıyordu; açık temalarda zemin beyaz) bu sabit renkler o alan
             // sanılıp sonraki tema geçişinde yanlış renge çevriliyordu. Gerekirse bir birim kaydırılır (gözle fark edilmez).
-            var seen = new HashSet<int> { Color.White.ToArgb(), Color.Black.ToArgb() };
+            var seen = new HashSet<int>(ReservedColors);
             int[][] steps = { new[] { 1, 0, 0 }, new[] { 0, 1, 0 }, new[] { 0, 0, 1 }, new[] { -1, 0, 0 }, new[] { 0, -1, 0 },
                               new[] { 0, 0, -1 }, new[] { 1, 1, 0 }, new[] { 0, 1, 1 }, new[] { 1, 0, 1 }, new[] { -1, -1, 0 } };
             foreach (System.Reflection.FieldInfo fi in fields)
@@ -393,6 +393,26 @@ namespace Vision
                 fi.SetValue(p, c);
             }
             return p;
+        }
+
+        /// <summary>
+        /// Palete giremeyen renkler (G44.3 / G47): saf beyaz, saf siyah ve Windows'un sistem renkleri. Rengi hiç
+        /// atanmamış denetimler (menü, araç çubuğu, kaydırma çubuğu, varsayılan arka planlar) sistem renklerini taşır;
+        /// Yüksek kontrast temasının bir rengi tam olarak sistemin "Control" rengiydi (#f0f0f0). Bu temadan başka temaya
+        /// geçilince renk eşlemesi o denetimleri de temanın rengi sanıp yanlış renge boyuyordu. Çakışan palet rengi bir
+        /// birim kaydırılır (gözle fark edilmez).
+        /// </summary>
+        private static readonly int[] ReservedColors = BuildReservedColors();
+
+        private static int[] BuildReservedColors()
+        {
+            var set = new HashSet<int> { Color.White.ToArgb(), Color.Black.ToArgb() };
+            foreach (KnownColor k in Enum.GetValues(typeof(KnownColor)))
+            {
+                Color c = Color.FromKnownColor(k);
+                if (c.IsSystemColor && c.A == 255) set.Add(Color.FromArgb(255, c).ToArgb());
+            }
+            return set.ToArray();
         }
 
         private static int Clamp(double v)

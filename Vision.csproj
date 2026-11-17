@@ -124,6 +124,7 @@
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Include="TourAccessors.cs" />
+    <Compile Include="QuickCommands.cs" />
     <Compile Include="UploadProgress.cs" />
     <Compile Include="Tour.cs">
       <SubType>Form</SubType>
@@ -143,6 +144,9 @@
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Include="FileExplorerView.DragOut.cs">
+      <DependentUpon>FileExplorerView.cs</DependentUpon>
+    </Compile>
+    <Compile Include="FileExplorerView.MultiSelect.cs">
       <DependentUpon>FileExplorerView.cs</DependentUpon>
     </Compile>
     <Compile Include="FileExplorerView.Operations.cs">
