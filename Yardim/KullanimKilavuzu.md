@@ -212,7 +212,8 @@ Telnet sekmesinde **tam olarak** seçili kartları bırakır: seçimden çıkan 
 |---|---|---|
 | Yeşil | Bağlı | Kart bağlı ve sağlıklı. |
 | Sarı | Bağlanıyor | Bağlantı kuruluyor. |
-| Kırmızı | Bağlantı kesildi · yeniden bağlanılacak | Bağlıyken koptu; kart ulaşılabilir olunca otomatik bağlanılacak. |
+| Kırmızı | Bağlantı kesildi · yeniden bağlanılacak | Bağlıyken habersiz koptu; kart ulaşılabilir olunca otomatik bağlanılacak. |
+| Sarı | Yeniden başlatılıyor · açılınca bağlanılacak | Karta reboot gönderildi ve bağlantı beklendiği gibi koptu; kart açılınca otomatik bağlanılacak. |
 | Kırmızı | Bağlantı yok | Bağlanılamadı (ör. kart kapalı, port yanlış). |
 | Gri | Bağlı değil | Kullanıcı bağlanmadı ya da bağlantıyı kesti. |
 
@@ -379,7 +380,7 @@ Kartın boot ayarlarını adıyla saklayıp sonra aynı karta ya da başka bir k
 - **Komut:** sağ üstte bu kartın boot komutunu seçin (`bspBootChange` ya da `bootChange`); seçim kartla birlikte saklanır.
 - **Kartı oku:** kartın şu anki ayarlarını okur. Vision komutu gönderir ve kartın sorduğu her alanı **değiştirmeden geçer** — kartta hiçbir şey değişmez. Bu sırada komut ve alanlar terminalde görünür; işlem bitene kadar o karta başka komut gönderilmez. Araya giren log yüzünden bir alan okunamazsa kart bir kez daha okunur.
 - **Karttan oku ve kaydet…:** bir ad verirsiniz (ör. "Fabrika ayarı"), kart okunur ve kayıt alınır. Kayıtlar **otomatik alınmaz**; yalnız siz kaydettiğinizde oluşur. Kart başına en fazla **5** kayıt tutulur; doluysa en eski kaydın yerine kaydetmek önerilir. Bir alan güvenle okunamadıysa kayıt alınmaz (tekrar deneyin).
-- **FTP parolası kaydedilmez** (`ftp password (pw)`); geri yüklemede karttaki parola korunur.
+- Kartın sorduğu **her alan** kaydedilir, **FTP parolası** (`ftp password (pw)`) dahil; geri yüklemede o da kayıttaki değere getirilir. Kayıtlar `config.xml`'de düz metin olarak tutulur.
 - **Karşılaştırma:** soldan bir kayıt seçin; sağda her alan için **kayıttaki** ve **karttaki (şu an)** değer yan yana görünür, farklı olanlar vurgulanır. Karttaki değerler için önce **Kartı oku**.
 - **Karta uygula…:**
   1. Kart yeniden okunur ve **önizleme** açılır: hangi alanın neyden neye değişeceği, uygulanmayacak alanlar ve kartın sormadığı alanlar. Varsayılan düğme **Vazgeç**.
@@ -403,6 +404,11 @@ Bağlıyken bağlantı koparsa kart anında gri tona geçer ve:
 - kartın kenarlığı ve durum şeridi kırmızıya döner.
 
 Kart yeniden ulaşılabilir olunca bağlantı otomatik kurulur ve konsola `Bağlantı yeniden kuruldu — kesinti süresi …` yazılır. Ayrıntılar için **Bağlantı izleme** bölümüne bakın.
+
+- **Kesinti bir kez yazılır.** Kopma anında bir kırmızı satır, bağlantı kalıcı olarak gelince bir "yeniden kuruldu — kesinti süresi" satırı yazılır; arada ekrana ve olay günlüğüne başka bir şey yazılmaz. Arka planda yeniden bağlanma denemeleri sürer. Kart açılırken bağlanıp hemen kopan (tutmayan) bağlantılar da sessizdir: bağlantı **5 saniye** tutunca kalıcı sayılır ve toplam süre yazılır (arada kaç kez bağlanıp koptuğu da eklenir).
+- **Karta reboot gönderdiyseniz kırmızı uyarı çıkmaz.** Kartın reboot düğmesi, genel komut çubuğundaki reboot, boot ayarı kaydından sonraki reboot ya da terminale / hızlı komuta yazılan `reboot`, `reboot 2` (ve `FPGAGiveBoardReset`) gönderildikten sonraki **60 saniye** içinde kopma beklenen kopmadır: konsola `Kart yeniden başlatılıyor ("reboot", saat) — kart açılınca bağlantı otomatik kurulacak` yazılır, durum şeridi sarı **Kart yeniden başlatılıyor** olur, kenarlık kırmızıya dönmez. Kart açılınca `Kart yeniden başladı, bağlantı kuruldu — "reboot"dan bu yana …` yazılır.
+- Reboot'tan sonra kart **3 dakika** içinde açılmazsa kırmızı `!!! BAĞLANTI KURULAMADI (saat): kart "reboot"dan sonra 3 dk içinde açılmadı` uyarısı çıkar; kart ulaşılabilir olunca yine otomatik bağlanılır.
+- Reboot gönderilmeden kopan bağlantı (kart kendi kendine yeniden başladı, kablo çıktı, ağ gitti) her zamanki gibi kırmızı uyarı verir.
 
 ### Yeni satır göstergesi
 
@@ -638,7 +644,7 @@ fei(0,0)host:/vxWorks e=192.168.1.10:ffffff00 h=192.168.1.100 u=ftpuser pw=parol
 | `gei(0,0)host:` (satır başı) | Kartın aygıt adı: parantez kapandıktan sonra `:` işaretine kadar olan kelime (`:` hariç). Kartın FTP yolu `/host.` + bu ad olur: `gei(0,0)host:` → `/host.host`, `gei(1,0)ali:` → `/host.ali`. |
 
 - Bilgi, kart bağlıyken ilk FTP işleminde (yükleme, "Birlikte aç", bağlantı sınaması) otomatik alınır ve **yalnız o kart için, yalnız bellekte** tutulur. Başka kartın bilgisi asla kullanılmaz. Bağlantı kopunca / kesilince silinir; yeniden bağlanınca tekrar alınır.
-- Parola ekranda, ayar dosyasında ve log'larda gösterilmez; Dosya Gezgini'nin **Ham cevap** panelinde `••••••` olarak görünür. Eski sürümlerde elle girilmiş parola ayar dosyasından silinir.
+- Parola ekranda, ayar dosyasında ve log'larda gösterilmez; Dosya Gezgini'nin **Ham cevap** panelinde `••••••` olarak görünür. Eski sürümlerde elle girilmiş parola ayar dosyasından silinir. (Boot ayarı kayıtları bunun dışındadır: kaydettiğiniz boot ayarları parola dahil saklanır.)
 - Yalnız `Boot line:` işaretinden sonraki boot satırı okunur; `version` çıktısının diğer satırları (sürüm, `value = …`) karışmaz. Değer `=` işaretinden sonraki boşluğa kadar olan kısımdır (değerin içindeki `:` / `=` bölünmez). `version` etkileşimli değildir; karta tek komut gider ve hiçbir boot parametresi değiştirilmez.
 - Bilgi alınamazsa nedeni yazılır: komut kartın imajında yoksa turuncu uyarı; `h` / `u` / `pw` eksikse hangisinin eksik olduğu (parola boşsa kart dosyalara FTP yerine RSH ile erişiyor olabilir); adres geçersizse adres.
 
@@ -752,7 +758,7 @@ Yazılışta her satır ayrı bir örnektir; satır sonundaki ` // açıklama` k
 Uygulama, bağlı kartların ulaşılabilirliğini komut beklemeden sürekli denetler. Denetim **TCP keepalive** ile mevcut bağlantı üzerinden yapılır: işletim sistemi boştaki bağlantıya küçük yoklama paketleri gönderir; bunları kartın kabuğu değil TCP yığını cevaplar. Terminale hiçbir şey yazılmaz, komutlarla çakışmaz, ek bağlantı açılmaz.
 
 - **Algılama:** Varsayılan ayarlarla kart kapandığında ya da kablosu çekildiğinde kopma yaklaşık **6–9 saniyede** algılanır. Tek bir kayıp yoklama kopma sayılmaz; 3 ardışık cevapsız yoklama gerekir. Birkaç saniyelik geçici kesintiler uyarı üretmez.
-- **Yeniden bağlanma:** Kopan kart, ulaşılabilir olunca aynı oturum üzerinden kendiliğinden yeniden bağlanır. Denemeler 3, 6, 12, 15, 15… saniye aralıklarla yapılır; başarısız denemeler sessizdir (tekrar uyarı yazılmaz).
+- **Yeniden bağlanma:** Kopan kart, ulaşılabilir olunca aynı oturum üzerinden kendiliğinden yeniden bağlanır. Denemeler 3, 6, 12, 15, 15… saniye aralıklarla yapılır; başarısız denemeler ve bağlanıp hemen kopan bağlantılar sessizdir. Kesinti ekrana ve olay günlüğüne yalnız bir kez (kopma) ve kalıcı bağlantıda bir kez (toplam süre) yazılır.
 - **Durdurma:** Kopmuş kartta **Bağlantıyı Kes** derseniz otomatik yeniden bağlanma durur.
 - **Kapsam:** Hiç bağlanmadığınız kartlara izleme amacıyla bağlantı açılmaz.
 
@@ -769,6 +775,9 @@ Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındak
 | `AutoReconnect` | true | Kopan kart otomatik yeniden bağlansın. |
 | `ReconnectMinMs` / `ReconnectMaxMs` | 3000 / 15000 | Yeniden bağlanma denemeleri arası en kısa / en uzun süre. |
 | `ReconnectTimeoutMs` | 3000 | Her yeniden bağlanma denemesinin zaman aşımı. |
+| `StableAfterMs` | 5000 | Yeniden kurulan bağlantı bu kadar tutunca kalıcı sayılır ve kesinti süresi yazılır; daha önce koparsa aynı kesintinin devamıdır. |
+| `RebootDropWindowMs` | 60000 | Reboot gönderildikten sonra bu süre içindeki kopma beklenen kopmadır (kırmızı uyarı yok). |
+| `RebootReturnMs` | 180000 | Reboot'tan sonra kart bu süre içinde açılmazsa kırmızı uyarı verilir. |
 
 > Ardışık yoklama sayısının ayarlanması Windows 10 sürüm 1703 ve sonrasında çalışır. Daha eski Windows'ta sistem bu sayıyı 10'da sabit tutar; algılama yaklaşık 20 saniyeye çıkar.
 
@@ -809,7 +818,7 @@ Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındak
 
 | Konum | İçerik |
 |---|---|
-| `%APPDATA%\TelnetCards\config.xml` | Gruplar, kartlar (adları, hızlı komutları, reboot seçimleri, boot ayarı kayıtları — FTP parolası hariç), terminal, yakınlaştırma, izleme ve ortak FTP ayarları (otomatik kaydedilir; FTP parolası dosyada tutulmaz). |
+| `%APPDATA%\TelnetCards\config.xml` | Gruplar, kartlar (adları, hızlı komutları, reboot seçimleri, boot ayarı kayıtları), terminal, yakınlaştırma, izleme ve ortak FTP ayarları (otomatik kaydedilir; Dosya Gezgini'nin FTP parolası dosyada tutulmaz — yalnız kullanıcının kaydettiği boot ayarı kayıtlarında kartın `pw` alanı da bulunur). |
 | `%APPDATA%\TelnetCards\KomutGecmisi.txt` | Komut geçmişi: yazılan tüm komutlar, satır başına bir komut, eskiden yeniye (en fazla 5.000; tüm kartlar ve genel çubuk ortak; otomatik kaydedilir). Silinirse geçmiş boş başlar. |
 | `logs\GrupAdı_IP_anlik_tarih_saat.log` | "Dosyaya kaydet" ile alınan anlık terminal görüntüleri (her tıklama ayrı dosya). |
 | `logs\olaylar\IP.log` | Kartın olay günlüğü (port 23 değilse `IP_port.log`): satır başına zaman, tür ve olay. Kart başına en fazla 5 MB; dolunca en eski olaylar silinir. |
