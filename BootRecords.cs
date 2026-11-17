@@ -111,7 +111,7 @@ namespace Vision
             if (n.Length == 0) return "Kayda bir ad verin.";
             if (n.Length > MaxNameLength) return "Ad en fazla " + MaxNameLength + " karakter olabilir.";
             foreach (char c in n) if (c < 32) return "Ad tek satır olmalı.";
-            if (existing != null && existing.Any(r => r != self && string.Equals((r.Name ?? "").Trim(), n, StringComparison.CurrentCultureIgnoreCase)))
+            if (existing != null && existing.Any(r => r != self && string.Compare((r.Name ?? "").Trim(), n, System.Globalization.CultureInfo.GetCultureInfo("tr-TR"), System.Globalization.CompareOptions.IgnoreCase) == 0))
                 return "Bu kartta \"" + n + "\" adında bir kayıt zaten var.";
             return null;
         }
