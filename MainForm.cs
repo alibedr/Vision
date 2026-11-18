@@ -665,8 +665,7 @@ namespace Vision
             if (n == 0) { ClearAllTerminals(); return; }
             int c = ChoiceDialog.Ask(this, "Tüm kartları temizle",
                 (n == 1 ? "Ekrandaki kartın" : "Ekrandaki " + n + " kartın") + " ekranı temizlensin mi?",
-                "Her kartın ekranındaki çıktı ve ekran geçmişi silinir; geri alınamaz. Kartlara hiçbir şey gönderilmez.
-" +
+                "Her kartın ekranındaki çıktı ve ekran geçmişi silinir; geri alınamaz. Kartlara hiçbir şey gönderilmez.\n" +
                 "Saklamak isterseniz önce genel \"Dosyaya kaydet\" ile kaydedin.",
                 new[] { "Vazgeç", n == 1 ? "Temizle" : n + " kartı temizle" }, 0, 1);
             if (c == 1) ClearAllTerminals();

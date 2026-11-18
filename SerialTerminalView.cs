@@ -360,8 +360,7 @@ namespace Vision
         private void AskClear()
         {
             int c = ChoiceDialog.Ask(FindForm(), "Ekranı temizle", Session.Profile.Label + " ekranı temizlensin mi?",
-                "Ekrandaki çıktı silinir; seri çıktı ayrıca bir dosyaya yazılmadığı için geri alınamaz. Karta hiçbir şey gönderilmez.
-" +
+                "Ekrandaki çıktı silinir; seri çıktı ayrıca bir dosyaya yazılmadığı için geri alınamaz. Karta hiçbir şey gönderilmez.\n" +
                 "Saklamak isterseniz önce \"Dosyaya kaydet\" ile kaydedin.",
                 new[] { "Vazgeç", "Temizle" }, 0, 1);
             if (c == 1) _output.Clear();

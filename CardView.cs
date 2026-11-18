@@ -792,8 +792,7 @@ namespace Vision
         {
             int c = ChoiceDialog.Ask(FindForm(), "Ekranı temizle",
                 Session.Card.Label + " kartının ekranı temizlensin mi?",
-                "Kartın ekranındaki çıktı ve bu karttaki ekran geçmişi silinir; geri alınamaz. Karta hiçbir şey gönderilmez.
-" +
+                "Kartın ekranındaki çıktı ve bu karttaki ekran geçmişi silinir; geri alınamaz. Karta hiçbir şey gönderilmez.\n" +
                 "Saklamak isterseniz önce \"Dosyaya kaydet\" ile kaydedin.",
                 new[] { "Vazgeç", "Temizle" }, 0, 1);
             if (c == 1) ClearTerminal();
