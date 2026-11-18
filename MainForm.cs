@@ -78,8 +78,8 @@ namespace Vision
         private readonly CommandLibraryView _commandLibrary;
         private readonly TabStripButton _sentinelTab = new TabStripButton("Sentinel", IconKind.Pulse);
         private readonly SentinelView _sentinelView;
-        // Seri sekmesi (deneme): COM portlarından karta doğrudan bağlantı; telnet altyapısından bağımsız
-        private readonly TabStripButton _serialTab = new TabStripButton("Seri", IconKind.Terminal);
+        // Seri sekmesi: COM portlarından karta doğrudan bağlantı; telnet altyapısından bağımsız
+        private readonly TabStripButton _serialTab = new TabStripButton("Seri", IconKind.SerialPort);
         private readonly SerialView _serialView;
         private MainTab _activeTab = MainTab.Workspace;
 
@@ -273,7 +273,7 @@ namespace Vision
             _signature.MouseLeave += (s, e) => _signature.ForeColor = Theme.TextMuted;
             new DarkToolTip().SetToolTip(_signature, AppInfo.Copyright);
 
-            // Sekme şeridi: [◀ kenar çubuğu] Telnet | Kart Dosya Gezgini | Komut Kütüphanesi
+            // Sekme şeridi: [◀ kenar çubuğu] Telnet | Kart Dosya Gezgini | Seri | Sentinel | Komut Kütüphanesi
             var tabStrip = new Panel { Dock = DockStyle.Top, Height = 40, BackColor = Theme.Sidebar, Padding = new Padding(6, 0, 8, 0) };
             _workspaceTab.Dock = DockStyle.Left;
             _filesTab.Dock = DockStyle.Left;
@@ -282,8 +282,8 @@ namespace Vision
             _serialTab.Dock = DockStyle.Left;
             _sidebarToggle.Dock = DockStyle.Left;
             _sidebarToggle.Width = 42;
-            tabStrip.Controls.Add(_sentinelTab);     // Dock=Left: son eklenen en solda
-            tabStrip.Controls.Add(_commandsTab);
+            tabStrip.Controls.Add(_commandsTab);     // Dock=Left: son eklenen en solda → Komut Kütüphanesi en sonda (5.)
+            tabStrip.Controls.Add(_sentinelTab);
             tabStrip.Controls.Add(_serialTab);       // Seri: Kart Dosya Gezgini'nden sonra (3. sekme)
             tabStrip.Controls.Add(_filesTab);
             tabStrip.Controls.Add(_workspaceTab);
@@ -434,7 +434,7 @@ namespace Vision
                 e.SuppressKeyPress = true;
                 // Sekme sırasıyla: Telnet, Kart Dosya Gezgini, Seri, Komut Kütüphanesi, Sentinel
                 ShowTab(e.KeyCode == Keys.D1 ? MainTab.Workspace : e.KeyCode == Keys.D2 ? MainTab.Files
-                      : e.KeyCode == Keys.D3 ? MainTab.Serial : e.KeyCode == Keys.D4 ? MainTab.Commands : MainTab.Sentinel);
+                      : e.KeyCode == Keys.D3 ? MainTab.Serial : e.KeyCode == Keys.D4 ? MainTab.Sentinel : MainTab.Commands);
             }
             else if (e.Control && e.KeyCode == Keys.G)
             {
@@ -1229,7 +1229,7 @@ namespace Vision
                 Title = "Vision'a hoş geldiniz",
                 Body = () => "Vision, VxWorks kartlarına Telnet ile bağlanıp birden çok kartı aynı anda yönetmenizi sağlar.\n\n" +
                              "Bu turda birlikte bir kart ekleyip bağlanacağız; kart penceresinin her düğmesini, boot ayarları penceresini, " +
-                             "renklendirmeyi, Kart Dosya Gezgini'ni, Komut Kütüphanesi'ni ve Sentinel'i adım adım göreceğiz.\n\n" +
+                             "renklendirmeyi, Kart Dosya Gezgini'ni, Seri sekmesini, Sentinel'i ve Komut Kütüphanesi'ni adım adım göreceğiz.\n\n" +
                              "Bazı adımlarda sizden bir işlem istenir (▶ Şimdi siz). İşlemi yapınca tur kendiliğinden ilerler; " +
                              "yapmak istemezseniz \"Bu adımı geç\". Turu Yardım → Uygulama turu'ndan istediğiniz zaman yeniden açabilirsiniz.",
                 Enter = telnet,
@@ -1238,8 +1238,10 @@ namespace Vision
             {
                 Title = "Sekmeler",
                 Body = () => "Telnet: kart terminalleri  ·  Kart Dosya Gezgini: kartın dosyaları  ·  Seri: COM portundan karta doğrudan bağlantı  ·  " +
-                             "Komut Kütüphanesi: hazır VxWorks komutları  ·  Sentinel: kartın sağlık sayfası.\n\nKısayollar: Ctrl+1 / 2 / 3 / 4 / 5.",
-                Target = () => TourRect(_workspaceTab, _filesTab, _serialTab, _commandsTab, _sentinelTab),
+                             "Sentinel: kartın sağlık sayfası  ·  Komut Kütüphanesi: hazır VxWorks komutları.\n\nKısayollar: Ctrl+1 / 2 / 3 / 4 / 5.\n\n" +
+                             "Soldaki menü sekmeye göre değişir (Kart Gezgini, seri portlar, Sentinel kart listesi); ◀ düğmesi ya da Ctrl+B " +
+                             "o sekmenin menüsünü gizler / gösterir ve her sekme kendi durumunu hatırlar.",
+                Target = () => TourRect(_workspaceTab, _filesTab, _serialTab, _sentinelTab, _commandsTab),
                 Enter = telnet,
             });
 
@@ -1619,6 +1621,11 @@ namespace Vision
                      "Bilgisayara: listedeki öğeyi (ya da seçili öğeleri) masaüstüne veya açık bir klasöre sürükleyin; bıraktığınızda karttan indirilir.\n" +
                      "Liste içinde: bir klasörün üstüne bırakmak taşır, Ctrl basılıysa kopyalar.",
                      () => TourRect(_fileExplorer.TourList));
+            fileStep("Klasör yükleme",
+                     "Klasör yüklerken bir dosya FTP'ye gönderilemez ya da kartta kopyalanamazsa yükleme durmaz: o dosya atlanır, " +
+                     "kalanlar yüklenir. Sonunda kartta her dosyanın boyutu bilgisayardakiyle karşılaştırılır. Yüklenemeyenler sonda " +
+                     "listelenir (ekranda ilk 5'i, Olay günlüğünde hepsi nedenleriyle).",
+                     () => TourRect(_fileExplorer.TourUpload));
             fileStep("Büyük dosyalar ve ilerleme",
                      "64 MB'tan büyük dosyalar iki yönde de (klasörlerin içindekiler dahil) 64 MB'lık parçalar halinde aktarılır; kart " +
                      "tek seferde dev bir dosyayla uğraşmaz. Aktarımdan önce hedef diskte (kartta ya da bilgisayarda) yer olup olmadığına " +
@@ -1631,27 +1638,42 @@ namespace Vision
                      "aktarım sürerken Vision kapatılırsa önce sorar.",
                      () => TourRect(_fileExplorer.TourList));
 
-            // ---------------- Komut Kütüphanesi ----------------
-            Action<string, string, Func<Rectangle?>> libStep = (title, body, target) => steps.Add(new TourStep
+            // ---------------- Seri ----------------
+            Action serial = () =>
             {
-                Title = title,
-                Body = () => body,
-                Target = target,
-                Available = () => { ShowTab(MainTab.Commands); return target() != null; },
-                Enter = commands,
+                ShowTab(MainTab.Serial);
+                if (_split.Panel1Collapsed) SetSidebarCollapsed(false);   // port listesi sol menüde: tur için açılır
+            };
+            steps.Add(new TourStep
+            {
+                Title = "Seri sekmesi",
+                Body = () => "Kartlara Telnet'in yanında COM portundan (USB-seri çevirici) da bağlanabilirsiniz; TeraTerm açmanıza gerek kalmaz. " +
+                             "Telnet'ten bağımsızdır: kartın ağı yokken, boot sırasında ya da bootrom'dayken de çalışır.\n\n" +
+                             "Solda bilgisayarda görünen portlar Windows'taki adlarıyla listelenir; yeşil nokta: açık.",
+                Target = () => TourRect(_serialView.TourPorts),
+                Enter = serial,
             });
-            libStep("Komut Kütüphanesi",
-                    "VxWorks 6.4 komutları modüllere ayrılmış. Modülü açıp bir komut seçin; tümünü genişlet / daralt düğmeleri listenin üstünde.",
-                    () => TourRect(_commandLibrary.TourTree));
-            libStep("Arama",
-                    "Komut adına, açıklamaya ya da modüle göre arar (Ctrl+F). Esc aramayı temizler.",
-                    () => TourRect(_commandLibrary.TourSearch));
-            libStep("Komut sayfası",
-                    "Seçilen komutun açıklaması, yazılışı ve örnek çıktısı. Kütüphane Vision'a gömülüdür ve salt okunurdur; yazılışı Kopyala ile panoya alabilirsiniz.",
-                    () => TourRect(_commandLibrary.TourDetail));
-            libStep("Karta aktar",
-                    "Komutu seçtiğiniz kartın komut satırına yazar — göndermez; parametreleri düzenleyip Enter'a basarsınız.",
-                    () => TourRect(_commandLibrary.TourTransfer));
+            steps.Add(new TourStep
+            {
+                Title = "Port açma ve ayarlar",
+                Body = () => "Porta çift tıklayın ya da seçip Aç'a basın: pencere açılır ve port açılır. Ayarlar…: baud rate, data, parity, stop, " +
+                             "akış denetimi ve gönderme gecikmesi; kartın seri ayarlarıyla aynı olmalı (varsayılan 115200 8N1).\n\n" +
+                             "Port numarası takılan USB girişine göre değişebileceği için porta bir ad verin (ör. \"Kart 3\").",
+                Target = () => TourRect(_serialView.TourButtons),
+                Enter = serial,
+            });
+            steps.Add(new TourStep
+            {
+                Title = "Seri pencereleri",
+                Body = () => "En fazla " + SerialView.MaxViews + " port aynı anda, Telnet'teki gibi ızgarada; her pencere büyütülebilir.\n\n" +
+                             "TeraTerm gibi terminale tıklayıp yazın: her tuş anında karta gider (Enter, Backspace, oklar, Ctrl+C…). " +
+                             "Fareyle seçilen metin kendiliğinden kopyalanır; yapıştırma sağ tık ya da Shift+Insert.\n\n" +
+                             "Yazdığınız komutlar Telnet'ten ayrı bir geçmişe kaydedilir: saat düğmesi, tek tık komutu yazar, çift tık gönderir. " +
+                             "Ekrandaki çıktı dosyaya kaydedilebilir.",
+                Target = () => TourRect(_serialView.TourGrid),
+                Enter = serial,
+            });
+
             // ---------------- Sentinel ----------------
             steps.Add(new TourStep
             {
@@ -1677,7 +1699,7 @@ namespace Vision
                              "arka planda açık kalır. Durdurmak için aynı düğme (" + SentinelTracker.StopCommand + ").",
                 Target = () => TourRect(_sentinelView),
                 Enter = () => ShowTab(MainTab.Sentinel),
-                NextId = "themes",
+                NextId = "library",
             });
             steps.Add(new TourStep
             {
@@ -1725,6 +1747,30 @@ namespace Vision
                 Target = () => TourRect(_sentinelView.TourPage),
                 Enter = sentinelTab,
             });
+
+            // ---------------- Komut Kütüphanesi ----------------
+            Action<string, string, Func<Rectangle?>> libStep = (title, body, target) => steps.Add(new TourStep
+            {
+                Title = title,
+                Body = () => body,
+                Target = target,
+                Available = () => { ShowTab(MainTab.Commands); return target() != null; },
+                Enter = commands,
+            });
+            int libStart = steps.Count;
+            libStep("Komut Kütüphanesi",
+                    "VxWorks 6.4 komutları modüllere ayrılmış. Modülü açıp bir komut seçin; tümünü genişlet / daralt düğmeleri listenin üstünde.",
+                    () => TourRect(_commandLibrary.TourTree));
+            libStep("Arama",
+                    "Komut adına, açıklamaya ya da modüle göre arar (Ctrl+F). Esc aramayı temizler.",
+                    () => TourRect(_commandLibrary.TourSearch));
+            libStep("Komut sayfası",
+                    "Seçilen komutun açıklaması, yazılışı ve örnek çıktısı. Kütüphane Vision'a gömülüdür ve salt okunurdur; yazılışı Kopyala ile panoya alabilirsiniz.",
+                    () => TourRect(_commandLibrary.TourDetail));
+            libStep("Karta aktar",
+                    "Komutu seçtiğiniz kartın komut satırına yazar — göndermez; parametreleri düzenleyip Enter'a basarsınız.",
+                    () => TourRect(_commandLibrary.TourTransfer));
+            steps[libStart].Id = "library";   // Sentinel'in "Hayır" dalı buraya döner
 
             // ---------------- Kapanış ----------------
             steps.Add(new TourStep

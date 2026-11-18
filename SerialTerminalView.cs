@@ -8,7 +8,7 @@ using System.Windows.Forms;
 namespace Vision
 {
     /// <summary>
-    /// Seri sekmesindeki bir COM portu penceresi (DENEME). TeraTerm'deki gibi terminale tıklayıp yazılır: her tuş anında
+    /// Seri sekmesindeki bir COM portu penceresi. TeraTerm'deki gibi terminale tıklayıp yazılır: her tuş anında
     /// porta gider (Enter = CR, Backspace, Tab, Esc, oklar, Ctrl+harf). Kopyalama: fareyle seçilen metin kendiliğinden
     /// panoya alınır, sağ tık → Kopyala; yapıştırma: sağ tık → Yapıştır ya da Shift+Insert.
     /// Kapatmak portu da kapatır.
@@ -47,7 +47,7 @@ namespace Vision
             BuildHeader();
             _output.Dock = DockStyle.Fill;
             // Yazınca (TeraTerm gibi) en alta inilir; kartın yankısı da en altta görünür
-            _output.KeysTyped = s => { _typed = true; ScrollToEnd(); Session.SendKeys(s); };
+            _output.KeysTyped = s => { _typed = true; if (!IsScrolledToBottom()) ScrollToEnd(); Session.SendKeys(s); };
             _output.PasteRequested = Paste;
             _output.ContextMenuStrip = _menu;
             _outputHost.Controls.Add(_output);
@@ -237,7 +237,10 @@ namespace Vision
             bool follow = _typed || IsAtBottom();
             _typed = false;
             int selStart = _output.SelectionStart, selLen = _output.SelectionLength;
-            _output.BeginUpdateNoRedraw();
+            // Yazarken gelen yankı gibi küçük eklemeler: denetim yalnız değişen yeri kendisi çizer (titremez).
+            // Büyük log yığını, satır kırpma ya da korunacak bir seçim varsa: çizim kapatılır, sonda bir kez çizilir.
+            bool bulk = raw.Length > 512 || (selLen > 0 && !follow) || NeedsTrim();
+            if (bulk) _output.BeginUpdateNoRedraw();
             try
             {
                 foreach (SerialScreen.Op o in ops)
@@ -257,11 +260,11 @@ namespace Vision
                         _output.SelectedText = o.Text;
                     }
                 }
-                TrimLines();
+                if (NeedsTrim()) TrimLines();
                 if (follow || selLen == 0)
                 {
                     _output.Select(_output.TextLength, 0);
-                    if (follow) ScrollToEnd();
+                    if (follow && !IsScrolledToBottom()) ScrollToEnd();
                 }
                 else
                 {
@@ -270,15 +273,36 @@ namespace Vision
             }
             finally
             {
-                _output.EndUpdateNoRedraw();
+                if (bulk) _output.EndUpdateNoRedraw();
             }
         }
 
         private const int WM_VSCROLL = 0x0115;
         private const int SB_BOTTOM = 7;
+        private const int SB_VERT = 1;
+        private const int SIF_RANGE = 0x1, SIF_PAGE = 0x2, SIF_POS = 0x4;
+
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        private struct SCROLLINFO
+        {
+            public int cbSize, fMask, nMin, nMax, nPage, nPos, nTrackPos;
+        }
 
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool GetScrollInfo(IntPtr hWnd, int bar, ref SCROLLINFO info);
+
+        /// <summary>Dikey çubuk zaten en altta mı (o zaman kaydırılmaz; her tuşta kaydırmak satırı titretiyordu).</summary>
+        private bool IsScrolledToBottom()
+        {
+            if (!_output.IsHandleCreated) return true;
+            var si = new SCROLLINFO { cbSize = System.Runtime.InteropServices.Marshal.SizeOf(typeof(SCROLLINFO)), fMask = SIF_RANGE | SIF_PAGE | SIF_POS };
+            if (!GetScrollInfo(_output.Handle, SB_VERT, ref si)) return true;
+            if (si.nPage <= 0 || si.nMax - si.nMin + 1 <= si.nPage) return true;   // kaydırılacak kadar metin yok
+            return si.nPos + si.nPage >= si.nMax;
+        }
 
         /// <summary>
         /// En alta iner. ScrollToCaret imleç satırını yatay kaydırma çubuğunun altında, yarım görünür bırakabiliyordu;
@@ -286,9 +310,14 @@ namespace Vision
         /// </summary>
         private void ScrollToEnd()
         {
-            _output.Select(_output.TextLength, 0);
-            _output.ScrollToCaret();
-            if (_output.IsHandleCreated) SendMessage(_output.Handle, WM_VSCROLL, (IntPtr)SB_BOTTOM, IntPtr.Zero);
+            _output.BeginUpdateNoRedraw();
+            try
+            {
+                _output.Select(_output.TextLength, 0);
+                _output.ScrollToCaret();
+                if (_output.IsHandleCreated) SendMessage(_output.Handle, WM_VSCROLL, (IntPtr)SB_BOTTOM, IntPtr.Zero);
+            }
+            finally { _output.EndUpdateNoRedraw(); }
         }
 
         // Metnin tamamı kopyalanmadan (hızlı log akışında her 50 ms'de çağrılır) son satırın uzunluğu
@@ -305,6 +334,14 @@ namespace Vision
             if (_output.TextLength == 0) return true;
             Point last = _output.GetPositionFromCharIndex(_output.TextLength - 1);
             return last.Y < _output.ClientSize.Height + _output.Font.Height;
+        }
+
+        // Sınır biraz aşılınca bir kerede kırpılır (her yeni satırda kırpıp ekranı yeniden çizmemek için)
+        private const int TrimSlack = 500;
+
+        private bool NeedsTrim()
+        {
+            return _output.GetLineFromCharIndex(_output.TextLength) + 1 > SerialSession.MaxLines + TrimSlack;
         }
 
         private void TrimLines()
@@ -421,11 +458,16 @@ namespace Vision
             [System.Runtime.InteropServices.DllImport("user32.dll")]
             private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
 
-            public void BeginUpdateNoRedraw() { if (IsHandleCreated) SendMessage(Handle, WM_SETREDRAW, IntPtr.Zero, IntPtr.Zero); }
+            private int _noRedraw;   // iç içe çağrılabilir (toplu ekleme içinde en alta inme)
+
+            public void BeginUpdateNoRedraw()
+            {
+                if (_noRedraw++ == 0 && IsHandleCreated) SendMessage(Handle, WM_SETREDRAW, IntPtr.Zero, IntPtr.Zero);
+            }
 
             public void EndUpdateNoRedraw()
             {
-                if (!IsHandleCreated) return;
+                if (_noRedraw == 0 || --_noRedraw > 0 || !IsHandleCreated) return;
                 SendMessage(Handle, WM_SETREDRAW, (IntPtr)1, IntPtr.Zero);
                 Invalidate();
             }

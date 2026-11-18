@@ -11,7 +11,7 @@ namespace Vision
         Back, Refresh, NewFolder, Upload, Settings, SidebarHide, SidebarShow, Folder,
         Plus, Search, Edit, Trash, Copy, Check, ChevronRight, ChevronDown, Module, ExpandAll, CollapseAll,
         ChevronUp, Warning, Info, Terminal, Book, Home, Clock, Dot,
-        Save, Bolt, Power, Swap, Minus, Return, Sun, Moon, History, Palette, Pulse,
+        Save, Bolt, Power, Swap, Minus, Return, Sun, Moon, History, Palette, Pulse, SerialPort,
     }
 
     /// <summary>
@@ -234,6 +234,12 @@ namespace Vision
                                 g.FillRegion(brush, crescent);
                             }
                         }
+                        break;
+
+                    case IconKind.SerialPort:   // seri (DB9) konnektör: yamuk gövde + 5 / 4 pin
+                        g.DrawPolygon(pen, new[] { P(1.4f, 4.2f), P(14.6f, 4.2f), P(12.6f, 11.8f), P(3.4f, 11.8f) });
+                        for (int i = 0; i < 5; i++) g.FillEllipse(brush, 3.9f + i * 2f - 0.8f, 6.6f - 0.8f, 1.6f, 1.6f);
+                        for (int i = 0; i < 4; i++) g.FillEllipse(brush, 4.9f + i * 2f - 0.8f, 9.4f - 0.8f, 1.6f, 1.6f);
                         break;
 
                     case IconKind.Book:      // açık kitap

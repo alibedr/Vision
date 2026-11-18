@@ -8,7 +8,7 @@ using System.Windows.Forms;
 namespace Vision
 {
     /// <summary>
-    /// "Seri" sekmesi (DENEME): solda bilgisayarda görünen COM portları (adlarıyla), sağda telnet'teki gibi en fazla
+    /// "Seri" sekmesi: solda bilgisayarda görünen COM portları (adlarıyla), sağda telnet'teki gibi en fazla
     /// 12 pencerelik ızgara. Porta çift tıklamak (ya da "Aç") pencereyi açıp portu açar; pencereler büyütülebilir.
     /// Telnet altyapısından bağımsızdır.
     /// </summary>
@@ -119,6 +119,11 @@ namespace Vision
             VisibleChanged += (s, e) => { if (Visible) RefreshPorts(true); };
             RefreshButtons();
         }
+
+        // Uygulama turu (G36) için: yalnız okunur
+        internal Control TourPorts { get { return _list; } }
+        internal Control[] TourButtons { get { return new Control[] { _openBtn, _settingsBtn }; } }
+        internal Control TourGrid { get { return _grid; } }
 
         /// <summary>Açık port sayısı (durum çubuğu için).</summary>
         public int OpenCount { get { return _sessions.Values.Count(s => s.State == SerialState.Open); } }

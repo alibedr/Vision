@@ -350,7 +350,7 @@ namespace Vision
 
         [XmlArray("Groups"), XmlArrayItem("Group")] public List<CardGroup> Groups { get; set; }
 
-        /// <summary>Seri sekmesindeki COM portlarının ayarları ve adları (deneme).</summary>
+        /// <summary>Seri sekmesindeki COM portlarının ayarları ve adları.</summary>
         [XmlArray("SeriPortlar"), XmlArrayItem("Port")] public List<SerialPortProfile> SerialPorts { get; set; }
 
         public bool ShouldSerializeSerialPorts() { return SerialPorts != null && SerialPorts.Count > 0; }

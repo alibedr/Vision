@@ -7,7 +7,7 @@ using System.Windows.Forms;
 namespace Vision
 {
     /// <summary>
-    /// Seri port ayarları (DENEME). TeraTerm'deki "Serial port setup" gibi: üstte port seçilir (hangi portun ayarı
+    /// Seri port ayarları. TeraTerm'deki "Serial port setup" gibi: üstte port seçilir (hangi portun ayarı
     /// değiştirilecek), altında o portun adı, baud rate, data, parity, stop, akış denetimi ve gönderme gecikmeleri.
     /// Ayarlar kartın seri ayarlarıyla aynı olmalı; her portun ayarı ayrı saklanır.
     /// </summary>

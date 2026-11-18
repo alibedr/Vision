@@ -13,7 +13,7 @@ using System.Xml.Serialization;
 namespace Vision
 {
     // =====================================================================
-    // Seri port (COM) bağlantısı — DENEME (deneme/seri-port). Telnet altyapısından tamamen ayrıdır:
+    // Seri port (COM) bağlantısı. Telnet altyapısından tamamen ayrıdır:
     // CardSession / TelnetClient kullanılmaz, onlara dokunulmaz.
     // =====================================================================
 

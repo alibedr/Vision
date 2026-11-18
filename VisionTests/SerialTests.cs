@@ -9,7 +9,7 @@ using Vision;
 
 namespace VisionTests
 {
-    /// <summary>Seri sekmesi (deneme): ekran işleme, satır yakalama, oturum (sahte port), ayarlar.</summary>
+    /// <summary>Seri sekmesi: ekran işleme, satır yakalama, oturum (sahte port), ayarlar.</summary>
     public sealed class SerialTests
     {
         /// <summary>Bellekte sahte COM portu: yazılanları tutar, istenince "karttan" veri gönderir, açma hatası / kaybolma taklidi.</summary>
