@@ -78,9 +78,12 @@ namespace Vision
         private readonly CommandLibraryView _commandLibrary;
         private readonly TabStripButton _sentinelTab = new TabStripButton("Sentinel", IconKind.Pulse);
         private readonly SentinelView _sentinelView;
+        // Seri sekmesi (deneme): COM portlarından karta doğrudan bağlantı; telnet altyapısından bağımsız
+        private readonly TabStripButton _serialTab = new TabStripButton("Seri", IconKind.Terminal);
+        private readonly SerialView _serialView;
         private MainTab _activeTab = MainTab.Workspace;
 
-        private enum MainTab { Workspace, Files, Commands, Sentinel }
+        private enum MainTab { Workspace, Files, Commands, Sentinel, Serial }
         private volatile bool _statesDirty = true;
 
         public MainForm()
@@ -122,6 +125,11 @@ namespace Vision
             _commandLibrary.EnableTransfer(() => _config.Groups, StateOf, TransferCommandToCard, TransferCommandToAll);
             // Sentinel: kartın içindeki web sunucusunun sayfası uygulama içinde (yalnız var olan oturumlar; yeni bağlantı açmaz)
             _sentinelView = new SentinelView(() => _config.Groups.SelectMany(g => g.Cards).ToList(), FindSession)
+            {
+                Dock = DockStyle.Fill,
+                Visible = false,
+            };
+            _serialView = new SerialView(() => _config.SerialPorts ?? (_config.SerialPorts = new List<SerialPortProfile>()), SaveConfig)
             {
                 Dock = DockStyle.Fill,
                 Visible = false,
@@ -253,7 +261,7 @@ namespace Vision
                     if (_statusRight.Visible) e.Graphics.DrawLine(p, _signature.Left - 12, 7, _signature.Left - 12, status.Height - 7);
                 }
             };
-            _statusRight.Text = "Ctrl+N: kart ekle   ·   Ctrl+G: genel komut   ·   Ctrl+1 / 2 / 3 / 4: sekmeler   ·   F1: yardım";
+            _statusRight.Text = "Ctrl+N: kart ekle   ·   Ctrl+G: genel komut   ·   Ctrl+1 / 2 / 3 / 4 / 5: sekmeler   ·   F1: yardım";
             _signature.Cursor = Cursors.Hand;
             _signature.Click += (s, e) => ShowHelp(HelpPage.About);
             _signature.MouseEnter += (s, e) => _signature.ForeColor = Theme.Accent;
@@ -266,9 +274,11 @@ namespace Vision
             _filesTab.Dock = DockStyle.Left;
             _commandsTab.Dock = DockStyle.Left;
             _sentinelTab.Dock = DockStyle.Left;
+            _serialTab.Dock = DockStyle.Left;
             _sidebarToggle.Dock = DockStyle.Left;
             _sidebarToggle.Width = 42;
-            tabStrip.Controls.Add(_sentinelTab);     // Dock=Left: son eklenen en solda
+            tabStrip.Controls.Add(_serialTab);       // Dock=Left: son eklenen en solda
+            tabStrip.Controls.Add(_sentinelTab);
             tabStrip.Controls.Add(_commandsTab);
             tabStrip.Controls.Add(_filesTab);
             tabStrip.Controls.Add(_workspaceTab);
@@ -280,6 +290,7 @@ namespace Vision
             _filesTab.Click += (s, e) => ShowTab(MainTab.Files);
             _commandsTab.Click += (s, e) => ShowTab(MainTab.Commands);
             _sentinelTab.Click += (s, e) => ShowTab(MainTab.Sentinel);
+            _serialTab.Click += (s, e) => ShowTab(MainTab.Serial);
             _workspaceTab.Active = true;
 
             // Genel komut çubuğu YALNIZ çalışma alanına aittir (dosya gezgini sekmesinde görünmez/kullanılamaz)
@@ -290,6 +301,7 @@ namespace Vision
             _split.Panel2.Controls.Add(_fileExplorer);
             _split.Panel2.Controls.Add(_commandLibrary);
             _split.Panel2.Controls.Add(_sentinelView);
+            _split.Panel2.Controls.Add(_serialView);
             _split.Panel2.Controls.Add(tabStrip);
 
             Controls.Add(_split);
@@ -388,6 +400,10 @@ namespace Vision
 
         private void OnFormKeyDown(object sender, KeyEventArgs e)
         {
+            // Seri terminalde Ctrl+harf (Ctrl+C, Ctrl+X, Ctrl+N …) karta gider: uygulama kısayolları devreye girmez
+            if (_activeTab == MainTab.Serial && e.Control && !e.Alt && e.KeyCode >= Keys.A && e.KeyCode <= Keys.Z &&
+                !(e.Shift && e.KeyCode == Keys.L))
+                return;
             if (e.KeyCode == Keys.F1)
             {
                 e.SuppressKeyPress = true;
@@ -408,11 +424,11 @@ namespace Vision
                 e.SuppressKeyPress = true;
                 SetSidebarCollapsed(!_split.Panel1Collapsed);
             }
-            else if (e.Control && !e.Shift && (e.KeyCode == Keys.D1 || e.KeyCode == Keys.D2 || e.KeyCode == Keys.D3 || e.KeyCode == Keys.D4))
+            else if (e.Control && !e.Shift && (e.KeyCode == Keys.D1 || e.KeyCode == Keys.D2 || e.KeyCode == Keys.D3 || e.KeyCode == Keys.D4 || e.KeyCode == Keys.D5))
             {
                 e.SuppressKeyPress = true;
                 ShowTab(e.KeyCode == Keys.D1 ? MainTab.Workspace : e.KeyCode == Keys.D2 ? MainTab.Files
-                      : e.KeyCode == Keys.D3 ? MainTab.Commands : MainTab.Sentinel);
+                      : e.KeyCode == Keys.D3 ? MainTab.Commands : e.KeyCode == Keys.D4 ? MainTab.Sentinel : MainTab.Serial);
             }
             else if (e.Control && e.KeyCode == Keys.G)
             {
@@ -751,6 +767,8 @@ namespace Vision
             _filesTab.Active = tab == MainTab.Files;
             _commandsTab.Active = tab == MainTab.Commands;
             _sentinelTab.Active = tab == MainTab.Sentinel;
+            _serialTab.Active = tab == MainTab.Serial;
+            _serialView.Visible = tab == MainTab.Serial;
             _workspaceHost.Visible = tab == MainTab.Workspace;
             _fileExplorer.Visible = tab == MainTab.Files;
             _commandLibrary.Visible = tab == MainTab.Commands;

@@ -339,9 +339,15 @@ namespace Vision
         {
             Groups = new List<CardGroup>();
             Settings = new AppSettings();
+            SerialPorts = new List<SerialPortProfile>();
         }
 
         [XmlArray("Groups"), XmlArrayItem("Group")] public List<CardGroup> Groups { get; set; }
+
+        /// <summary>Seri sekmesindeki COM portlarının ayarları ve adları (deneme).</summary>
+        [XmlArray("SeriPortlar"), XmlArrayItem("Port")] public List<SerialPortProfile> SerialPorts { get; set; }
+
+        public bool ShouldSerializeSerialPorts() { return SerialPorts != null && SerialPorts.Count > 0; }
         public AppSettings Settings { get; set; }
     }
 
