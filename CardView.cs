@@ -171,7 +171,7 @@ namespace Vision
             foreach (var b in new IconButton[] { _connectBtn, _snapBtn, _clearBtn, _maxBtn, _closeBtn }) b.Width = 28;
 
             _tips.SetToolTip(_uptime, "Bağlantı süresi (bağlantı kurulduğu andan itibaren)");
-            _clearBtn.SetTip(_tips, "Temizle — ekranı ve geçmişi temizler");
+            _clearBtn.SetTip(_tips, "Temizle — ekranı ve geçmişi temizler (onay sorar)");
             _connectBtn.SetTip(_tips, ConnectionAction.ConnectLabel);
             _maxBtn.SetTip(_tips, "Büyüt");
             _closeBtn.SetTip(_tips, "Kapat — görünümü kapatır (bağlantı ve kart yapılandırması korunur)");
@@ -187,7 +187,7 @@ namespace Vision
                 if (SelectionLogic.IsLive(Session.State)) Session.Disconnect();
                 else await Session.ConnectAsync();
             };
-            _clearBtn.Click += (s, e) => ClearTerminal();
+            _clearBtn.Click += (s, e) => AskClearTerminal();
             _maxBtn.Click += (s, e) => { var h = MaximizeToggled; if (h != null) h(this); };
             _closeBtn.Click += (s, e) => { var h = CloseRequested; if (h != null) h(this); };
             _header.DoubleClick += (s, e) => { var h = MaximizeToggled; if (h != null) h(this); };
@@ -295,6 +295,10 @@ namespace Vision
             // Enter tuşu YALNIZCA burada işlenir (tek işleyici). SuppressKeyPress, TextBox'ın
             // kendi Enter işlemesini ve uyarı sesini engeller; formda AcceptButton yoktur.
             _input.KeyDown += Input_KeyDown;
+            // Fare tekerleği komut satırının üzerinde: ↑ / ↓ gibi geçmişte gezinir (Axis alışkanlığı)
+            HistoryWheel.Attach(_input, () => Session.State == CardState.Connected,
+                () => { string prev = Session.CommandHistory.Previous(_input.Text); if (prev != null) SetInput(prev); },
+                () => { string next = Session.CommandHistory.Next(); if (next != null) SetInput(next); });
             // Ortak, kalıcı komut geçmişinden otomatik tamamlama (Tab / ↓ / → ile kabul; çalıştırmaz)
             _autoComplete = new InputAutoComplete(_input, () => Session.CommandHistory);
             _sendBtn.Click += async (s, e) => await SendCurrentAsync();
@@ -781,6 +785,19 @@ namespace Vision
                 _newLinesPill.Visible = true;
                 _newLinesPill.BringToFront();
             }
+        }
+
+        /// <summary>Temizle düğmesi: önce onay (1.9 — yanlışlıkla basılınca ekran ve geçmiş kaybolmasın; varsayılan Vazgeç).</summary>
+        private void AskClearTerminal()
+        {
+            int c = ChoiceDialog.Ask(FindForm(), "Ekranı temizle",
+                Session.Card.Label + " kartının ekranı temizlensin mi?",
+                "Kartın ekranındaki çıktı ve bu karttaki ekran geçmişi silinir; geri alınamaz. Karta hiçbir şey gönderilmez.
+" +
+                "Saklamak isterseniz önce \"Dosyaya kaydet\" ile kaydedin.",
+                new[] { "Vazgeç", "Temizle" }, 0, 1);
+            if (c == 1) ClearTerminal();
+            _input.Focus();
         }
 
         /// <summary>Kartın terminal ekranını ve geçmişini temizler (kart silgisi ve genel silgi aynı işi yapar).</summary>

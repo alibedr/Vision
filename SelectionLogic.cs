@@ -27,6 +27,38 @@ namespace Vision
     public static class SelectionLogic
     {
         /// <summary>
+        /// Telnet ızgarasındaki kart sırası (1.9): önce grubun Kart Gezgini'ndeki sırası, grup içinde IP sayısal olarak
+        /// (10.0.0.2 &lt; 10.0.0.10 &lt; 10.0.0.100). Kart nasıl açılırsa açılsın (çift tık, Seçilenleri Göster, kapatıp yeniden
+        /// gösterme) bu sırada yerine oturur. IP olarak okunamayan değer yazı olarak, IP'lerden sonra sıralanır.
+        /// </summary>
+        public static int CompareDisplayOrder(int groupA, string ipA, int groupB, string ipB)
+        {
+            int c = groupA.CompareTo(groupB);
+            if (c != 0) return c;
+            long a = IpSortKey(ipA), b = IpSortKey(ipB);
+            if (a >= 0 && b >= 0) return a.CompareTo(b);
+            if (a >= 0) return -1;
+            if (b >= 0) return 1;
+            return string.Compare(ipA ?? "", ipB ?? "", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>IPv4 adresinin sayısal değeri; IP değilse -1.</summary>
+        public static long IpSortKey(string ip)
+        {
+            if (string.IsNullOrWhiteSpace(ip)) return -1;
+            string[] parts = ip.Trim().Split('.');
+            if (parts.Length != 4) return -1;
+            long v = 0;
+            foreach (string p in parts)
+            {
+                int n;
+                if (p.Length == 0 || p.Length > 3 || !int.TryParse(p, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out n) || n > 255) return -1;
+                v = v * 256 + n;
+            }
+            return v;
+        }
+
+        /// <summary>
         /// Seçili kartların hepsi bağlı (ya da bağlanıyor) ise düğme "Bağlantıyı Kes" olur;
         /// en az biri bağlı değilse "Bağlantı Kur" olur ve yalnız bağlı olmayanlara bağlanır.
         /// </summary>

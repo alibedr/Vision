@@ -98,12 +98,13 @@ namespace Vision
             cancel.DialogResult = DialogResult.Cancel;
             AcceptButton = ok;
             CancelButton = cancel;
-            ok.Click += (s, e) =>
+            ok.Click += (s, e) => Accept();
+            // Enter / Esc doğrudan kutuda da işlenir: varsayılan düğme (AcceptButton) yoluna güvenilmez — beta geri
+            // bildirimi: karta ad verirken Enter çalışmıyor, Tamam'a fareyle basmak gerekiyordu (1.9)
+            _box.KeyDown += (s, e) =>
             {
-                string err = _validate != null ? _validate(_box.Text) : null;
-                if (err != null) { _error.Text = err; _box.BackColor = Theme.DangerSurface; return; }
-                DialogResult = DialogResult.OK;
-                Close();
+                if (e.KeyCode == Keys.Enter && !e.Alt && !e.Control) { e.SuppressKeyPress = e.Handled = true; Accept(); }
+                else if (e.KeyCode == Keys.Escape) { e.SuppressKeyPress = e.Handled = true; DialogResult = DialogResult.Cancel; Close(); }
             };
             _box.TextChanged += (s, e) => { _error.Text = ""; _box.BackColor = Theme.Input; };
             Controls.AddRange(new Control[] { p, _box, _error, ok, cancel });
@@ -118,6 +119,15 @@ namespace Vision
         }
 
         public string Value { get { return _box.Text.Trim(); } }
+
+        private void Accept()
+        {
+            if (DialogResult == DialogResult.OK) return;   // Enter hem kutuda hem varsayılan düğmede işlenirse bir kez
+            string err = _validate != null ? _validate(_box.Text) : null;
+            if (err != null) { _error.Text = err; _box.BackColor = Theme.DangerSurface; return; }
+            DialogResult = DialogResult.OK;
+            Close();
+        }
 
         public static string Ask(IWin32Window owner, string title, string prompt, string initial, Func<string, string> validate)
         {

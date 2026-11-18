@@ -11,6 +11,21 @@ namespace VisionTests
     public sealed class SettingsTests
     {
         [Test]
+        public void Izgara_GrupSonraIpSayisalSirada()
+        {
+            var cards = new List<Tuple<int, string>>
+            {
+                Tuple.Create(1, "10.0.0.5"), Tuple.Create(0, "10.0.0.100"), Tuple.Create(0, "10.0.0.10"),
+                Tuple.Create(0, "10.0.0.2"), Tuple.Create(1, "10.0.0.1"), Tuple.Create(0, "kart-adi"),
+            };
+            cards.Sort((a, b) => SelectionLogic.CompareDisplayOrder(a.Item1, a.Item2, b.Item1, b.Item2));
+            Check.Equal("0:10.0.0.2|0:10.0.0.10|0:10.0.0.100|0:kart-adi|1:10.0.0.1|1:10.0.0.5",
+                        string.Join("|", cards.Select(c => c.Item1 + ":" + c.Item2)), "grup sırası, sonra sayısal IP");
+            Check.Equal(-1L, SelectionLogic.IpSortKey("10.0.0.256"), "geçersiz IP");
+            Check.True(SelectionLogic.IpSortKey("192.168.1.2") > SelectionLogic.IpSortKey("10.255.255.255"), "ilk bölüm önce");
+        }
+
+        [Test]
         public void HizliKomut_EskiTekKomutListeyeAlinir()
         {
             var c = new CardConfig { Ip = "10.0.0.5", QuickCommand = "i" };

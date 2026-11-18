@@ -519,7 +519,12 @@ namespace Vision
         private ToolStripItem AddItem(string text, Action action, bool enabled)
         {
             var item = new ToolStripMenuItem(text) { Enabled = enabled, ForeColor = Theme.Text };
-            item.Click += (s, e) => action();
+            // Menü tamamen kapandıktan sonra çalışır: menüden açılan pencerelerde (Ad ver…, Grubun adını değiştir…)
+            // klavye menüde takılı kalmasın — Enter ilk tuşta pencereye gitsin
+            item.Click += (s, e) =>
+            {
+                if (IsHandleCreated) BeginInvoke(action); else action();
+            };
             _menu.Items.Add(item);
             return item;
         }
