@@ -15,7 +15,7 @@ Geliştiren: **Ali Bedir**
 - Bağlantı süresi, kaydırma koruması ve yeni satır göstergesi, kalıcı komut geçmişi (geçmiş penceresi, Ctrl+R ile geriye doğru arama) ve otomatik tamamlama, kart ekranında sağ tıkla renklendirme
 - İlk açılışta kullanıcıyla birlikte adım adım ilerleyen etkileşimli uygulama turu: kart ekletir, bağlatır, kart penceresini, boot ayarlarını, renklendirmeyi, Kart Dosya Gezgini'ni, Seri sekmesini, Sentinel'i ve Komut Kütüphanesi'ni tek tek anlatır (atlanabilir, Yardım → Uygulama turu ile yeniden açılır)
 - Boot ayarları penceresi: `bspBootChange` / `bootChange` alanları araya giren loglardan ayrı, tek ekranda izlenir ve düzenlenir
-- Genel komut çubuğu: ekrandaki tüm kartlara aynı komut
+- Genel komut çubuğu: ekrandaki tüm kartlara aynı komut; bspBootChange gönderilince tek pencerede kart listesi ve seçilen kartın boot ekranı
 - reboot onayında "Temizleyip yeniden başlat": önce ekranı temizler, açılış çıktısı temiz ekranda görünür (kartta ve genel komut çubuğunda)
 - Boot ayarı kayıtları: kartın boot ayarlarını adıyla saklama (kart başına 5), şu anki ayarlarla karşılaştırma, önizleme + onayla aynı ya da başka karta geri yükleme ve doğrulama
 - Kart başına olay günlüğü: bağlantı / kopma, reboot, boot ayarı değişiklikleri (eski → yeni), Sentinel, dosya işlemleri ve aktarımlar; süzme, arama, CSV'ye kaydetme
@@ -25,7 +25,7 @@ Geliştiren: **Ali Bedir**
 - Sekmeye göre değişen sol menü (Kart Gezgini / seri portlar / Sentinel kart listesi / komut listesi); her sekmede açık / kapalı durumu ayrı hatırlanır
 - Sentinel: kartın içindeki web sunucusunu tek tıkla başlatma / durdurma ve kartın sağlık sayfasını (CPU, task, socket) tarayıcı açmadan uygulama içinde görüntüleme
 - Komut Kütüphanesi: exe'ye gömülü, salt okunur 113 VxWorks 6.4 kabuk komutu (açıklama, örnek kullanım, örnek çıktı), modüllerde gruplama ve komutu tek tıkla bir kartın komut satırına aktarma
-- 21 hazır tema: Vision temaları (Koyu, Açık, Yüksek kontrast, Matrix) ve popüler editör temaları (Dark Modern, Light Modern, Dark+, Monokai, Solarized Dark, Solarized Light, Dracula, One Dark Pro, GitHub Dark, GitHub Light, Nord, Night Owl, Tokyo Night, Catppuccin Mocha, Gruvbox Dark, Material Theme, Ayu Dark) ve tema düzenleyici: renk değiştirme, anlık önizleme, kaydetme, varsayılana dönme (sekme şeridindeki Temalar menüsü; Ctrl+Shift+L sonraki tema)
+- 21 hazır tema: Vision temaları (Koyu, Açık, Yüksek kontrast, Matrix) ve popüler editör temaları (Dark Modern, Light Modern, Dark+, Monokai, Solarized Dark, Solarized Light, Dracula, One Dark Pro, GitHub Dark, GitHub Light, Nord, Night Owl, Tokyo Night, Catppuccin Mocha, Gruvbox Dark, Material Theme, Ayu Dark) ve tema düzenleyici: renk değiştirme, anlık önizleme, kaydetme, varsayılana dönme (sekme şeridindeki Temalar menüsü)
 - Türkçe arayüz ve hata mesajları, uygulama içi yardım (F1)
 
 ## Gereksinimler

@@ -1442,7 +1442,7 @@ namespace Vision
                  "silgi listeyi temizler (terminale dokunmaz).",
                  v => v.TourResponses);
             card("Komut satırı",
-                 "Komutu yazıp Enter. ↑ / ↓ önceki komutlar; yazarken otomatik tamamlama önerir. Ctrl+R komut geçmişinde geriye arar.",
+                 "Komutu yazıp Enter. ↑ / ↓ ya da komut satırının üzerinde fare tekerleği önceki komutlar; yazarken otomatik tamamlama önerir. Ctrl+R komut geçmişinde geriye arar.",
                  v => new[] { v.TourInput });
             card("Komut geçmişi",
                  "Bu kartta yazılan tüm komutlar (uygulama kapansa da saklanır). Arayıp seçtiğiniz komut komut satırına yazılır, gönderilmez.",
@@ -1593,7 +1593,9 @@ namespace Vision
                 Title = "Genel komut çubuğu",
                 Body = () => "Buraya yazılan komut ekrandaki TÜM kartlara aynı anda gönderilir; her kartın cevabı kendi penceresinde görünür. " +
                              "Hızlı komut (en fazla 5 komut, ▾ ile seçilir) ve reboot (onay ister; isterseniz önce tüm ekranları temizler) da buradan tüm kartlara uygulanabilir. " +
-                             "Dosya aktarımı süren kart atlanır.",
+                             "Dosya aktarımı süren kart atlanır.\n\n" +
+                             "bspBootChange buradan gönderilirse tek pencere açılır: solda kartlar (grup ve IP sırasıyla, durumlarıyla), sağda " +
+                             "seçilen kartın boot ekranı. Silgi tüm kartların ekranını temizler (önce sorar).",
                 Target = () => TourRect(_globalBar),
                 Enter = telnet,
             });
