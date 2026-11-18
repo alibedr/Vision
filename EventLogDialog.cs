@@ -360,6 +360,13 @@ namespace Vision
                 return m.StartsWith("Başarısız") || m.StartsWith("Bağlantı koptu") || m.StartsWith("Bağlanılamadı") || m.Contains("tamamlanamadı");
             }
 
+            // Pencere büyüyüp küçülünce "Olay" sütunu tüm satırlarda yeni genişliğe göre yeniden çizilsin
+            protected override void OnClientSizeChanged(EventArgs e)
+            {
+                base.OnClientSizeChanged(e);
+                Invalidate();
+            }
+
             private static Color KindColor(string kind, string message)
             {
                 if (IsFailure(message)) return Theme.Danger;
