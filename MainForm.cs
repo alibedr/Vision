@@ -277,9 +277,9 @@ namespace Vision
             _serialTab.Dock = DockStyle.Left;
             _sidebarToggle.Dock = DockStyle.Left;
             _sidebarToggle.Width = 42;
-            tabStrip.Controls.Add(_serialTab);       // Dock=Left: son eklenen en solda
-            tabStrip.Controls.Add(_sentinelTab);
+            tabStrip.Controls.Add(_sentinelTab);     // Dock=Left: son eklenen en solda
             tabStrip.Controls.Add(_commandsTab);
+            tabStrip.Controls.Add(_serialTab);       // Seri: Kart Dosya Gezgini'nden sonra (3. sekme)
             tabStrip.Controls.Add(_filesTab);
             tabStrip.Controls.Add(_workspaceTab);
             tabStrip.Controls.Add(_sidebarToggle);
@@ -427,8 +427,9 @@ namespace Vision
             else if (e.Control && !e.Shift && (e.KeyCode == Keys.D1 || e.KeyCode == Keys.D2 || e.KeyCode == Keys.D3 || e.KeyCode == Keys.D4 || e.KeyCode == Keys.D5))
             {
                 e.SuppressKeyPress = true;
+                // Sekme sırasıyla: Telnet, Kart Dosya Gezgini, Seri, Komut Kütüphanesi, Sentinel
                 ShowTab(e.KeyCode == Keys.D1 ? MainTab.Workspace : e.KeyCode == Keys.D2 ? MainTab.Files
-                      : e.KeyCode == Keys.D3 ? MainTab.Commands : e.KeyCode == Keys.D4 ? MainTab.Sentinel : MainTab.Serial);
+                      : e.KeyCode == Keys.D3 ? MainTab.Serial : e.KeyCode == Keys.D4 ? MainTab.Commands : MainTab.Sentinel);
             }
             else if (e.Control && e.KeyCode == Keys.G)
             {
@@ -1193,9 +1194,9 @@ namespace Vision
             steps.Add(new TourStep
             {
                 Title = "Sekmeler",
-                Body = () => "Telnet: kart terminalleri  ·  Kart Dosya Gezgini: kartın dosyaları  ·  Komut Kütüphanesi: hazır VxWorks komutları  ·  " +
-                             "Sentinel: kartın sağlık sayfası.\n\nKısayollar: Ctrl+1 / 2 / 3 / 4.",
-                Target = () => TourRect(_workspaceTab, _filesTab, _commandsTab, _sentinelTab),
+                Body = () => "Telnet: kart terminalleri  ·  Kart Dosya Gezgini: kartın dosyaları  ·  Seri: COM portundan karta doğrudan bağlantı  ·  " +
+                             "Komut Kütüphanesi: hazır VxWorks komutları  ·  Sentinel: kartın sağlık sayfası.\n\nKısayollar: Ctrl+1 / 2 / 3 / 4 / 5.",
+                Target = () => TourRect(_workspaceTab, _filesTab, _serialTab, _commandsTab, _sentinelTab),
                 Enter = telnet,
             });
 
@@ -1759,7 +1760,7 @@ namespace Vision
         {
             var rows = new[]
             {
-                new[] { "Ctrl+N", "Kart ekle" }, new[] { "Ctrl+1 … 4", "Sekmeler" },
+                new[] { "Ctrl+N", "Kart ekle" }, new[] { "Ctrl+1 … 5", "Sekmeler" },
                 new[] { "Ctrl+R", "Komut geçmişinde ara" }, new[] { "F1", "Kullanım Kılavuzu" },
                 new[] { "F2", "Ad değiştir" }, new[] { "F5", "Yenile" },
                 new[] { "Ctrl + tekerlek", "Yazı boyutu" }, new[] { "Ctrl+Shift+L", "Sonraki tema" },

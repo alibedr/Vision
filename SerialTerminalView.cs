@@ -33,6 +33,7 @@ namespace Vision
         private readonly SerialScreen _screen = new SerialScreen();
         private readonly Timer _timer = new Timer { Interval = 50 };
         private int _presentTick;
+        private bool _typed;            // son eklemeden beri kullanıcı yazdı: yankı gelince en altta kalınır
         private bool _selected, _maximized;
 
         public SerialTerminalView(SerialSession session)
@@ -45,7 +46,8 @@ namespace Vision
 
             BuildHeader();
             _output.Dock = DockStyle.Fill;
-            _output.KeysTyped = s => Session.SendKeys(s);
+            // Yazınca (TeraTerm gibi) en alta inilir; kartın yankısı da en altta görünür
+            _output.KeysTyped = s => { _typed = true; ScrollToEnd(); Session.SendKeys(s); };
             _output.PasteRequested = Paste;
             _output.ContextMenuStrip = _menu;
             _outputHost.Controls.Add(_output);
@@ -232,7 +234,8 @@ namespace Vision
             int lineLen = CurrentLineLength();
             List<SerialScreen.Op> ops = _screen.Process(raw, lineLen);
             if (ops.Count == 0) return;
-            bool follow = IsAtBottom();
+            bool follow = _typed || IsAtBottom();
+            _typed = false;
             int selStart = _output.SelectionStart, selLen = _output.SelectionLength;
             _output.BeginUpdateNoRedraw();
             try
@@ -258,7 +261,7 @@ namespace Vision
                 if (follow || selLen == 0)
                 {
                     _output.Select(_output.TextLength, 0);
-                    if (follow) _output.ScrollToCaret();
+                    if (follow) ScrollToEnd();
                 }
                 else
                 {
@@ -269,6 +272,23 @@ namespace Vision
             {
                 _output.EndUpdateNoRedraw();
             }
+        }
+
+        private const int WM_VSCROLL = 0x0115;
+        private const int SB_BOTTOM = 7;
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+
+        /// <summary>
+        /// En alta iner. ScrollToCaret imleç satırını yatay kaydırma çubuğunun altında, yarım görünür bırakabiliyordu;
+        /// dikey çubukla gerçekten en alta inilir (telnet penceresindeki gibi), son satır tam görünür.
+        /// </summary>
+        private void ScrollToEnd()
+        {
+            _output.Select(_output.TextLength, 0);
+            _output.ScrollToCaret();
+            if (_output.IsHandleCreated) SendMessage(_output.Handle, WM_VSCROLL, (IntPtr)SB_BOTTOM, IntPtr.Zero);
         }
 
         // Metnin tamamı kopyalanmadan (hızlı log akışında her 50 ms'de çağrılır) son satırın uzunluğu
@@ -284,7 +304,7 @@ namespace Vision
         {
             if (_output.TextLength == 0) return true;
             Point last = _output.GetPositionFromCharIndex(_output.TextLength - 1);
-            return last.Y < _output.ClientSize.Height + _output.Font.Height * 2;
+            return last.Y < _output.ClientSize.Height + _output.Font.Height;
         }
 
         private void TrimLines()

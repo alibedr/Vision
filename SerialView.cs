@@ -9,12 +9,12 @@ namespace Vision
 {
     /// <summary>
     /// "Seri" sekmesi (DENEME): solda bilgisayarda görünen COM portları (adlarıyla), sağda telnet'teki gibi en fazla
-    /// 8 pencerelik ızgara. Porta çift tıklamak (ya da "Aç") pencereyi açıp portu açar; pencereler büyütülebilir.
+    /// 12 pencerelik ızgara. Porta çift tıklamak (ya da "Aç") pencereyi açıp portu açar; pencereler büyütülebilir.
     /// Telnet altyapısından bağımsızdır.
     /// </summary>
     public sealed class SerialView : UserControl
     {
-        public const int MaxViews = 8;
+        public const int MaxViews = 12;
         private const int Gap = 10;
         private const int MinViewWidth = 340, MinViewHeight = 220;
 
@@ -140,7 +140,8 @@ namespace Vision
             if (!_timer.Enabled) _timer.Start();
             string[] names = SerialPorts.Names();
             string key = string.Join(",", names);
-            if (!force && key == _portKey) { RedrawList(); return; }
+            // Portlar değişmediyse listeye dokunulmaz (her 3 sn'de yeniden çizmek listeyi titretiyordu)
+            if (!force && key == _portKey) return;
             _portKey = key;
             _listing = true;
             Task.Run(() => SerialPorts.List()).ContinueWith(t =>
@@ -217,7 +218,11 @@ namespace Vision
                 }
                 session = new SerialSession(pr);
                 session.LineEntered += line => SerialHistoryStore.History.Add(line);
-                session.StateChanged += () => { if (IsHandleCreated) try { BeginInvoke(new Action(RedrawList)); } catch { } };
+                string key = port;
+                session.StateChanged += () =>
+                {
+                    if (IsHandleCreated) try { BeginInvoke(new Action(() => { _list.InvalidatePort(key); RefreshButtons(); })); } catch { }
+                };
                 _sessions[port] = session;
                 CreateView(session);
             }
@@ -372,13 +377,31 @@ namespace Vision
                 Font = Theme.Ui;
             }
 
+            private const int WM_PAINT = 0x000F, WM_ERASEBKGND = 0x0014;
+
             protected override void WndProc(ref Message m)
             {
+                // Arka plan silinmez (her çizimde önce boşaltılıp sonra çizilmesi titreme yapıyordu): satırlar kendi
+                // arka planını çizer, satırların altındaki boş alan WM_PAINT'ten sonra boyanır.
+                if (m.Msg == WM_ERASEBKGND) { m.Result = (IntPtr)1; return; }
                 base.WndProc(ref m);
-                if (m.Msg == 0x000F && Items.Count == 0 && !string.IsNullOrEmpty(EmptyText))   // WM_PAINT: boş liste yazısı
-                    using (Graphics g = CreateGraphics())
+                if (m.Msg != WM_PAINT) return;
+                using (Graphics g = CreateGraphics())
+                {
+                    int bottom = Items.Count == 0 ? 0 : GetItemRectangle(Items.Count - 1).Bottom;
+                    if (bottom < ClientSize.Height)
+                        using (var b = new SolidBrush(BackColor)) g.FillRectangle(b, 0, Math.Max(0, bottom), ClientSize.Width, ClientSize.Height - bottom);
+                    if (Items.Count == 0 && !string.IsNullOrEmpty(EmptyText))
                         TextRenderer.DrawText(g, EmptyText, Theme.UiSmall, new Rectangle(4, 8, ClientSize.Width - 8, 60), Theme.TextMuted,
                                               TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
+                }
+            }
+
+            /// <summary>Yalnız değişen satırı yeniden çizer (tüm listeyi değil).</summary>
+            public void InvalidatePort(string port)
+            {
+                for (int i = 0; i < Items.Count; i++)
+                    if (string.Equals(((Item)Items[i]).PortName, port, StringComparison.OrdinalIgnoreCase)) { Invalidate(GetItemRectangle(i)); return; }
             }
 
             protected override void OnDrawItem(DrawItemEventArgs e)
