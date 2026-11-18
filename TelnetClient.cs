@@ -24,6 +24,11 @@ namespace Vision
         private readonly SemaphoreSlim _writeLock = new SemaphoreSlim(1, 1);
         private TcpClient _tcp;
         private NetworkStream _stream;
+        // Bağlantı denemesi sayacı ve süren deneme: Disconnect() ya da yeni ConnectAsync() eski denemeyi geçersiz kılar.
+        // Böylece "Bağlan / Kes" art arda basılınca geç biten eski deneme sahipsiz (arayüzde "bağlı değil" görünürken
+        // veri akan) bir bağlantı bırakamaz.
+        private int _attempt;
+        private TcpClient _connecting;
         private ParseState _state = ParseState.Data;
         private byte _pendingCmd;
 
@@ -73,11 +78,14 @@ namespace Vision
             Disconnect();
 
             var tcp = new TcpClient { NoDelay = true, ReceiveBufferSize = 64 * 1024 };
+            int attempt;
+            lock (_sync) { attempt = ++_attempt; _connecting = tcp; }
             Task connectTask = tcp.ConnectAsync(host, port);
             Task finished = await Task.WhenAny(connectTask, Task.Delay(timeoutMs)).ConfigureAwait(false);
 
             if (finished != connectTask)
             {
+                lock (_sync) if (ReferenceEquals(_connecting, tcp)) _connecting = null;
                 tcp.Close();
                 // Geç biten bağlantı denemesinin hatası "gözlemlenmemiş" kalmasın
                 _ = connectTask.ContinueWith(t => { var ignored = t.Exception; }, TaskContinuationOptions.OnlyOnFaulted);
@@ -90,19 +98,36 @@ namespace Vision
             }
             catch
             {
+                lock (_sync) if (ReferenceEquals(_connecting, tcp)) _connecting = null;
                 tcp.Close();
+                bool stale;
+                lock (_sync) stale = attempt != _attempt;
+                if (stale) throw new OperationCanceledException("Bağlantı denemesi iptal edildi.");
                 throw;
             }
 
-            LastError = null;
             if (KeepAlive != null) ApplyKeepAlive(tcp.Client, KeepAlive);
             NetworkStream stream = tcp.GetStream();
+            bool current;
             lock (_sync)
             {
-                _tcp = tcp;
-                _stream = stream;
-                _state = ParseState.Data;
+                current = attempt == _attempt;
+                if (ReferenceEquals(_connecting, tcp)) _connecting = null;
+                if (current)
+                {
+                    _tcp = tcp;
+                    _stream = stream;
+                    _state = ParseState.Data;
+                }
             }
+            if (!current)
+            {
+                // Bu sırada Disconnect() ya da yeni bir deneme oldu: bağlantı kimseye ait değil, hemen kapatılır
+                try { stream.Close(); } catch { }
+                try { tcp.Close(); } catch { }
+                throw new OperationCanceledException("Bağlantı denemesi iptal edildi.");
+            }
+            LastError = null;
 
             _ = Task.Run(() => ReadLoopAsync(stream));
         }
@@ -184,6 +209,10 @@ namespace Vision
 
                     if (data.Count > 0)
                     {
+                        // Artık güncel olmayan (kapatılmış / yerine yenisi açılmış) bağlantının verisi iletilmez
+                        bool current;
+                        lock (_sync) current = ReferenceEquals(_stream, stream);
+                        if (!current) break;
                         var handler = DataReceived;
                         if (handler != null)
                         {
@@ -208,6 +237,10 @@ namespace Vision
                 Disconnect();
                 var handler = Disconnected;
                 if (handler != null) handler(reason);
+            }
+            else
+            {
+                try { stream.Close(); } catch { }        // eski bağlantı açık kalmasın (kart ona log göndermesin)
             }
         }
 
@@ -289,16 +322,18 @@ namespace Vision
 
         public void Disconnect()
         {
-            TcpClient tcp;
+            TcpClient tcp, pending;
             NetworkStream stream;
             lock (_sync)
             {
-                tcp = _tcp; stream = _stream;
-                _tcp = null; _stream = null;
+                _attempt++;                              // süren bağlantı denemesi geçersiz
+                tcp = _tcp; stream = _stream; pending = _connecting;
+                _tcp = null; _stream = null; _connecting = null;
             }
             // Akışı kapatmak bekleyen ReadAsync'i hata ile sonlandırır; döngü sessizce biter.
             try { if (stream != null) stream.Close(); } catch { }
             try { if (tcp != null) tcp.Close(); } catch { }
+            try { if (pending != null) pending.Close(); } catch { }
         }
 
         public void Dispose()

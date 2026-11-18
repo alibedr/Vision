@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 using System.Threading.Tasks;
 using Vision;
 
@@ -26,6 +27,22 @@ namespace VisionTests
             /// <summary>Bu kadar bağlantı kabul edilip hemen kapatılır (tutmayan bağlantı).</summary>
             public int DropNext;
             public int Accepted;
+            private int _open;
+            /// <summary>Kart tarafında hâlâ açık olan bağlantı sayısı (istemci kapatınca düşer).</summary>
+            public int OpenCount { get { return Volatile.Read(ref _open); } }
+
+            /// <summary>Kart gibi sürekli log basar: her açık bağlantıya 50 ms'de bir satır.</summary>
+            public async void StartLogs()
+            {
+                byte[] line = System.Text.Encoding.ASCII.GetBytes("LOG satiri\r\n");
+                while (!_disposed)
+                {
+                    TcpClient[] all;
+                    lock (_clients) all = _clients.ToArray();
+                    foreach (TcpClient c in all) { try { await c.GetStream().WriteAsync(line, 0, line.Length); } catch { } }
+                    await Task.Delay(50);
+                }
+            }
 
             public FakeServer()
             {
@@ -61,15 +78,17 @@ namespace VisionTests
                         if (DropNext > 0) { DropNext--; c.Close(); continue; }
                         _clients.Add(c);
                     }
-                    Drain(c);
+                    Interlocked.Increment(ref _open);
+                    Drain(c, () => { Interlocked.Decrement(ref _open); lock (_clients) _clients.Remove(c); });
                     try { await c.GetStream().WriteAsync(new byte[] { (byte)'-', (byte)'>', (byte)' ' }, 0, 3); } catch { }
                 }
             }
 
-            private static async void Drain(TcpClient c)
+            private static async void Drain(TcpClient c, Action closed)
             {
                 var buf = new byte[256];
                 try { while (await c.GetStream().ReadAsync(buf, 0, buf.Length) > 0) { } } catch { }
+                closed();
             }
 
             /// <summary>Açık bağlantıları kart kapatmış gibi keser.</summary>
@@ -288,6 +307,39 @@ namespace VisionTests
                     }
                     Check.Equal(before, server.Accepted, "habersiz kopmada ilk bekleme süresinde yeniden bağlanılmamalı");
                     await WaitFor(s, () => s.State == CardState.Connected, 5000, "bekleme sonrası bağlandı");
+                }
+                finally { Release(s, folder); }
+            }
+        }
+
+        [Test]
+        public async Task Baglanti_BaglanKesArtArdaBasilincaSahipsizBaglantiKalmaz()
+        {
+            // Hata: "Bağlantı kur / Bağlantıyı kes" art arda basılıp en son "kes" denince kart "bağlı değil" görünüyor ama
+            // terminale log akmaya devam ediyordu (geç biten eski bağlantı denemesi sahipsiz kalıyordu).
+            using (var server = new FakeServer())
+            {
+                server.StartLogs();
+                string folder;
+                CardSession s = Session(server, out folder);
+                try
+                {
+                    var tasks = new List<Task>();
+                    var rnd = new Random(7);
+                    for (int i = 0; i < 40; i++)
+                    {
+                        tasks.Add(s.ConnectAsync());
+                        await Task.Delay(rnd.Next(0, 6));
+                        s.Disconnect();
+                        await Task.Delay(rnd.Next(0, 6));
+                    }
+                    try { await Task.WhenAll(tasks); } catch { }
+                    Check.Equal(CardState.Disconnected, s.State, "en son kesildi");
+                    await Task.Delay(600);
+                    Check.Equal(0, server.OpenCount, "kartta açık bağlantı kalmamalı");
+                    int len = s.AttachView().Length;
+                    await Task.Delay(500);
+                    Check.Equal(len, s.AttachView().Length, "kesildikten sonra terminale veri gelmemeli");
                 }
                 finally { Release(s, folder); }
             }
