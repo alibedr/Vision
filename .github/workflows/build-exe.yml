@@ -89,8 +89,9 @@ jobs:
           Get-ChildItem -Recurse $out | Select-Object FullName
           Compress-Archive -Path $out -DestinationPath Vision.zip -Force
 
+      # Dal derlemesi: build-<dal> ön sürümü (main'de oluşturulmaz; main'de yalnız resmî sürüm tutulur)
       - name: Ön sürümü güncelle
-        if: ${{ !inputs.release_ref }}
+        if: ${{ !inputs.release_ref && github.ref_name != 'main' }}
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -124,7 +125,12 @@ jobs:
           $sha = (git rev-parse HEAD).Trim()
           gh release view $tag *> $null
           if ($LASTEXITCODE -eq 0) {
-            Write-Output "::warning::$tag zaten yayınlanmış; yeni sürüm için AppInfo.Version artırılmalı"
+            # Sürüm zaten var (kod dışı birleştirme): yalnız notları depodaki dosyayla güncelle, Vision.zip'e dokunma
+            if (Test-Path release/SurumNotlari.md) {
+              gh release edit $tag --notes-file release/SurumNotlari.md
+              gh release upload $tag release/SurumNotlari.md --clobber
+            }
+            Write-Output "::notice::$tag zaten yayınlanmış; notları güncellendi"
             exit 0
           }
           # Sürüm notları depodaki release/SurumNotlari.md'den (birleştirmeden önce güncellenir); dosya ayrıca ek olarak konur
@@ -136,3 +142,23 @@ jobs:
             gh release create $tag Vision.zip --target $sha --title "Vision $version" --notes $notes --latest
           }
           exit $LASTEXITCODE
+
+      # Releases sayfasında yalnız güncel sürüm kalır: eski vX.Y sürümleri (etiketleri kalır) ve tüm build-… ön sürümleri
+      # (etiketleriyle) silinir. Kullanıcıya hep hataları düzeltilmiş son sürüm sunulur.
+      - name: Eski sürümleri temizle
+        if: ${{ github.ref_name == 'main' && !inputs.release_ref }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $m = Select-String -Path AppInfo.cs -Pattern 'public const string Version = "([0-9.]+)"' | Select-Object -First 1
+          $current = "v" + $m.Matches[0].Groups[1].Value
+          gh release view $current *> $null
+          if ($LASTEXITCODE -ne 0) { Write-Output "::warning::$current yok; temizlik yapılmadı"; exit 0 }
+          $tags = gh api "repos/${{ github.repository }}/releases?per_page=100" --paginate --jq '.[].tag_name'
+          foreach ($t in $tags) {
+            if ($t -eq $current) { continue }
+            if ($t -like 'build-*') { gh release delete $t --yes --cleanup-tag; Write-Output "silindi: $t (etiketiyle)" }
+            elseif ($t -match '^v[0-9]') { gh release delete $t --yes; Write-Output "silindi: $t (etiket kaldı)" }
+          }
+          exit 0
