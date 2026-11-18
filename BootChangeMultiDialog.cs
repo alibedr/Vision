@@ -79,6 +79,7 @@ namespace Vision
                 if (_open == this) _open = null;
             };
             _closeTimer.Tick += (s, e) => CheckCloseWhenDone();
+            Shown += (s, e) => { if (_selected != null) _selected.FocusInput(); };
         }
 
         /// <summary>
