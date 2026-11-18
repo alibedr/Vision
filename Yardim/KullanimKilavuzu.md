@@ -14,10 +14,11 @@ Vision ilk açıldığında **uygulama turu** başlar: ekran kararır, anlatıla
 4. **Boot ayarları:** kartınıza uygun olarak `bspBootChange` ya da `bootChange` yazmanız istenir; açılan Boot ayarları penceresinin bölümleri (durum, sorulan alan, yeni değer, alan düğmeleri, alan listesi, araya giren loglar) anlatılır; alt banttaki **Bu ayarları kaydet…** ve **Boot ayarı kayıtları…** düğmeleri gösterilir, pencereyi kapatınca tur sürer.
 5. **Renklendirme ve sağ tık menüsü:** terminalde bir kelime seçip sağ tık → Renklendir ile bir renk seçmeniz istenir; ardından aynı menüdeki **Boot ayarı kayıtları…** (kaydet, karşılaştır, geri yükle) ve **Olay günlüğü…** (kartın zaman çizelgesi) ayrı adımlarda anlatılır; ikisinin Kart Gezgini'nde karta sağ tıklayınca da açıldığı söylenir.
 6. Terminal ayarları ve genel komut çubuğu.
-7. **Kart Dosya Gezgini** bağlandığınız kartla açılır: kart seçimi, adres çubuğu / Geri / Yenile, cihaz listesi ve disk alanı, Yeni klasör, Yükle, FTP ayarları, Ham cevap; bir öğeye sağ tıklamanız istenir ve **Yeniden adlandır / Sil / Bilgisayara kaydet** anlatılır; karta ve bilgisayara sürükle-bırak açıklanır.
-8. **Komut Kütüphanesi:** liste, arama, komut sayfası ve Karta aktar.
+7. **Kart Dosya Gezgini** bağlandığınız kartla açılır: kart seçimi, adres çubuğu / Geri / Yenile, cihaz listesi ve disk alanı, Yeni klasör, Yükle, FTP ayarları, Ham cevap; bir öğeye sağ tıklamanız istenir ve **Yeniden adlandır / Sil / Bilgisayara kaydet** anlatılır; karta ve bilgisayara sürükle-bırak, klasör yüklemede yüklenemeyen dosyaların atlanıp sonda listelenmesi açıklanır.
+8. **Seri:** soldaki seri port listesi, Aç / Ayarlar… ve seri pencereleri (doğrudan yazma, kopyala / yapıştır, seri komut geçmişi) anlatılır.
 9. **Sentinel:** kartınızdaki güncel imajın **Voltran** olup olmadığı sorulur. **Evet** derseniz nabız düğmesiyle Sentinel web sunucusunu başlatmanız istenir ve Sentinel sekmesi (kartlar, sayfa çubuğu, sayfa) kendi kartınızın sayfasıyla anlatılır; **Hayır** derseniz Sentinel genel hatlarıyla anlatılır.
-10. Temalar, yardım ve kısayollar.
+10. **Komut Kütüphanesi:** liste, arama, komut sayfası ve Karta aktar.
+11. Temalar, yardım ve kısayollar.
 
 - Sizden bir işlem beklenen adımlarda balonda **▶ Şimdi siz:** ile ne yapacağınız yazar; işlemi yapınca tur **kendiliğinden ilerler**. Yapmak istemezseniz (ör. kart şu an erişilemiyor) **Bu adımı geç**. Karta bağlanılmadıysa bağlantı gerektiren adımlar atlanır.
 - Diğer adımlarda **İleri / Geri** (ya da → / ←, Enter); **Turu kapat** ya da **Esc** ile çıkılır. Tur gerektiğinde ilgili sekmeye kendisi geçer, bitince bulunduğunuz sekmeye döner. Kart Ekle ve Boot ayarları pencerelerinde balon pencerenin yanında durur.
@@ -30,8 +31,8 @@ Vision ilk açıldığında **uygulama turu** başlar: ekran kararır, anlatıla
 
 | Bölüm | Konum | Ne işe yarar |
 |---|---|---|
-| Kart Gezgini | Sol kenar | Grupları ve kartları listeler; kart ekleme, seçme, bağlanma ve gösterme buradan yapılır. Sekme şeridinin en solundaki kenar çubuğu düğmesi (Ctrl+B) ile gizlenip gösterilir. |
-| Sekmeler | Sağ alanın üstü | **Telnet** (kart terminalleri), **Kart Dosya Gezgini**, **Komut Kütüphanesi** ve **Sentinel** arasında geçiş (Ctrl+1 / 2 / 3 / 4). Aynı şeridin en sağında **Yardım** (Kullanım Kılavuzu, Uygulama turu, Hakkında) ve **Temalar** menüsü (hazır temalar ve özelleştirme; aşağıya bakın) bulunur. |
+| Sol menü | Sol kenar | **Sekmeye göre değişir:** Telnet ve Kart Dosya Gezgini'nde **Kart Gezgini** (grupları ve kartları listeler; kart ekleme, seçme, bağlanma ve gösterme buradan yapılır), Seri'de **seri portlar**, Sentinel'de **bağlı kartlar** listesi, Komut Kütüphanesi'nde **arama ve modül / komut listesi**. Sekme şeridinin en solundaki kenar çubuğu düğmesi (Ctrl+B) o sekmenin menüsünü gizler / gösterir; açık / kapalı durumu **her sekme için ayrı** hatırlanır (Vision kapanıp açılınca da). Genişlik bütün sekmelerde aynıdır. |
+| Sekmeler | Sağ alanın üstü | **Telnet** (kart terminalleri), **Kart Dosya Gezgini**, **Seri** (COM portundan bağlantı), **Sentinel** ve **Komut Kütüphanesi** arasında geçiş (Ctrl+1 / 2 / 3 / 4 / 5). Aynı şeridin en sağında **Yardım** (Kullanım Kılavuzu, Uygulama turu, Hakkında) ve **Temalar** menüsü (hazır temalar ve özelleştirme; aşağıya bakın) bulunur. |
 | Telnet sekmesi | Sağ alan | Seçilen kartların terminal pencereleri ızgara düzeninde görünür (en fazla 24 kart). |
 | Terminal ayarları | Telnet sekmesinin üst çubuğu | Satır sonu, yerel eko, zaman damgası, dosyaya kaydet, satır sınırı ve "Tümünü kapat". |
 | Genel komut çubuğu | Telnet sekmesinin altı | Bir komutu ekrandaki tüm kartlara aynı anda gönderir. |
@@ -577,8 +578,15 @@ Kart dosyasını bilgisayarınızdaki bir uygulamayla (Notepad++, XML düzenleyi
 Yükleme, kartlara dosya atarken elle izlediğiniz yolun aynısını otomatik yapar:
 
 1. Dosya (ya da klasör) **kartın erişebildiği FTP sunucusuna**, FTP klasörünün içindeki **`Vision`** çalışma klasörüne gönderilir — sunucu, kullanıcı ve parola **o kartın kendisinden** alınır (aşağıya bakın). `Vision` klasörü yoksa ilk aktarımda otomatik oluşturulur.
-2. Kartta `copy "FTP-konumu/Vision/dosya", "hedef/dosya"` çalıştırılır. Klasörlerde `xcopy` **kullanılmaz** (FTP üzerinden `xcopy` kartın telnet bağlantısını düşürebiliyordu): kartta önce klasör ve alt klasörler `mkdir` ile açılır, sonra her dosya ayrı `copy` ile kopyalanır. İlerleme "dosya 3/12" gibi gösterilir; bir dosya kopyalanamazsa diğerleri devam eder ve sonunda hangilerinin kopyalanamadığı yazılır. Klasörün içindeki öğelerden birinin adında Türkçe / özel karakter varsa yükleme başlamadan bildirilir.
+2. Kartta `copy "FTP-konumu/Vision/dosya", "hedef/dosya"` çalıştırılır. Klasörlerde `xcopy` **kullanılmaz** (FTP üzerinden `xcopy` kartın telnet bağlantısını düşürebiliyordu): kartta önce klasör ve alt klasörler `mkdir` ile açılır, sonra her dosya ayrı `copy` ile kopyalanır. İlerleme "dosya 3/12" gibi gösterilir. Klasörün içindeki öğelerden birinin adında Türkçe / özel karakter varsa yükleme başlamadan bildirilir.
 3. Dönüş değeri kontrol edilir.
+
+**Klasör yüklerken bir dosya gitmezse:** yükleme durmaz, o dosya atlanır ve kalanlar yüklenir.
+- Dosya **FTP'ye gönderilemezse** (ör. dosya başka bir programda açık, FTP hatası) atlanır; kalanlar FTP'ye gönderilir ve karta kopyalanır. Bir alt klasör FTP'de oluşturulamazsa içindeki dosyalar da atlanır. Art arda 5 dosya gönderilemezse sorun dosyalarda değil FTP'dedir: yükleme durur ve neden yazılır.
+- Dosya **kartta kopyalanamazsa** (`copy` hata döndürürse) atlanır, diğerleri devam eder.
+- **Boyut doğrulaması:** kopyalama bitince her alt klasör tek bir `ll` ile listelenir ve her dosyanın karttaki boyutu bilgisayardakiyle karşılaştırılır. Boyutu tutmayan ("doğrulama: kartta X, bilgisayarda Y") ya da kartta bulunamayan dosya da yüklenemeyenlere eklenir. Kartta boyut gösteren `ll` yoksa bu denetim yapılmaz.
+- Sonunda **"7/10 dosya karta yüklenemedi: …"** gibi toplam sayı yazar. Dosya Gezgini şeridinde ilk 5 dosya adıyla, kalanı **"… (+2)"** olarak görünür; kartın **Olay günlüğü**'nde (Dosya türü) **hepsi nedenleriyle** tam liste olarak durur.
+- Bağlantı koparsa, komut kartın imajında yoksa ya da iptal edilirse kalan dosyalar denenmez; o ana kadar yüklenemeyenler ve durma nedeni yazılır.
 
 **Büyük dosyalar:**
 - Hedef `/ata…` ya da `/bd…` diskiyse yüklemeden önce diskin boş alanı (`dosFsShow`) okunur. Yüklenecek toplam boyut sığmıyorsa hiçbir şey gönderilmeden bildirilir. Aynı adla üzerine yazılacak dosyaların boyutu hesaba katılır. Boş alan okunamazsa yükleme engellenmez.
@@ -672,6 +680,39 @@ Bağlantı başarılı olsa da yazma izni yoksa ya da kartın gördüğü yol FT
 
 > Dosya Gezgini ayrı bağlantı açmaz; kartın mevcut bağlantısını kullanır. Kart bağlı değilse bu belirtilir ve **Bağlantı Kur** düğmesi gösterilir. Gezginin komutları ve cevapları terminale yazılmaz; terminal komutlarıyla sırayla çalışır, cevaplar birbirine karışmaz.
 
+## Seri
+
+**Seri** sekmesi (**Ctrl+3**), kartlara Telnet'in yanında **COM portundan** (USB-seri çevirici ile) bağlanmanızı sağlar; TeraTerm açmanıza gerek kalmaz. Telnet'ten tamamen bağımsızdır: kartın ağı yokken, açılış sırasında ya da bootrom'dayken de çalışır.
+
+- **Solda** (sol menü) bilgisayarda görünen seri portlar Windows'taki adlarıyla listelenir (ör. *COM7 · USB Serial Port · 115200 8N1 · kapalı*). Nokta: yeşil açık, kırmızı hata, gri kapalı. Ad verdiğiniz bir port şu an takılı değilse "takılı değil" olarak listede kalır. Liste USB çevirici takılıp çıkarıldıkça kendiliğinden güncellenir.
+- **Porta çift tıklayın** ya da seçip **Aç**'a basın: sağda port penceresi açılır ve port açılır. Sağ tık: Aç ve bağlan / Kapat / Ayarlar….
+- **En fazla 12 port** aynı anda açılabilir. Pencereler Telnet'teki gibi ızgarada durur; her pencere **büyütülebilir** (büyüt düğmesi ya da başlığa çift tık) ve tekrar ızgaraya döner.
+- Port aynı anda yalnız bir programda açılabilir: TeraTerm'de açıksa Vision açamaz ve bunu söyler ("port başka bir programda açık").
+
+### Seri port ayarları
+
+**Ayarlar…** (ya da pencere başlığındaki dişli) TeraTerm'deki *Serial port setup* gibidir. Üstte hangi portun ayarlanacağı seçilir; her portun ayarı ayrı saklanır.
+
+| Alan | Açıklama |
+|---|---|
+| Ad | Porta takılı kartın adı (ör. "Kart 3"). Port numarası takılan USB girişine göre değişebildiği için ad vermeniz önerilir; listede ve pencere başlığında görünür. |
+| Baud rate | Hız (1200 – 921600). Kartın hızıyla aynı olmalı; yanlışsa ekrana anlamsız karakterler gelir. Varsayılan 115200. |
+| Data / Parity / Stop | Karakter biçimi; kartlarda genelde **8 / none / 1** (8N1). |
+| Flow control | Akış denetimi: none (kartlarda genelde böyle), Xon/Xoff ya da hardware (RTS/CTS). |
+| Transmit delay | Gönderirken karakter başına / satır başına bekleme (msec). Kart hızlı gelen yazıyı kaçırıyorsa (ör. bootrom'a uzun komut yapıştırınca harf eksik gidiyorsa) 1–5 msec/char verin; sorun yoksa 0. |
+
+**Varsayılanlar** 115200 · 8 · none · 1 · none · 0 / 0 değerlerine döndürür. Açık bir portun ayarı değiştirilemez (adı değiştirilebilir); önce portu kapatın. Ayarlar `config.xml`'de saklanır.
+
+### Seri pencere
+
+- **Doğrudan yazma (TeraTerm gibi):** terminale tıklayıp yazın; her tuş anında karta gider ve ekrana kartın yankısı gelir. Enter (CR), Backspace, Tab, Esc, oklar, Delete ve **Ctrl+harf** (Ctrl+C = kesme, Ctrl+X …) karta gönderilir. Bu yüzden Seri sekmesinde Ctrl+harf kısayolları (Ctrl+N, Ctrl+G, Ctrl+B …) çalışmaz; sekme geçişi (Ctrl+1…5) ve Ctrl+Shift+L çalışır. Sol menüyü bu sekmede ◀ düğmesiyle gizleyin.
+- **Kopyalama:** fareyle seçtiğiniz metin kendiliğinden panoya kopyalanır; ayrıca sağ tık → Kopyala.
+- **Yapıştırma:** sağ tık → Yapıştır ya da **Shift+Insert**; satır sonları CR olarak gönderilir.
+- **Seri komut geçmişi** (saat düğmesi): Enter ile gönderdiğiniz satırlar Telnet geçmişinden **ayrı** bir dosyada saklanır. Pencerede **tek tık** komutu terminale yazar (Enter'sız; düzenleyip Enter'a basarsınız), **çift tık** hemen gönderir.
+- **Dosyaya kaydet:** ekrandaki çıktıyı metin dosyasına kaydeder. **Temizle** ekranı temizler. Seri çıktı için ayrıca log dosyası tutulmaz.
+- Ekranda en fazla 20.000 satır tutulur; yazdıkça en alta inilir. Yukarı kaydırıp okurken gelen çıktı sizi aşağı çekmez.
+- Alttaki şerit portun durumunu yazar. USB çevirici çıkarılırsa port kapanır ve şeritte nedeni görünür; pencereyi kapatmak portu da kapatır.
+
 ## Sentinel
 
 **Sentinel** sekmesi (**Ctrl+4**), kartın içindeki Sentinel web sunucusunun sayfasını (`http://kartIP:8080`) **uygulamanın içinde** gösterir; ayrı bir tarayıcı açılmaz.
@@ -686,7 +727,7 @@ Bağlantı başarılı olsa da yazma izni yoksa ya da kartın gördüğü yol FT
 
 ## Komut Kütüphanesi
 
-**Komut Kütüphanesi** sekmesi (**Ctrl+3**), VxWorks 6.4 kart komutlarının açıklamalarını, yazılışlarını ve örnek çıktılarını tek yerde toplar. Kütüphane **Vision'a gömülüdür ve salt okunurdur**: uygulamadan komut ya da modül eklenemez, düzenlenemez, silinemez, taşınamaz; exe'nin yanında ayrı bir komut dosyası da yoktur. Yeni komutlar ve düzeltmeler Vision'ın sonraki sürümleriyle gelir.
+**Komut Kütüphanesi** sekmesi (**Ctrl+5**), VxWorks 6.4 kart komutlarının açıklamalarını, yazılışlarını ve örnek çıktılarını tek yerde toplar. Kütüphane **Vision'a gömülüdür ve salt okunurdur**: uygulamadan komut ya da modül eklenemez, düzenlenemez, silinemez, taşınamaz; exe'nin yanında ayrı bir komut dosyası da yoktur. Yeni komutlar ve düzeltmeler Vision'ın sonraki sürümleriyle gelir.
 
 ### Komutlar
 
@@ -726,7 +767,7 @@ Bir komutu kütüphaneden alıp doğrudan bir kartta denemek için:
 | Bölüm | Ne gösterir |
 |---|---|
 | Üst çubuk | Toplam komut ve modül sayısı. |
-| Sol liste | Arama kutusu ve modül ağacı. Her modül başlığında komut sayısı yazar; başlığın solundaki ok ile modül daraltılır / genişletilir. Alttaki iki simge tüm modülleri genişletir / daraltır. |
+| Sol liste | Arama kutusu ve modül ağacı; ana pencerenin **sol menüsünde** durur (diğer sekmelerle aynı genişlikte). Sol menü kenar çubuğu düğmesiyle ya da Ctrl+B ile gizlenince komut sayfası tüm genişliği kullanır (uzun örnek çıktıları okumak için); Ctrl+F menü kapalıysa açıp aramaya gider. Her modül başlığında komut sayısı yazar; başlığın solundaki ok ile modül daraltılır / genişletilir. Alttaki iki simge tüm modülleri genişletir / daraltır. |
 | Komut sayfası | Komutun adı, bulunduğu modül (tıklayınca modülün sayfasına gider), açıklama, yazılış (**Karta aktar** ile bir kartın komut satırına, **Kopyala** ile panoya) ve örnek çıktı. |
 | Modül sayfası | Bir modül başlığı seçilince açılır: modülün açıklaması, komut sayısı ve komutlarının listesi (ad, yazılış, özet). Listeden bir komuta tıklamak o komutu açar. |
 
@@ -793,9 +834,11 @@ Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındak
 |---|---|
 | Ctrl+N | Kart ekle |
 | Ctrl+G | Genel komut çubuğuna odaklan (Telnet sekmesine geçer) |
-| Ctrl+1 / 2 / 3 / 4 | Telnet / Kart Dosya Gezgini / Komut Kütüphanesi / Sentinel sekmesi |
+| Ctrl+1 / 2 / 3 / 4 / 5 | Telnet / Kart Dosya Gezgini / Seri / Sentinel / Komut Kütüphanesi sekmesi |
 | F5 | Sentinel sekmesinde sayfayı yenile |
-| Ctrl+B | Kart Gezgini kenar çubuğunu gizle / göster |
+| Ctrl+B | O sekmenin sol menüsünü (Kart Gezgini, Sentinel kart listesi, Komut Kütüphanesi listesi) gizle / göster; Seri sekmesinde Ctrl+B karta gider, menü ◀ düğmesiyle gizlenir |
+| Seri pencerede: tuşlar, Ctrl+harf | Doğrudan karta gönderilir (Ctrl+C = kesme) |
+| Seri pencerede: Shift+Insert | Panodaki metni karta yapıştır |
 | Tab / ↓ / → | Komut satırında otomatik tamamlama önerisini kabul et (çalıştırmaz) |
 | Esc | Komut satırında öneriyi gizle |
 | F2 | Kart Gezgini'nde kartın ya da grubun adını değiştir |
@@ -824,7 +867,8 @@ Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındak
 
 | Konum | İçerik |
 |---|---|
-| `%APPDATA%\TelnetCards\config.xml` | Gruplar, kartlar (adları, hızlı komutları, reboot seçimleri, boot ayarı kayıtları), terminal, yakınlaştırma, izleme ve ortak FTP ayarları (otomatik kaydedilir; Dosya Gezgini'nin FTP parolası dosyada tutulmaz — yalnız kullanıcının kaydettiği boot ayarı kayıtlarında kartın `pw` alanı da bulunur). |
+| `%APPDATA%\TelnetCards\config.xml` | Gruplar, kartlar (adları, hızlı komutları, reboot seçimleri, boot ayarı kayıtları), seri port ayarları ve adları, sol menülerin açık / kapalı durumu, terminal, yakınlaştırma, izleme ve ortak FTP ayarları (otomatik kaydedilir; Dosya Gezgini'nin FTP parolası dosyada tutulmaz — yalnız kullanıcının kaydettiği boot ayarı kayıtlarında kartın `pw` alanı da bulunur). |
+| `%APPDATA%\TelnetCards\SeriKomutGecmisi.txt` | Seri sekmesinin komut geçmişi: Telnet geçmişinden ayrı, aynı biçimde (satır başına bir komut, en fazla 5.000). |
 | `%APPDATA%\TelnetCards\KomutGecmisi.txt` | Komut geçmişi: yazılan tüm komutlar, satır başına bir komut, eskiden yeniye (en fazla 5.000; tüm kartlar ve genel çubuk ortak; otomatik kaydedilir). Silinirse geçmiş boş başlar. |
 | `logs\GrupAdı_IP_anlik_tarih_saat.log` | "Dosyaya kaydet" ile alınan anlık terminal görüntüleri (her tıklama ayrı dosya). |
 | `logs\olaylar\IP.log` | Kartın olay günlüğü (port 23 değilse `IP_port.log`): satır başına zaman, tür ve olay. Kart başına en fazla 5 MB; dolunca en eski olaylar silinir. |
@@ -851,6 +895,10 @@ Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındak
 | Yükleme: "FTP'ye gönderilemedi … 550" | FTP kullanıcısının o klasöre **yazma** izni yok ya da klasör yok. FTP sunucusunda (ör. FileZilla Server) kullanıcının klasör izinlerine **Write** ekleyin. **Bağlantıyı sına** bunu 2. aşamada gösterir. |
 | Yükleme: "FTP'ye gönderildi ama kartta kopyalanamadı" | Kart dosyayı aynı yerde göremiyor. **Bağlantıyı sına**'nın 3. aşamasına bakın. "Kartın aynı klasörü gördüğü yol" elle değiştirildiyse **Karttan yeniden al** ile karttan gelen yola döndürün; kartta `devs` ile FTP aygıtının adını kontrol edin. |
 | "Kartın FTP bilgisi alınamadı" | Ayrıntı uyarı şeridinde. Kartta `version` yazıp `Boot line:` altındaki satırda `h=`, `u=`, `pw=` değerlerinin olduğunu kontrol edin. |
+| Seri: "port başka bir programda açık" | Port TeraTerm gibi başka bir programda açık. O programda portu kapatıp yeniden **Aç**'a basın. |
+| Seri: ekrana anlamsız karakterler geliyor | Baud rate (ya da data / parity / stop) kartınkiyle aynı değil. Portu kapatıp **Ayarlar…**'dan düzeltin. |
+| Seri: uzun yapıştırmada harfler eksik gidiyor | Kart hızlı gelen yazıyı kaçırıyor. **Transmit delay**'e 1–5 msec/char verin. |
+| Seri: port listede yok | USB-seri çeviriciyi takın; Windows Aygıt Yöneticisi'nde "Bağlantı noktaları (COM ve LPT)" altında görünmelidir. Sürücüsü yüklü değilse görünmez. |
 | Sürükle-bırak hiç kabul edilmiyor | Vision yönetici olarak, Windows Gezgini normal çalışıyorsa Windows iki program arasında sürüklemeye izin vermez. İkisini de aynı yetkiyle çalıştırın ya da **Yükle** düğmesini kullanın. |
 
 ## Belgeleri güncelleme

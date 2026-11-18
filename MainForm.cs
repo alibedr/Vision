@@ -78,9 +78,12 @@ namespace Vision
         private readonly CommandLibraryView _commandLibrary;
         private readonly TabStripButton _sentinelTab = new TabStripButton("Sentinel", IconKind.Pulse);
         private readonly SentinelView _sentinelView;
+        // Seri sekmesi: COM portlarından karta doğrudan bağlantı; telnet altyapısından bağımsız
+        private readonly TabStripButton _serialTab = new TabStripButton("Seri", IconKind.SerialPort);
+        private readonly SerialView _serialView;
         private MainTab _activeTab = MainTab.Workspace;
 
-        private enum MainTab { Workspace, Files, Commands, Sentinel }
+        private enum MainTab { Workspace, Files, Commands, Sentinel, Serial }
         private volatile bool _statesDirty = true;
 
         public MainForm()
@@ -126,6 +129,11 @@ namespace Vision
                 Dock = DockStyle.Fill,
                 Visible = false,
             };
+            _serialView = new SerialView(() => _config.SerialPorts ?? (_config.SerialPorts = new List<SerialPortProfile>()), SaveConfig)
+            {
+                Dock = DockStyle.Fill,
+                Visible = false,
+            };
             BuildLayout();
             LoadSettingsToUi();
             WireEvents();
@@ -150,6 +158,14 @@ namespace Vision
             _split.Panel1.BackColor = Theme.Sidebar;
             _split.Panel2.BackColor = Theme.Window;
             _split.Panel1.Controls.Add(_explorer);
+            // Sekmeye göre değişen sol menü: Seri sekmesinde seri portlar, Sentinel'de bağlı kartlar (ApplySidebar)
+            _serialView.Sidebar.Visible = false;
+            _sentinelView.Sidebar.Visible = false;
+            _commandLibrary.Sidebar.Visible = false;
+            _split.Panel1.Controls.Add(_serialView.Sidebar);
+            _split.Panel1.Controls.Add(_sentinelView.Sidebar);
+            _split.Panel1.Controls.Add(_commandLibrary.Sidebar);
+            _commandLibrary.SidebarNeeded = () => { if (_activeTab == MainTab.Commands && _split.Panel1Collapsed) SetSidebarCollapsed(false); };
 
             // Çalışma alanı üst çubuğu
             var bar = new Panel { Dock = DockStyle.Top, Height = 56, BackColor = Theme.Surface };
@@ -253,23 +269,25 @@ namespace Vision
                     if (_statusRight.Visible) e.Graphics.DrawLine(p, _signature.Left - 12, 7, _signature.Left - 12, status.Height - 7);
                 }
             };
-            _statusRight.Text = "Ctrl+N: kart ekle   ·   Ctrl+G: genel komut   ·   Ctrl+1 / 2 / 3 / 4: sekmeler   ·   F1: yardım";
+            _statusRight.Text = "Ctrl+N: kart ekle   ·   Ctrl+G: genel komut   ·   Ctrl+1 / 2 / 3 / 4 / 5: sekmeler   ·   F1: yardım";
             _signature.Cursor = Cursors.Hand;
             _signature.Click += (s, e) => ShowHelp(HelpPage.About);
             _signature.MouseEnter += (s, e) => _signature.ForeColor = Theme.Accent;
             _signature.MouseLeave += (s, e) => _signature.ForeColor = Theme.TextMuted;
             new DarkToolTip().SetToolTip(_signature, AppInfo.Copyright);
 
-            // Sekme şeridi: [◀ kenar çubuğu] Telnet | Kart Dosya Gezgini | Komut Kütüphanesi
+            // Sekme şeridi: [◀ kenar çubuğu] Telnet | Kart Dosya Gezgini | Seri | Sentinel | Komut Kütüphanesi
             var tabStrip = new Panel { Dock = DockStyle.Top, Height = 40, BackColor = Theme.Sidebar, Padding = new Padding(6, 0, 8, 0) };
             _workspaceTab.Dock = DockStyle.Left;
             _filesTab.Dock = DockStyle.Left;
             _commandsTab.Dock = DockStyle.Left;
             _sentinelTab.Dock = DockStyle.Left;
+            _serialTab.Dock = DockStyle.Left;
             _sidebarToggle.Dock = DockStyle.Left;
             _sidebarToggle.Width = 42;
-            tabStrip.Controls.Add(_sentinelTab);     // Dock=Left: son eklenen en solda
-            tabStrip.Controls.Add(_commandsTab);
+            tabStrip.Controls.Add(_commandsTab);     // Dock=Left: son eklenen en solda → Komut Kütüphanesi en sonda (5.)
+            tabStrip.Controls.Add(_sentinelTab);
+            tabStrip.Controls.Add(_serialTab);       // Seri: Kart Dosya Gezgini'nden sonra (3. sekme)
             tabStrip.Controls.Add(_filesTab);
             tabStrip.Controls.Add(_workspaceTab);
             tabStrip.Controls.Add(_sidebarToggle);
@@ -280,6 +298,7 @@ namespace Vision
             _filesTab.Click += (s, e) => ShowTab(MainTab.Files);
             _commandsTab.Click += (s, e) => ShowTab(MainTab.Commands);
             _sentinelTab.Click += (s, e) => ShowTab(MainTab.Sentinel);
+            _serialTab.Click += (s, e) => ShowTab(MainTab.Serial);
             _workspaceTab.Active = true;
 
             // Genel komut çubuğu YALNIZ çalışma alanına aittir (dosya gezgini sekmesinde görünmez/kullanılamaz)
@@ -290,6 +309,7 @@ namespace Vision
             _split.Panel2.Controls.Add(_fileExplorer);
             _split.Panel2.Controls.Add(_commandLibrary);
             _split.Panel2.Controls.Add(_sentinelView);
+            _split.Panel2.Controls.Add(_serialView);
             _split.Panel2.Controls.Add(tabStrip);
 
             Controls.Add(_split);
@@ -312,7 +332,7 @@ namespace Vision
                 _split.SplitterDistance = 290;
             }
             catch (InvalidOperationException) { }
-            SetSidebarCollapsed(_config.Settings.SidebarCollapsed);   // son tercih
+            ApplySidebar(_activeTab);   // son tercih (sekme başına)
             UpdateWorkspaceTitle();
             UpdateStatus();
         }
@@ -388,6 +408,10 @@ namespace Vision
 
         private void OnFormKeyDown(object sender, KeyEventArgs e)
         {
+            // Seri terminalde Ctrl+harf (Ctrl+C, Ctrl+X, Ctrl+N …) karta gider: uygulama kısayolları devreye girmez
+            if (_activeTab == MainTab.Serial && e.Control && !e.Alt && e.KeyCode >= Keys.A && e.KeyCode <= Keys.Z &&
+                !(e.Shift && e.KeyCode == Keys.L))
+                return;
             if (e.KeyCode == Keys.F1)
             {
                 e.SuppressKeyPress = true;
@@ -403,16 +427,23 @@ namespace Vision
                 e.SuppressKeyPress = true;
                 ShowAddCardsDialog(null);
             }
+            else if (e.Control && !e.Shift && e.KeyCode == Keys.F && _activeTab == MainTab.Commands)
+            {
+                // Odak sol menüdeyken (kütüphane görünümünün dışında) de arama: menü kapalıysa açılır
+                e.SuppressKeyPress = true;
+                _commandLibrary.FocusSearch();
+            }
             else if (e.Control && !e.Shift && e.KeyCode == Keys.B)
             {
                 e.SuppressKeyPress = true;
                 SetSidebarCollapsed(!_split.Panel1Collapsed);
             }
-            else if (e.Control && !e.Shift && (e.KeyCode == Keys.D1 || e.KeyCode == Keys.D2 || e.KeyCode == Keys.D3 || e.KeyCode == Keys.D4))
+            else if (e.Control && !e.Shift && (e.KeyCode == Keys.D1 || e.KeyCode == Keys.D2 || e.KeyCode == Keys.D3 || e.KeyCode == Keys.D4 || e.KeyCode == Keys.D5))
             {
                 e.SuppressKeyPress = true;
+                // Sekme sırasıyla: Telnet, Kart Dosya Gezgini, Seri, Komut Kütüphanesi, Sentinel
                 ShowTab(e.KeyCode == Keys.D1 ? MainTab.Workspace : e.KeyCode == Keys.D2 ? MainTab.Files
-                      : e.KeyCode == Keys.D3 ? MainTab.Commands : MainTab.Sentinel);
+                      : e.KeyCode == Keys.D3 ? MainTab.Serial : e.KeyCode == Keys.D4 ? MainTab.Sentinel : MainTab.Commands);
             }
             else if (e.Control && e.KeyCode == Keys.G)
             {
@@ -751,6 +782,9 @@ namespace Vision
             _filesTab.Active = tab == MainTab.Files;
             _commandsTab.Active = tab == MainTab.Commands;
             _sentinelTab.Active = tab == MainTab.Sentinel;
+            _serialTab.Active = tab == MainTab.Serial;
+            _serialView.Visible = tab == MainTab.Serial;
+            ApplySidebar(tab);
             _workspaceHost.Visible = tab == MainTab.Workspace;
             _fileExplorer.Visible = tab == MainTab.Files;
             _commandLibrary.Visible = tab == MainTab.Commands;
@@ -763,16 +797,55 @@ namespace Vision
         /// Kart Gezgini kenar çubuğunu daraltır / açar. Ağaç, seçim, işaretler ve sekmeler olduğu gibi kalır;
         /// sağdaki alan boşalan genişliği kullanır. Tercih kaydedilir.
         /// </summary>
+        /// <summary>Etkin sekmenin sol menüsünü açar / kapatır; tercih o sekme için saklanır.</summary>
         private void SetSidebarCollapsed(bool collapsed)
         {
-            _split.Panel1Collapsed = collapsed;
-            _sidebarToggle.Icon = collapsed ? IconKind.SidebarShow : IconKind.SidebarHide;
-            _sidebarToggle.SetTip(_sidebarTips, (collapsed ? "Kart Gezgini'ni göster" : "Kart Gezgini'ni gizle") + "  (Ctrl+B)");
-            if (_config.Settings.SidebarCollapsed != collapsed)
+            if (SidebarCollapsedFor(_activeTab) != collapsed)
             {
-                _config.Settings.SidebarCollapsed = collapsed;
+                AppSettings st = _config.Settings;
+                switch (_activeTab)
+                {
+                    case MainTab.Files: st.FilesSidebarCollapsed = collapsed; break;
+                    case MainTab.Serial: st.SerialSidebarCollapsed = collapsed; break;
+                    case MainTab.Sentinel: st.SentinelSidebarCollapsed = collapsed; break;
+                    case MainTab.Commands: st.CommandsSidebarCollapsed = collapsed; break;
+                    default: st.SidebarCollapsed = collapsed; break;
+                }
                 SaveConfig();
             }
+            ApplySidebar(_activeTab);
+        }
+
+        private bool SidebarCollapsedFor(MainTab tab)
+        {
+            AppSettings st = _config.Settings;
+            switch (tab)
+            {
+                case MainTab.Files: return st.FilesSidebarCollapsed;
+                case MainTab.Serial: return st.SerialSidebarCollapsed;
+                case MainTab.Sentinel: return st.SentinelSidebarCollapsed;
+                case MainTab.Commands: return st.CommandsSidebarCollapsed;
+                default: return st.SidebarCollapsed;
+            }
+        }
+
+        /// <summary>
+        /// Sekmeye göre değişen sol menü: Telnet ve Kart Dosya Gezgini'nde Kart Gezgini, Seri'de seri portlar, Sentinel'de
+        /// bağlı kartlar, Komut Kütüphanesi'nde arama ve modül ağacı. Genişlik ortak (sekme değişince ekran kaymaz);
+        /// açık / kapalı durumu her sekmede ayrı hatırlanır.
+        /// </summary>
+        private void ApplySidebar(MainTab tab)
+        {
+            _explorer.Visible = tab == MainTab.Workspace || tab == MainTab.Files;
+            _serialView.Sidebar.Visible = tab == MainTab.Serial;
+            _sentinelView.Sidebar.Visible = tab == MainTab.Sentinel;
+            _commandLibrary.Sidebar.Visible = tab == MainTab.Commands;
+            bool collapsed = SidebarCollapsedFor(tab);
+            _split.Panel1Collapsed = collapsed;
+            _sidebarToggle.Icon = collapsed ? IconKind.SidebarShow : IconKind.SidebarHide;
+            string what = tab == MainTab.Serial ? "Seri portları" : tab == MainTab.Sentinel ? "Kart listesini"
+                        : tab == MainTab.Commands ? "Komut listesini" : "Kart Gezgini'ni";
+            _sidebarToggle.SetTip(_sidebarTips, (collapsed ? what + " göster" : what + " gizle") + "  (Ctrl+B)");
         }
 
         private readonly ToolTip _sidebarTips = new DarkToolTip();
@@ -1136,7 +1209,11 @@ namespace Vision
         {
             Action telnet = () => ShowTab(MainTab.Workspace);
             Action files = TourShowFiles;
-            Action commands = () => ShowTab(MainTab.Commands);
+            Action commands = () =>
+            {
+                ShowTab(MainTab.Commands);
+                if (_activeTab == MainTab.Commands && _split.Panel1Collapsed) SetSidebarCollapsed(false);   // liste ve arama sol menüde
+            };
             Func<Func<CardView, Control[]>, Func<Rectangle?>> cardPart = pick => () =>
             {
                 CardView v = TourView();
@@ -1167,7 +1244,7 @@ namespace Vision
                 Title = "Vision'a hoş geldiniz",
                 Body = () => "Vision, VxWorks kartlarına Telnet ile bağlanıp birden çok kartı aynı anda yönetmenizi sağlar.\n\n" +
                              "Bu turda birlikte bir kart ekleyip bağlanacağız; kart penceresinin her düğmesini, boot ayarları penceresini, " +
-                             "renklendirmeyi, Kart Dosya Gezgini'ni, Komut Kütüphanesi'ni ve Sentinel'i adım adım göreceğiz.\n\n" +
+                             "renklendirmeyi, Kart Dosya Gezgini'ni, Seri sekmesini, Sentinel'i ve Komut Kütüphanesi'ni adım adım göreceğiz.\n\n" +
                              "Bazı adımlarda sizden bir işlem istenir (▶ Şimdi siz). İşlemi yapınca tur kendiliğinden ilerler; " +
                              "yapmak istemezseniz \"Bu adımı geç\". Turu Yardım → Uygulama turu'ndan istediğiniz zaman yeniden açabilirsiniz.",
                 Enter = telnet,
@@ -1175,9 +1252,11 @@ namespace Vision
             steps.Add(new TourStep
             {
                 Title = "Sekmeler",
-                Body = () => "Telnet: kart terminalleri  ·  Kart Dosya Gezgini: kartın dosyaları  ·  Komut Kütüphanesi: hazır VxWorks komutları  ·  " +
-                             "Sentinel: kartın sağlık sayfası.\n\nKısayollar: Ctrl+1 / 2 / 3 / 4.",
-                Target = () => TourRect(_workspaceTab, _filesTab, _commandsTab, _sentinelTab),
+                Body = () => "Telnet: kart terminalleri  ·  Kart Dosya Gezgini: kartın dosyaları  ·  Seri: COM portundan karta doğrudan bağlantı  ·  " +
+                             "Sentinel: kartın sağlık sayfası  ·  Komut Kütüphanesi: hazır VxWorks komutları.\n\nKısayollar: Ctrl+1 / 2 / 3 / 4 / 5.\n\n" +
+                             "Soldaki menü sekmeye göre değişir (Kart Gezgini, seri portlar, Sentinel kart listesi, Komut Kütüphanesi listesi); ◀ düğmesi ya da Ctrl+B " +
+                             "o sekmenin menüsünü gizler / gösterir ve her sekme kendi durumunu hatırlar.",
+                Target = () => TourRect(_workspaceTab, _filesTab, _serialTab, _sentinelTab, _commandsTab),
                 Enter = telnet,
             });
 
@@ -1557,6 +1636,11 @@ namespace Vision
                      "Bilgisayara: listedeki öğeyi (ya da seçili öğeleri) masaüstüne veya açık bir klasöre sürükleyin; bıraktığınızda karttan indirilir.\n" +
                      "Liste içinde: bir klasörün üstüne bırakmak taşır, Ctrl basılıysa kopyalar.",
                      () => TourRect(_fileExplorer.TourList));
+            fileStep("Klasör yükleme",
+                     "Klasör yüklerken bir dosya FTP'ye gönderilemez ya da kartta kopyalanamazsa yükleme durmaz: o dosya atlanır, " +
+                     "kalanlar yüklenir. Sonunda kartta her dosyanın boyutu bilgisayardakiyle karşılaştırılır. Yüklenemeyenler sonda " +
+                     "listelenir (ekranda ilk 5'i, Olay günlüğünde hepsi nedenleriyle).",
+                     () => TourRect(_fileExplorer.TourUpload));
             fileStep("Büyük dosyalar ve ilerleme",
                      "64 MB'tan büyük dosyalar iki yönde de (klasörlerin içindekiler dahil) 64 MB'lık parçalar halinde aktarılır; kart " +
                      "tek seferde dev bir dosyayla uğraşmaz. Aktarımdan önce hedef diskte (kartta ya da bilgisayarda) yer olup olmadığına " +
@@ -1569,27 +1653,42 @@ namespace Vision
                      "aktarım sürerken Vision kapatılırsa önce sorar.",
                      () => TourRect(_fileExplorer.TourList));
 
-            // ---------------- Komut Kütüphanesi ----------------
-            Action<string, string, Func<Rectangle?>> libStep = (title, body, target) => steps.Add(new TourStep
+            // ---------------- Seri ----------------
+            Action serial = () =>
             {
-                Title = title,
-                Body = () => body,
-                Target = target,
-                Available = () => { ShowTab(MainTab.Commands); return target() != null; },
-                Enter = commands,
+                ShowTab(MainTab.Serial);
+                if (_split.Panel1Collapsed) SetSidebarCollapsed(false);   // port listesi sol menüde: tur için açılır
+            };
+            steps.Add(new TourStep
+            {
+                Title = "Seri sekmesi",
+                Body = () => "Kartlara Telnet'in yanında COM portundan (USB-seri çevirici) da bağlanabilirsiniz; TeraTerm açmanıza gerek kalmaz. " +
+                             "Telnet'ten bağımsızdır: kartın ağı yokken, boot sırasında ya da bootrom'dayken de çalışır.\n\n" +
+                             "Solda bilgisayarda görünen portlar Windows'taki adlarıyla listelenir; yeşil nokta: açık.",
+                Target = () => TourRect(_serialView.TourPorts),
+                Enter = serial,
             });
-            libStep("Komut Kütüphanesi",
-                    "VxWorks 6.4 komutları modüllere ayrılmış. Modülü açıp bir komut seçin; tümünü genişlet / daralt düğmeleri listenin üstünde.",
-                    () => TourRect(_commandLibrary.TourTree));
-            libStep("Arama",
-                    "Komut adına, açıklamaya ya da modüle göre arar (Ctrl+F). Esc aramayı temizler.",
-                    () => TourRect(_commandLibrary.TourSearch));
-            libStep("Komut sayfası",
-                    "Seçilen komutun açıklaması, yazılışı ve örnek çıktısı. Kütüphane Vision'a gömülüdür ve salt okunurdur; yazılışı Kopyala ile panoya alabilirsiniz.",
-                    () => TourRect(_commandLibrary.TourDetail));
-            libStep("Karta aktar",
-                    "Komutu seçtiğiniz kartın komut satırına yazar — göndermez; parametreleri düzenleyip Enter'a basarsınız.",
-                    () => TourRect(_commandLibrary.TourTransfer));
+            steps.Add(new TourStep
+            {
+                Title = "Port açma ve ayarlar",
+                Body = () => "Porta çift tıklayın ya da seçip Aç'a basın: pencere açılır ve port açılır. Ayarlar…: baud rate, data, parity, stop, " +
+                             "akış denetimi ve gönderme gecikmesi; kartın seri ayarlarıyla aynı olmalı (varsayılan 115200 8N1).\n\n" +
+                             "Port numarası takılan USB girişine göre değişebileceği için porta bir ad verin (ör. \"Kart 3\").",
+                Target = () => TourRect(_serialView.TourButtons),
+                Enter = serial,
+            });
+            steps.Add(new TourStep
+            {
+                Title = "Seri pencereleri",
+                Body = () => "En fazla " + SerialView.MaxViews + " port aynı anda, Telnet'teki gibi ızgarada; her pencere büyütülebilir.\n\n" +
+                             "TeraTerm gibi terminale tıklayıp yazın: her tuş anında karta gider (Enter, Backspace, oklar, Ctrl+C…). " +
+                             "Fareyle seçilen metin kendiliğinden kopyalanır; yapıştırma sağ tık ya da Shift+Insert.\n\n" +
+                             "Yazdığınız komutlar Telnet'ten ayrı bir geçmişe kaydedilir: saat düğmesi, tek tık komutu yazar, çift tık gönderir. " +
+                             "Ekrandaki çıktı dosyaya kaydedilebilir.",
+                Target = () => TourRect(_serialView.TourGrid),
+                Enter = serial,
+            });
+
             // ---------------- Sentinel ----------------
             steps.Add(new TourStep
             {
@@ -1615,7 +1714,7 @@ namespace Vision
                              "arka planda açık kalır. Durdurmak için aynı düğme (" + SentinelTracker.StopCommand + ").",
                 Target = () => TourRect(_sentinelView),
                 Enter = () => ShowTab(MainTab.Sentinel),
-                NextId = "themes",
+                NextId = "library",
             });
             steps.Add(new TourStep
             {
@@ -1636,6 +1735,7 @@ namespace Vision
             Action sentinelTab = () =>
             {
                 ShowTab(MainTab.Sentinel);
+                if (_split.Panel1Collapsed) SetSidebarCollapsed(false);   // kart listesi sol menüde: tur için açılır
                 CardView v = TourView();
                 if (v != null) _sentinelView.SelectCard(v.Session.Card);
             };
@@ -1662,6 +1762,30 @@ namespace Vision
                 Target = () => TourRect(_sentinelView.TourPage),
                 Enter = sentinelTab,
             });
+
+            // ---------------- Komut Kütüphanesi ----------------
+            Action<string, string, Func<Rectangle?>> libStep = (title, body, target) => steps.Add(new TourStep
+            {
+                Title = title,
+                Body = () => body,
+                Target = target,
+                Available = () => { commands(); return target() != null; },
+                Enter = commands,
+            });
+            int libStart = steps.Count;
+            libStep("Komut Kütüphanesi",
+                    "VxWorks 6.4 komutları modüllere ayrılmış. Modülü açıp bir komut seçin; tümünü genişlet / daralt düğmeleri listenin üstünde.",
+                    () => TourRect(_commandLibrary.TourTree));
+            libStep("Arama",
+                    "Komut adına, açıklamaya ya da modüle göre arar (Ctrl+F). Esc aramayı temizler.",
+                    () => TourRect(_commandLibrary.TourSearch));
+            libStep("Komut sayfası",
+                    "Seçilen komutun açıklaması, yazılışı ve örnek çıktısı. Kütüphane Vision'a gömülüdür ve salt okunurdur; yazılışı Kopyala ile panoya alabilirsiniz.",
+                    () => TourRect(_commandLibrary.TourDetail));
+            libStep("Karta aktar",
+                    "Komutu seçtiğiniz kartın komut satırına yazar — göndermez; parametreleri düzenleyip Enter'a basarsınız.",
+                    () => TourRect(_commandLibrary.TourTransfer));
+            steps[libStart].Id = "library";   // Sentinel'in "Hayır" dalı buraya döner
 
             // ---------------- Kapanış ----------------
             steps.Add(new TourStep
@@ -1741,7 +1865,7 @@ namespace Vision
         {
             var rows = new[]
             {
-                new[] { "Ctrl+N", "Kart ekle" }, new[] { "Ctrl+1 … 4", "Sekmeler" },
+                new[] { "Ctrl+N", "Kart ekle" }, new[] { "Ctrl+1 … 5", "Sekmeler" },
                 new[] { "Ctrl+R", "Komut geçmişinde ara" }, new[] { "F1", "Kullanım Kılavuzu" },
                 new[] { "F2", "Ad değiştir" }, new[] { "F5", "Yenile" },
                 new[] { "Ctrl + tekerlek", "Yazı boyutu" }, new[] { "Ctrl+Shift+L", "Sonraki tema" },

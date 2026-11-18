@@ -92,7 +92,7 @@ namespace Vision
             _accept.Click += (s, e) => AcceptSelected();
             _delete.Click += (s, e) => DeleteSelected();
             _deleteAll.Click += (s, e) => DeleteAll();
-            _list.DoubleClick += (s, e) => AcceptSelected();
+            _list.DoubleClick += (s, e) => { AcceptedByDoubleClick = true; AcceptSelected(); };
             _list.SelectedIndexChanged += (s, e) => UpdateButtons();
             _list.KeyDown += List_KeyDown;
             _list.KeyPress += (s, e) =>
@@ -113,6 +113,24 @@ namespace Vision
 
         /// <summary>Seçilen komut (Komut satırına al); kapatıldıysa null.</summary>
         public string Chosen { get; private set; }
+
+        /// <summary>Komut listede çift tıklanarak seçildi (seri sekmesi: hemen gönder).</summary>
+        public bool AcceptedByDoubleClick { get; private set; }
+
+        /// <summary>
+        /// Seri sekmesi için: kabul düğmesinin metni değiştirilir; çift tıkla seçildiyse <paramref name="doubleClick"/> true.
+        /// Telnet'teki kullanım (<see cref="Pick(IWin32Window, CommandHistory, string, string)"/>) değişmez.
+        /// </summary>
+        public static string Pick(IWin32Window owner, CommandHistory history, string initialQuery, string target, string acceptText, out bool doubleClick)
+        {
+            using (var d = new CommandHistoryDialog(history, initialQuery, target))
+            {
+                if (!string.IsNullOrEmpty(acceptText)) d._accept.Text = acceptText;
+                string chosen = d.ShowDialog(owner) == DialogResult.OK ? d.Chosen : null;
+                doubleClick = chosen != null && d.AcceptedByDoubleClick;
+                return chosen;
+            }
+        }
 
         /// <summary>Pencereyi açar; seçilen komutu (yoksa null) döndürür.</summary>
         public static string Pick(IWin32Window owner, CommandHistory history, string initialQuery, string target)

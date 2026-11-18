@@ -19,8 +19,12 @@ namespace Vision
         private readonly Func<CardConfig, CardSession> _sessionOf;   // oturumu olmayan kart için null
 
         private readonly Panel _top = new Panel { Dock = DockStyle.Top, Height = 64, BackColor = Theme.Surface };
-        private readonly Panel _left = new Panel { Dock = DockStyle.Left, Width = 270, BackColor = Theme.Sidebar };
+        // Kart listesi ana pencerenin sol menüsünde durur (sekmeye göre değişen sol menü): Sidebar ile verilir
+        private readonly Panel _left = new Panel { Dock = DockStyle.Fill, BackColor = Theme.Sidebar };
         private readonly CardList _list = new CardList();
+
+        /// <summary>Bağlı kartlar listesi: ana pencere bunu sol menüye koyar (Sentinel sekmesindeyken görünür, kapatılabilir).</summary>
+        public Control Sidebar { get { return _left; } }
         private readonly Label _listEmpty = Theme.MakeLabel("", Theme.Ui, Theme.TextMuted);
         private readonly Panel _right = new Panel { Dock = DockStyle.Fill, BackColor = Theme.Window };
         private readonly Panel _pageBar = new Panel { Dock = DockStyle.Top, Height = 48, BackColor = Theme.Window };
@@ -92,7 +96,6 @@ namespace Vision
             _left.Controls.Add(_list);
             _left.Controls.Add(_listEmpty);
             _left.Controls.Add(caption);
-            _left.Paint += (s, e) => { using (var p = new Pen(Theme.Border)) e.Graphics.DrawLine(p, _left.Width - 1, 0, _left.Width - 1, _left.Height); };
             Theme.ApplyDarkScrollBars(_list);
 
             // Sağ: sayfa çubuğu + sayfa
@@ -111,7 +114,6 @@ namespace Vision
             _right.Controls.Add(_pageBar);
 
             Controls.Add(_right);
-            Controls.Add(_left);
             Controls.Add(_top);
         }
 

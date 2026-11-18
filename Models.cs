@@ -250,8 +250,16 @@ namespace Vision
         /// <summary>Her kartın terminalinde tutulacak en fazla satır; aşılınca en eski satırlar silinir.</summary>
         public int MaxTerminalLines { get; set; }
 
-        /// <summary>Kart Gezgini kenar çubuğu daraltılmış mı (tercih hatırlanır).</summary>
+        /// <summary>Sol menü daraltılmış mı — Telnet sekmesinde (Kart Gezgini). Tercih sekme başına hatırlanır.</summary>
         public bool SidebarCollapsed { get; set; }
+        /// <summary>Sol menü daraltılmış mı — Kart Dosya Gezgini sekmesinde (Kart Gezgini).</summary>
+        public bool FilesSidebarCollapsed { get; set; }
+        /// <summary>Sol menü daraltılmış mı — Seri sekmesinde (seri portlar).</summary>
+        public bool SerialSidebarCollapsed { get; set; }
+        /// <summary>Sol menü daraltılmış mı — Sentinel sekmesinde (bağlı kartlar).</summary>
+        public bool SentinelSidebarCollapsed { get; set; }
+        /// <summary>Sol menü daraltılmış mı — Komut Kütüphanesi sekmesinde (arama ve modül ağacı).</summary>
+        public bool CommandsSidebarCollapsed { get; set; }
 
         /// <summary>Eski sürümlerin tema ayarı (koyu / açık). Yeni sürüm UiThemeId kullanır; uyumluluk için güncel tutulur.</summary>
         public ThemeMode UiTheme { get; set; }
@@ -339,9 +347,15 @@ namespace Vision
         {
             Groups = new List<CardGroup>();
             Settings = new AppSettings();
+            SerialPorts = new List<SerialPortProfile>();
         }
 
         [XmlArray("Groups"), XmlArrayItem("Group")] public List<CardGroup> Groups { get; set; }
+
+        /// <summary>Seri sekmesindeki COM portlarının ayarları ve adları.</summary>
+        [XmlArray("SeriPortlar"), XmlArrayItem("Port")] public List<SerialPortProfile> SerialPorts { get; set; }
+
+        public bool ShouldSerializeSerialPorts() { return SerialPorts != null && SerialPorts.Count > 0; }
         public AppSettings Settings { get; set; }
     }
 

@@ -113,8 +113,8 @@ namespace Vision
             _newModuleBtn.SetTip(_tips, "Yeni modül — komutları gruplamak için (ör. \"Task komutları\")  ·  Ctrl+Shift+M");
             _folderBtn.SetTip(_tips, "Komutlar.xml dosyasının bulunduğu klasörü aç");
 
-            // ---- Sol panel
-            var left = new Panel { Dock = DockStyle.Left, Width = 330, BackColor = Theme.Sidebar };
+            // ---- Sol panel: ana pencerenin ortak sol menüsünde durur (Sidebar; diğer sekmelerle aynı genişlik, gizlenebilir)
+            Panel left = _left;
 
             var searchBox = new Panel { Dock = DockStyle.Top, Height = 34, BackColor = Theme.Input };
             _search.BackColor = Theme.Input;
@@ -169,8 +169,6 @@ namespace Vision
             left.Controls.Add(listHost);
             left.Controls.Add(countBar);
             left.Controls.Add(searchHost);
-            left.Paint += (s, e) => { using (var p = new Pen(Theme.Border)) e.Graphics.DrawLine(p, left.Width - 1, 0, left.Width - 1, left.Height); };
-            var splitter = new Splitter { Dock = DockStyle.Left, Width = 3, BackColor = Theme.Border, MinSize = 240 };
 
             // ---- Sağ
             _detail.Controls.Add(_empty);
@@ -179,9 +177,24 @@ namespace Vision
             right.Controls.Add(_banner);
 
             Controls.Add(right);
-            Controls.Add(splitter);
-            Controls.Add(left);
             Controls.Add(top);
+        }
+
+        private readonly Panel _left = new Panel { Dock = DockStyle.Fill, BackColor = Theme.Sidebar };
+
+        /// <summary>Arama + modül ağacı: ana pencere bunu sol menüye koyar (Komut Kütüphanesi sekmesindeyken görünür).</summary>
+        public Control Sidebar { get { return _left; } }
+
+        /// <summary>Arama istenince (Ctrl+F) sol menü kapalıysa açılsın diye: ana pencere bağlar.</summary>
+        public Action SidebarNeeded;
+
+        /// <summary>Arama kutusuna gider (sol menü kapalıysa önce açtırır).</summary>
+        public void FocusSearch()
+        {
+            var h = SidebarNeeded;
+            if (h != null) h();
+            _search.Focus();
+            _search.SelectAll();
         }
 
         private void WireEvents()
@@ -245,7 +258,7 @@ namespace Vision
             if (keyData == Keys.Escape && _editing) { CancelEdit(); return true; }
             if (keyData == (Keys.Control | Keys.Shift | Keys.N) && !ReadOnlyLibrary) { StartNew(SelectedModuleKey()); return true; }
             if (keyData == (Keys.Control | Keys.Shift | Keys.M) && !ReadOnlyLibrary) { NewModule(); return true; }
-            if (keyData == (Keys.Control | Keys.F)) { _search.Focus(); _search.SelectAll(); return true; }
+            if (keyData == (Keys.Control | Keys.F)) { FocusSearch(); return true; }
             return base.ProcessCmdKey(ref msg, keyData);
         }
 

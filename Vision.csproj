@@ -39,6 +39,7 @@
     <Reference Include="System.Drawing" />
     <Reference Include="System.Xml" />
     <Reference Include="System.Security" />
+    <Reference Include="System.Management" />
     <Reference Include="System.Windows.Forms" />
     <!-- Sentinel sayfası için Edge WebView2 (packages.config; Visual Studio derlerken otomatik indirir) -->
     <Reference Include="Microsoft.Web.WebView2.Core">
@@ -154,6 +155,10 @@
     </Compile>
     <Compile Include="ExplorerDialogs.cs" />
     <Compile Include="EventLog.cs" />
+    <Compile Include="SerialCore.cs" />
+    <Compile Include="SerialTerminalView.cs" />
+    <Compile Include="SerialSettingsDialog.cs" />
+    <Compile Include="SerialView.cs" />
     <Compile Include="BootRecords.cs" />
     <Compile Include="BootRecordsDialog.cs" />
     <Compile Include="EventLogDialog.cs" />
