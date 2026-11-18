@@ -226,6 +226,7 @@ namespace Vision
         private async Task SendActionCommandAsync(string cmd, string source)
         {
             if (Session.TransferActive) { ShowToast("✕  " + CardSession.TransferBusyMessage, false, null); return; }
+            if (Session.InteractiveInputActive) { ShowToast("⚠  " + CardSession.BootBusyMessage, false, null); return; }
             Session.CommandHistory.Add(cmd);
             ScrollToEnd();
             HideNewLinesPill();
@@ -244,7 +245,8 @@ namespace Vision
         /// <summary>Bağlantıya ve reboot bekleme süresine göre düğmeleri etkinleştirir.</summary>
         private void RefreshActionButtons()
         {
-            bool connected = Session.State == CardState.Connected;
+            // Boot ayarları sürerken (tek ya da genel pencere) karta komut gönderen düğmeler kilitli (1.9)
+            bool connected = Session.State == CardState.Connected && !Session.InteractiveInputActive;
             if (_quickBtn.Enabled != connected) _quickBtn.Enabled = connected;
             bool reboot = connected && !_rebootCooldown.Enabled;
             if (_rebootBtn.Enabled != reboot) _rebootBtn.Enabled = reboot;

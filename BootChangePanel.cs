@@ -37,6 +37,8 @@ namespace Vision
         /// <summary>Listede gösterilen kısa durum değişti.</summary>
         public event Action<BootChangePanel> StateChanged;
         private bool _finishedRaised, _detached;
+        private readonly bool _lockCardInput;
+        private bool _quitSent;   // Ctrl+D (Çık) ile çıkıldı: "tamamlandı" değil "çıkıldı" 
         private string _listStatus = "";
         private Color _listColor = Theme.TextMuted;
 
@@ -83,9 +85,14 @@ namespace Vision
         private readonly Button _records = Theme.MakeButton("Boot ayarı kayıtları…", Theme.ButtonKind.Secondary);
         private int _shownLogCount = -1;
 
-        public BootChangePanel(CardSession session, string command)
+        /// <param name="lockCardInput">
+        /// true: komut sürerken kartın komut satırı kilitlenir (genel komut çubuğundan açılan çok kartlı pencere, 1.9).
+        /// Tek kart penceresinde false: kullanıcı terminalden de devam edebilir.
+        /// </param>
+        public BootChangePanel(CardSession session, string command, bool lockCardInput = false)
         {
             _session = session;
+            _lockCardInput = lockCardInput;
             BackColor = Theme.Surface;
             ForeColor = Theme.Text;
             Font = Theme.Ui;
@@ -119,7 +126,7 @@ namespace Vision
             _tips.SetToolTip(_clear, "Alanı boşaltır (karta \".\" gönderilir).");
             _tips.SetToolTip(_prev, "Bir önceki alana döner (karta \"-\" gönderilir).");
             _tips.SetToolTip(_skipRest, "Kalan alanların hepsini değiştirmeden geçer ve komutu bitirir.\nŞimdiye kadar girdiğiniz değerler kaydedilir.");
-            _tips.SetToolTip(_quit, "bootChange'den hemen çıkar (karta Ctrl+D gönderilir).\nKartın imajına göre kalan alanlar ya da değişiklikler kaydedilmeyebilir.");
+            _tips.SetToolTip(_quit, "Boot ayarlarından hemen çıkar (karta Ctrl+D gönderilir).\nKartın imajına göre girdiğiniz değerler kaydedilmeyebilir;\nkaydedilmesini istiyorsanız \"Kalanları geçip bitir\"i kullanın.");
 
             // --- Orta: alan listesi
             var middle = new Panel { Dock = DockStyle.Fill, BackColor = Theme.Input, Padding = new Padding(8, 6, 4, 0) };
@@ -215,7 +222,10 @@ namespace Vision
         public bool AwaitingUser { get { return _parser.AwaitingInput && !_sending && !_skipAll && _goTo == null; } }
 
         /// <summary>Kart başarıyla bitti mi.</summary>
-        public bool Succeeded { get { return _parser.Phase == BootChangePhase.Finished; } }
+        public bool Succeeded { get { return _parser.Phase == BootChangePhase.Finished && !_quitSent; } }
+
+        /// <summary>Kullanıcı Çık (Ctrl+D) ile çıktı.</summary>
+        public bool QuitByUser { get { return _parser.Phase == BootChangePhase.Finished && _quitSent; } }
 
         public void FocusInput() { if (_input.Enabled) _input.Focus(); }
 
@@ -246,10 +256,12 @@ namespace Vision
             _autoSerial = -1;
             _autoSteps = 0;
             _finishedRaised = false;
+            _quitSent = false;
             _sendError = null;
             _shownVersion = -1;
             _shownLogCount = -1;
             _session.InteractiveInputActive = true;
+            _session.BootInputLocked = _lockCardInput;
             _title.Text = _command + "  —  " + _session.Card.Label;
             _title.Size = _title.PreferredSize;
             _timer.Start();
@@ -275,6 +287,7 @@ namespace Vision
             {
                 LogOutcomeOnce();
                 _session.InteractiveInputActive = false;
+                _session.BootInputLocked = false;
                 _skipAll = false;
                 _goTo = null;
                 if (!_finishedRaised)
@@ -299,6 +312,13 @@ namespace Vision
             List<BootField> changed = _parser.Fields.Where(f => f.Changed).ToList();
             string fields = string.Join("; ", changed.Select(f => f.Label + ": \"" + (f.OriginalValue ?? "") + "\" → \"" + f.EffectiveValue + "\""));
             // Kayıt penceresi açıksa kartın şu anki ayarları oraya da geçer (G51.10)
+            if (_parser.Phase == BootChangePhase.Finished && _quitSent)
+            {
+                // Ctrl+D: kalan alanlar okunmadı, girilenlerin kaydedildiği de kesin değil — kayıt penceresine verilmez
+                _session.LogEvent(CardEventLog.Boot, _command + " Çık (Ctrl+D) ile bırakıldı" +
+                    (changed.Count > 0 ? "; o ana kadar gönderilenler (kartın imajına göre kaydedilmemiş olabilir): " + fields : " — hiçbir alan değiştirilmedi."));
+                return;
+            }
             if (_parser.Phase == BootChangePhase.Finished) BootRecordsDialog.ProvideCurrent(_session.Card, _parser.Fields, _command);
             if (_parser.Phase == BootChangePhase.Finished)
                 _session.LogEvent(CardEventLog.Boot, changed.Count == 0 ? _command + " tamamlandı — hiçbir alan değiştirilmedi."
@@ -314,7 +334,7 @@ namespace Vision
         /// </summary>
         private void SaveAsRecord()
         {
-            if (_parser.Phase != BootChangePhase.Finished) return;
+            if (_parser.Phase != BootChangePhase.Finished || _quitSent) return;
             List<string> unknown = _parser.Fields.Where(f => f.Uncertain && f.Entered == null).Select(f => f.Label).ToList();
             if (unknown.Count > 0)
             {
@@ -416,8 +436,9 @@ namespace Vision
             if (_parser.IsOver || _session.State != CardState.Connected) return;
             _skipAll = false;
             _goTo = null;
+            _quitSent = true;
             try { await _session.SendRawAsync(BootChangeParser.QuitChar); }
-            catch (Exception ex) { _sendError = "Gönderilemedi: " + ErrorText.Describe(ex); }
+            catch (Exception ex) { _quitSent = false; _sendError = "Gönderilemedi: " + ErrorText.Describe(ex); }
             UpdateView(true);
         }
 
@@ -471,6 +492,7 @@ namespace Vision
             _timer.Dispose();
             if (_tap != null) { _tap.Dispose(); _tap = null; }
             _session.InteractiveInputActive = false;
+            _session.BootInputLocked = false;
             BootChangePanel p;
             if (Active.TryGetValue(_session, out p) && p == this) Active.Remove(_session);
         }
@@ -503,14 +525,17 @@ namespace Vision
             _send.Location = new Point(w - 18 - _send.Width, 141);
             _input.Width = Math.Max(120, _send.Left - 8 - 18);
             _send.Height = Math.Max(_send.Height, _input.Height + 2);
-            int x = 18, y = 176;
-            foreach (Button b in new[] { _keep, _edit, _clear, _prev, _skipRest })
+            // Düğmeler sığmazsa alt satıra geçer; hiçbiri gizlenmez (Çık önceden dar pencerede görünmüyordu, 1.9)
+            int x = 18, y = 176, right = w - 18;
+            foreach (Button b in new[] { _keep, _edit, _clear, _prev, _skipRest, _quit })
             {
+                if (x > 18 && x + b.Width > right) { x = 18; y += 34; }
                 b.Location = new Point(x, y);
                 x += b.Width + 6;
             }
-            _quit.Location = new Point(Math.Max(x + 6, w - 18 - _quit.Width), y);
-            _quit.Visible = _quit.Right <= w - 4;
+            _quit.Left = Math.Max(_quit.Left, right - _quit.Width);   // satırının sağında
+            int height = y + _quit.Height + 10;
+            if (top.Height != height) top.Height = height;
         }
 
         private void ToggleLogs()
@@ -548,6 +573,13 @@ namespace Vision
                     break;
                 case BootChangePhase.Finished:
                     int changed = _parser.Fields.Count(f => f.Changed);
+                    if (_quitSent)
+                    {
+                        status = "⏹  Çıkıldı (Ctrl+D)" + (changed == 0 ? " — hiçbir alan değiştirilmedi."
+                                 : " — " + changed + " alan gönderilmişti; kartın imajına göre kaydedilmemiş olabilir, terminalden kontrol edin.");
+                        color = Theme.Warning;
+                        break;
+                    }
                     status = "✓  Bitti — " + (changed == 0 ? "hiçbir alan değiştirilmedi." :
                              changed + " alan değiştirildi. Yeni boot ayarları genellikle kart yeniden başlatılınca geçerli olur.");
                     color = Theme.Success;
@@ -573,7 +605,8 @@ namespace Vision
             }
             else if (_parser.IsOver)
             {
-                _currentLabel.Text = _parser.Phase == BootChangePhase.Finished ? "Boot ayarları tamamlandı" : "Boot ayarları yapılamadı";
+                _currentLabel.Text = _parser.Phase != BootChangePhase.Finished ? "Boot ayarları yapılamadı"
+                                   : _quitSent ? "Boot ayarlarından çıkıldı" : "Boot ayarları tamamlandı";
                 _currentValue.Text = "";
             }
             else
@@ -592,7 +625,7 @@ namespace Vision
             _prev.Enabled = canAct && _parser.CurrentIndex > 0;
             _skipRest.Enabled = _parser.Phase == BootChangePhase.Prompting && !_skipAll;
             _quit.Enabled = !_parser.IsOver && _session.State == CardState.Connected;
-            _saveRecord.Enabled = _parser.Phase == BootChangePhase.Finished && _parser.Fields.Count > 0;
+            _saveRecord.Enabled = _parser.Phase == BootChangePhase.Finished && !_quitSent && _parser.Fields.Count > 0;
             if (canAct && ContainsFocus && !_input.Focused && !_list.Focused) _input.Focus();
 
             // Alan listesi
@@ -633,6 +666,7 @@ namespace Vision
                     break;
                 case BootChangePhase.Finished:
                     int changed = _parser.Fields.Count(f => f.Changed);
+                    if (_quitSent) { text = "⏹  Çıkıldı (Ctrl+D)"; color = Theme.Warning; break; }
                     text = "✓  Tamamlandı — " + (changed == 0 ? "değişiklik yok" : changed + " alan değişti");
                     color = Theme.Success;
                     break;

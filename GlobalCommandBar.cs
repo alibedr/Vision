@@ -265,7 +265,7 @@ namespace Vision
             _rebootCooldown.Start();
             UpdateTargets();
             if (clear) { var h = ClearAllRequested; if (h != null) h(); }
-            foreach (CardSession s in _targets().Where(t => t.State == CardState.Connected))
+            foreach (CardSession s in _targets().Where(t => t.State == CardState.Connected && !t.InteractiveInputActive))
                 s.LogEvent(CardEventLog.Reboot, "\"" + cmd + "\" gönderildi (genel komut çubuğundan" + (clear ? ", ekranlar temizlenerek" : "") + ").");
             await BroadcastAsync(cmd, "genel reboot", false);
         }
@@ -278,10 +278,14 @@ namespace Vision
             if (targets.Count == 0) { ShowResult("Ekranda açık kart yok — komut gönderilmedi.", Theme.Warning, null); return; }
             _sending = true;
             UpdateTargets();
+            // Boot ayarları süren kartlar atlanır (1.9): genel komut, hızlı komut ya da reboot kartın sorduğu boot alanına
+            // değer olarak gidip ayarı bozardı. Pencereler açılmadan önce belirlenir (yeni açılanlar komutu almalı).
+            List<CardSession> busy = targets.Where(t => t != null && t.InteractiveInputActive).Distinct().ToList();
             OpenBootChangeWindows(targets, cmd);
             BroadcastResult r;
-            try { r = await CommandBroadcaster.SendToAllAsync(targets, cmd, source); }
+            try { r = await CommandBroadcaster.SendToAllAsync(targets.Where(t => !busy.Contains(t)).ToList(), cmd, source); }
             finally { _sending = false; UpdateTargets(); }
+            foreach (CardSession s in busy) r.Failed.Add(new KeyValuePair<CardSession, string>(s, "boot ayarları sürüyor"));
             ReportBroadcast(cmd, r, fromInput);
         }
 

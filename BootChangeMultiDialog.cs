@@ -147,9 +147,24 @@ namespace Vision
             return true;
         }
 
+        /// <summary>
+        /// Kilitli komut satırına tıklanınca: kartın boot ekranını öne getirir (çok kartlı pencerede o kart seçilir).
+        /// </summary>
+        public static void Reveal(CardSession session)
+        {
+            BootChangePanel p = BootChangePanel.Find(session);
+            Form f = p != null ? p.FindForm() : null;
+            if (f == null || f.IsDisposed) return;
+            var d = f as BootChangeMultiDialog;
+            if (d != null) d.ShowPanel(p, true);
+            if (f.WindowState == FormWindowState.Minimized) f.WindowState = FormWindowState.Normal;
+            f.Activate();
+        }
+
         private BootChangePanel AddCard(CardSession s, string command)
         {
-            var p = new BootChangePanel(s, command) { Dock = DockStyle.Fill, Visible = false };
+            // Genel komuttan açılan pencerede kartın komut satırı kilitlenir: yanlışlıkla yazılan şey boot alanına gitmesin
+            var p = new BootChangePanel(s, command, true) { Dock = DockStyle.Fill, Visible = false };
             p.StateChanged += x => { _list.InvalidatePanel(x); RefreshSummary(); };
             p.Finished += OnPanelFinished;
             p.CloseRequested += x => BeginInvoke(new Action(Close));
@@ -192,10 +207,12 @@ namespace Vision
         private void RefreshSummary()
         {
             int done = _panels.Count(p => p.Succeeded);
-            int failed = _panels.Count(p => p.IsOver && !p.Succeeded);
+            int quit = _panels.Count(p => p.QuitByUser);
+            int failed = _panels.Count(p => p.IsOver && !p.Succeeded && !p.QuitByUser);
             int waiting = _panels.Count(p => !p.IsOver && p.AwaitingUser);
-            int running = _panels.Count - done - failed - waiting;
+            int running = _panels.Count - done - quit - failed - waiting;
             var parts = new List<string> { _panels.Count + " kart", done + " tamamlandı" };
+            if (quit > 0) parts.Add(quit + " çıkıldı");
             if (waiting > 0) parts.Add(waiting + " giriş bekliyor");
             if (running > 0) parts.Add(running + " sürüyor");
             if (failed > 0) parts.Add(failed + " yapılamadı");

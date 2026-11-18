@@ -762,6 +762,14 @@ namespace Vision
         /// </summary>
         public bool InteractiveInputActive { get; set; }
 
+        /// <summary>
+        /// Genel komut çubuğundan açılan boot penceresi sürüyor (1.9): kart penceresinin komut satırı kilitli, yazılan şey
+        /// boot alanına gitmesin. Tek kart penceresinde false (terminalden de devam edilebilir).
+        /// </summary>
+        public bool BootInputLocked { get; set; }
+
+        public const string BootBusyMessage = "Kartta boot ayarları sürüyor; Boot ayarları penceresinden devam edin.";
+
         /// <summary>Kartın gönderdiği verinin (ANSI ayıklanmış, satır sonları "\n") kopyasını almaya başlar.</summary>
         public TerminalTap OpenTap()
         {
