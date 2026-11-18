@@ -285,17 +285,18 @@ namespace Vision
             ReportBroadcast(cmd, r, fromInput);
         }
 
-        /// <summary>bspBootChange / bootChange: bağlı her hedef kart için ayrı Boot ayarları penceresi açılır (G27).</summary>
+        /// <summary>
+        /// bspBootChange / bootChange: bağlı hedef kartlar için tek pencere açılır — solda kartlar ızgaradaki sırayla (grup,
+        /// IP), sağda seçilen kartın boot ekranı (1.9; önceden her karta ayrı pencere açılıyordu). Tek kart: Boot ayarları penceresi.
+        /// </summary>
         private void OpenBootChangeWindows(IList<CardSession> targets, string cmd)
         {
             if (!BootChangeParser.IsBootChangeCommand(cmd)) return;
-            int i = 0;
-            foreach (CardSession s in targets.Where(t => t != null).Distinct())
-            {
-                if (s.State != CardState.Connected || s.InteractiveInputActive || s.TransferActive) continue;
-                try { BootChangeDialog.Begin(s, FindForm(), cmd, i++); }
-                catch (Exception ex) { ErrorText.LogTechnical(s.Card.DisplayName + " boot ayarları penceresi", ex); }
-            }
+            List<CardSession> cards = targets.Where(t => t != null).Distinct()
+                .Where(s => s.State == CardState.Connected && !s.InteractiveInputActive && !s.TransferActive).ToList();
+            if (cards.Count == 0) return;
+            try { BootChangeMultiDialog.Begin(cards, FindForm(), cmd); }
+            catch (Exception ex) { ErrorText.LogTechnical("boot ayarları penceresi (genel)", ex); }
         }
 
         private async void Input_KeyDown(object sender, KeyEventArgs e)

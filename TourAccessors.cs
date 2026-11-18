@@ -31,14 +31,15 @@ namespace Vision
             return session != null && OpenDialogs.TryGetValue(session, out d) && !d.IsDisposed && d.Visible ? d : null;
         }
 
-        internal Control[] TourStatus { get { return new Control[] { _title, _status }; } }
-        internal Control[] TourCurrent { get { return new Control[] { _currentCaption, _currentLabel, _currentValue }; } }
-        internal Control[] TourInput { get { return new Control[] { _input, _send }; } }
-        internal Control[] TourActions { get { return new Control[] { _keep, _edit, _clear, _prev, _skipRest, _quit }; } }
-        internal Control TourList { get { return _list; } }
-        internal Control TourLogs { get { return _logBar; } }
-        internal Control TourClose { get { return _close; } }
-        internal Control[] TourRecords { get { return new Control[] { _records, _saveRecord }; } }
+        // İçerik BootChangePanel'de (1.9): tur aynı bölümleri oradan vurgular
+        internal Control[] TourStatus { get { return _panel.TourStatus; } }
+        internal Control[] TourCurrent { get { return _panel.TourCurrent; } }
+        internal Control[] TourInput { get { return _panel.TourInput; } }
+        internal Control[] TourActions { get { return _panel.TourActions; } }
+        internal Control TourList { get { return _panel.TourList; } }
+        internal Control TourLogs { get { return _panel.TourLogs; } }
+        internal Control TourClose { get { return _panel.TourClose; } }
+        internal Control[] TourRecords { get { return _panel.TourRecords; } }
     }
 
     public sealed partial class FileExplorerView

@@ -86,6 +86,12 @@
     <Compile Include="BootChangeDialog.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="BootChangePanel.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="BootChangeMultiDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="CommandResponses.cs" />
     <Compile Include="TerminalSnapshot.cs" />
     <Compile Include="FileExplorerLogic.cs" />
