@@ -271,13 +271,13 @@ namespace Vision
             }
         }
 
+        // Metnin tamamı kopyalanmadan (hızlı log akışında her 50 ms'de çağrılır) son satırın uzunluğu
         private int CurrentLineLength()
         {
             int len = _output.TextLength;
             if (len == 0) return 0;
-            string t = _output.Text;
-            int nl = t.LastIndexOf('\n');
-            return len - (nl + 1);
+            int start = _output.GetFirstCharIndexFromLine(_output.GetLineFromCharIndex(len));
+            return start < 0 ? 0 : len - start;
         }
 
         private bool IsAtBottom()
@@ -289,7 +289,7 @@ namespace Vision
 
         private void TrimLines()
         {
-            int lines = _output.Lines.Length;
+            int lines = _output.GetLineFromCharIndex(_output.TextLength) + 1;
             if (lines <= SerialSession.MaxLines) return;
             int cut = _output.GetFirstCharIndexFromLine(lines - SerialSession.MaxLines);
             if (cut <= 0) return;
