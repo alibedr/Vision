@@ -19,8 +19,10 @@ namespace VisionTests
         /// <summary>Bilgisayarda çalışan sahte kart: bağlantıları kabul eder, istendiğinde kapatır.</summary>
         private sealed class FakeServer : IDisposable
         {
-            private readonly TcpListener _listener = new TcpListener(IPAddress.Loopback, 0);
+            private TcpListener _listener = new TcpListener(IPAddress.Loopback, 0);
             private readonly List<TcpClient> _clients = new List<TcpClient>();
+            private int _port;
+            private bool _disposed;
             /// <summary>Bu kadar bağlantı kabul edilip hemen kapatılır (tutmayan bağlantı).</summary>
             public int DropNext;
             public int Accepted;
@@ -28,17 +30,30 @@ namespace VisionTests
             public FakeServer()
             {
                 _listener.Start();
-                Loop();
+                _port = ((IPEndPoint)_listener.LocalEndpoint).Port;
+                Loop(_listener);
             }
 
-            public int Port { get { return ((IPEndPoint)_listener.LocalEndpoint).Port; } }
+            public int Port { get { return _port; } }
 
-            private async void Loop()
+            /// <summary>Kart yeniden başlıyor: bağlantılar kesilir, port <paramref name="ms"/> boyunca kapalı kalır.</summary>
+            public async Task RebootAsync(int ms)
+            {
+                _listener.Stop();
+                CloseAll();
+                await Task.Delay(ms);
+                if (_disposed) return;
+                _listener = new TcpListener(IPAddress.Loopback, _port);
+                _listener.Start();
+                Loop(_listener);
+            }
+
+            private async void Loop(TcpListener listener)
             {
                 while (true)
                 {
                     TcpClient c;
-                    try { c = await _listener.AcceptTcpClientAsync(); }
+                    try { c = await listener.AcceptTcpClientAsync(); }
                     catch { return; }
                     lock (_clients)
                     {
@@ -69,6 +84,7 @@ namespace VisionTests
 
             public void Dispose()
             {
+                _disposed = true;
                 _listener.Stop();
                 CloseAll();
             }
@@ -82,8 +98,10 @@ namespace VisionTests
             var card = new CardConfig { Ip = "127.0.0.1", Group = group };
             group.Cards.Add(card);
             var settings = new AppSettings();
-            settings.Monitor.ReconnectMinMs = 200;
-            settings.Monitor.ReconnectMaxMs = 400;
+            // Yeniden bağlanma aralıkları testte kısaltılır (gerçekte 2 sn / 30 sn / 15 sn, G53)
+            CardSession.OwnRebootRetryMs = 150;
+            CardSession.UnplannedFirstDelayMs = 300;
+            CardSession.UnplannedRetryMs = 200;
             settings.Monitor.ReconnectTimeoutMs = 1000;
             settings.Monitor.StableAfterMs = 1500;
             settings.LogToFile = false;
@@ -112,6 +130,9 @@ namespace VisionTests
 
         private static void Release(CardSession s, string folder)
         {
+            CardSession.OwnRebootRetryMs = 2000;
+            CardSession.UnplannedFirstDelayMs = 30000;
+            CardSession.UnplannedRetryMs = 15000;
             s.Dispose();
             CardEventLog.FolderOverride = null;
             try { Directory.Delete(folder, true); } catch { }
@@ -205,6 +226,71 @@ namespace VisionTests
         {
             var f = typeof(CardSession).GetField("_settings", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             ((AppSettings)f.GetValue(s)).Monitor.RebootReturnMs = ms;
+        }
+
+        [Test]
+        public async Task Baglanti_RebootuAtanIlkBaglanir()
+        {
+            // İki kişi aynı karta bağlı (kartlara birden çok kişi bağlanabilir; loglar ilk bağlanana gider).
+            // B reboot atar: kart açılınca önce B'nin Vision'ı bağlanmalı, A'nınki habersiz kopma olarak bekler (G53).
+            using (var server = new FakeServer())
+            {
+                string folder;
+                CardSession a = Session(server, out folder);
+                CardSession b = Session(server, out folder);
+                try
+                {
+                    CardSession.UnplannedFirstDelayMs = 1500;   // kartın açılmasından (700 ms) uzun
+                    CardSession.UnplannedRetryMs = 1000;
+                    await a.ConnectAsync();
+                    await b.ConnectAsync();
+                    await b.SendCommandAsync("reboot", "test");
+                    await Task.Delay(100);
+                    Task boot = server.RebootAsync(700);
+                    DateTime end = DateTime.UtcNow.AddSeconds(15);
+                    while (!(a.State == CardState.Connected && b.State == CardState.Connected && !a.InOutage && !b.InOutage))
+                    {
+                        if (DateTime.UtcNow > end) throw new CheckFailedException("İki oturum da geri gelmedi: A " + a.State + ", B " + b.State);
+                        a.MonitorTick(DateTime.UtcNow);
+                        b.MonitorTick(DateTime.UtcNow);
+                        await Task.Delay(30);
+                    }
+                    await boot;
+                    Check.True(b.ConnectedSinceUtc.Value < a.ConnectedSinceUtc.Value,
+                               "reboot'u atan (B) önce bağlanmalı: B " + b.ConnectedSinceUtc.Value.ToString("HH:mm:ss.fff") +
+                               ", A " + a.ConnectedSinceUtc.Value.ToString("HH:mm:ss.fff"));
+                    Check.Equal(0, Count(b.AttachView(), CardSession.AlertPrefix), "B'de kırmızı uyarı yok");
+                    Check.Equal(1, Count(a.AttachView(), CardSession.AlertPrefix), "A için habersiz kopma: bir kez kırmızı uyarı");
+                }
+                finally { a.Dispose(); Release(b, folder); }
+            }
+        }
+
+        [Test]
+        public async Task Baglanti_HabersizKopmadaIlkDenemeBekler()
+        {
+            using (var server = new FakeServer())
+            {
+                string folder;
+                CardSession s = Session(server, out folder);
+                try
+                {
+                    CardSession.UnplannedFirstDelayMs = 1500;
+                    await s.ConnectAsync();
+                    int before = server.Accepted;
+                    server.CloseAll();
+                    await WaitFor(s, () => s.State == CardState.Recovering, 5000, "kopma algılandı");
+                    DateTime dropped = DateTime.UtcNow;
+                    while ((DateTime.UtcNow - dropped).TotalMilliseconds < 1000)
+                    {
+                        s.MonitorTick(DateTime.UtcNow);
+                        await Task.Delay(40);
+                    }
+                    Check.Equal(before, server.Accepted, "habersiz kopmada ilk bekleme süresinde yeniden bağlanılmamalı");
+                    await WaitFor(s, () => s.State == CardState.Connected, 5000, "bekleme sonrası bağlandı");
+                }
+                finally { Release(s, folder); }
+            }
         }
 
         [Test]

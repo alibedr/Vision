@@ -113,8 +113,6 @@ namespace Vision
             KeepAliveProbeCount = 3;
             RetransmitTimeoutSec = 10;
             AutoReconnect = true;
-            ReconnectMinMs = 3000;
-            ReconnectMaxMs = 15000;
             ReconnectTimeoutMs = 3000;
             TelnetNopHeartbeat = false;
             HeartbeatIntervalMs = 5000;
@@ -141,8 +139,8 @@ namespace Vision
         public int RetransmitTimeoutSec { get; set; }
         /// <summary>Bağlıyken kopan kart, ulaşılabilir olunca kendiliğinden yeniden bağlansın.</summary>
         public bool AutoReconnect { get; set; }
-        public int ReconnectMinMs { get; set; }
-        public int ReconnectMaxMs { get; set; }
+        // Yeniden bağlanma aralıkları 1.7'den beri ayar değil (CardSession.OwnRebootRetryMs / UnplannedFirstDelayMs /
+        // UnplannedRetryMs, G53). Eski config.xml'deki ReconnectMinMs / ReconnectMaxMs okunurken yok sayılır.
         public int ReconnectTimeoutMs { get; set; }
         /// <summary>İsteğe bağlı: boştaki bağlantıya telnet NOP gönder (varsayılan kapalı; keepalive yeterli).</summary>
         public bool TelnetNopHeartbeat { get; set; }
@@ -160,12 +158,6 @@ namespace Vision
             };
         }
 
-        /// <summary>n'inci başarısız denemeden sonraki bekleme: 3, 6, 12, 15, 15… sn</summary>
-        public TimeSpan ReconnectDelay(int failedAttempts)
-        {
-            double ms = ReconnectMinMs * Math.Pow(2, Math.Max(0, failedAttempts - 1));
-            return TimeSpan.FromMilliseconds(Math.Min(ReconnectMaxMs, Math.Max(ReconnectMinMs, ms)));
-        }
     }
 
     /// <summary>Yeniden başlatma komutu seçimi: "reboot" ya da "reboot 2".</summary>

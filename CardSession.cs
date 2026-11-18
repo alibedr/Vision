@@ -49,6 +49,7 @@ namespace Vision
         private DateTime? _stablePendingSinceUtc;   // yeniden bağlandı, henüz kalıcı sayılmadı
         private int _flaps;                         // bu kesintide tutmayan yeniden bağlanma sayısı
         private bool _outageIsReboot;               // bu kesinti planlı bir yeniden başlatma
+        private bool _ownRebootRetry;               // bu kesintiyi kendi reboot'umuz başlattı: sık dene (G53)
         private DateTime? _plannedRebootUtc;        // karta en son reboot benzeri komutun gönderildiği an
         private string _plannedRebootCommand;
         private readonly LineNormalizer _normalizer = new LineNormalizer();
@@ -294,9 +295,23 @@ namespace Vision
             return cmd != null && RebootCommand.IsMatch(cmd);
         }
 
+        // ---------- Yeniden bağlanma aralıkları (G53) ----------
+        // Kartlara birden çok kişi bağlanabilir ama kartın logları kart açıldıktan sonra İLK bağlanan oturuma gider.
+        // Reboot'u atanın Vision'ı sık dener, diğerleri önce bekler: kart açılınca loglar reboot'u atana gelir.
+        // Süre sınırı yok: kart gelene kadar denenir (olay günlüğüne toplam kesinti süresi yazılır). Değerler bilerek
+        // ayar dosyasında değil; testler kısaltabilsin diye static.
+
+        /// <summary>Kendi gönderdiğimiz reboot'tan sonra deneme aralığı.</summary>
+        internal static int OwnRebootRetryMs = 2000;
+        /// <summary>Habersiz kopmada ilk denemeden önceki bekleme.</summary>
+        internal static int UnplannedFirstDelayMs = 30000;
+        /// <summary>Habersiz kopmada sonraki denemelerin aralığı.</summary>
+        internal static int UnplannedRetryMs = 15000;
+
         /// <summary>Kesinti bilgisini sıfırlar (kilit içinde çağrılır).</summary>
         private void ResetOutage()
         {
+            _ownRebootRetry = false;
             _droppedAtUtc = null;
             _stablePendingSinceUtc = null;
             _flaps = 0;
@@ -337,8 +352,12 @@ namespace Vision
                 reboot = _outageIsReboot;
                 rebootCmd = _plannedRebootCommand ?? "reboot";
                 rebootAt = _plannedRebootUtc ?? now;
+                if (!flap) _ownRebootRetry = _outageIsReboot;
                 _recoverFailures = 0;
-                _nextRecoverUtc = now + TimeSpan.FromMilliseconds(o.ReconnectMinMs);
+                // Yeniden bağlanma sırası (G53): reboot'u bu Vision attıysa hemen ve sık dener (kart açılınca loglar ona
+                // gelsin); habersiz kopmada önce bekler (reboot'u atan başkasıysa önce o bağlansın), sonra seyrek dener.
+                _nextRecoverUtc = now + TimeSpan.FromMilliseconds(_ownRebootRetry ? OwnRebootRetryMs
+                                                                  : flap ? UnplannedRetryMs : UnplannedFirstDelayMs);
             }
             ResetResponses("bağlantı koptu");
             Exception cause = _client.LastError;
@@ -527,7 +546,7 @@ namespace Vision
                 {
                     if (gen != _connectGeneration) return false;
                     failures = ++_recoverFailures;
-                    _nextRecoverUtc = DateTime.UtcNow + o.ReconnectDelay(failures);
+                    _nextRecoverUtc = DateTime.UtcNow + TimeSpan.FromMilliseconds(_ownRebootRetry ? OwnRebootRetryMs : UnplannedRetryMs);
                 }
                 if (failures == 1) ErrorText.LogTechnical(Card.DisplayName + " yeniden bağlanma", ex);
                 return false;
