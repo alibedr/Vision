@@ -127,7 +127,12 @@ jobs:
             Write-Output "::warning::$tag zaten yayınlanmış; yeni sürüm için AppInfo.Version artırılmalı"
             exit 0
           }
-          $notes = "Kurulum: Vision.zip'i açın, Vision klasörünü bütün olarak kopyalayıp Vision.exe'yi çalıştırın " +
-                   "(.NET Framework 4.6.1+; Sentinel sayfası için Microsoft Edge WebView2 Runtime)."
-          gh release create $tag Vision.zip --target $sha --title "Vision $version" --notes $notes --generate-notes --latest
+          # Sürüm notları depodaki release/SurumNotlari.md'den (birleştirmeden önce güncellenir); dosya ayrıca ek olarak konur
+          if (Test-Path release/SurumNotlari.md) {
+            gh release create $tag Vision.zip release/SurumNotlari.md --target $sha --title "Vision $version" --notes-file release/SurumNotlari.md --latest
+          } else {
+            $notes = "Kurulum: Vision.zip'i açın, Vision klasörünü bütün olarak kopyalayıp Vision.exe'yi çalıştırın " +
+                     "(.NET Framework 4.6.1+; Sentinel sayfası için Microsoft Edge WebView2 Runtime)."
+            gh release create $tag Vision.zip --target $sha --title "Vision $version" --notes $notes --latest
+          }
           exit $LASTEXITCODE
