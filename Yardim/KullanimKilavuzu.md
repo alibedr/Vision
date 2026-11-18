@@ -368,17 +368,21 @@ Kart terminalinden (komut satırı, hızlı komut ya da genel komut çubuğu) `b
 - **Değeri düzenle** (F2): kartın değerini kutuya kopyalar; küçük bir değişiklik yapıp Enter'a basın.
 - **Temizle (.)**: alanı boşaltır. **◀ Önceki alan**: bir önceki alana döner (karta `-` gönderilir).
 - Listede bir alana **çift tıklayın**: kart o alana gelene kadar alanlar değiştirilmeden geçilir (geri gitmek için `-` gönderilir).
-- **Kalanları geçip bitir**: kalan alanların hepsi değiştirilmeden geçilir; girdiğiniz değerler kaydedilir. **Çık (Ctrl+D)**: komuttan hemen çıkar (kartın imajına göre değişiklikler kaydedilmeyebilir).
+- **Kalanları geçip bitir**: kalan alanların hepsi değiştirilmeden geçilir; girdiğiniz değerler kaydedilir. **Çık (Ctrl+D)** (kırmızı, her zaman görünür; pencere darsa düğmeler iki satıra dizilir): komuttan hemen çıkar. Kartın imajına göre girdiğiniz değerler kaydedilmeyebilir; bu yüzden sonrasında yeşil "Bitti" değil turuncu **"Çıkıldı (Ctrl+D)"** yazar ve **Bu ayarları kaydet…** kullanılamaz. Değişiklik yaptıysanız **Kalanları geçip bitir** daha güvenlidir.
 - Kart bir alanı sorarken aynı anda log gelirse ve alanın değeri logdan güvenle ayrılamazsa, değer yerine sarı **"okunamadı (araya log girdi) — terminale bakın"** yazar. Bu yalnız görüntüdür; karta bir şey yazılmaz. Kartın gerçek değerini terminalde görebilirsiniz.
 - Değiştirdiğiniz alanlar listede `eski → yeni` olarak görünür. Komut bitince kaç alanın değiştiği yazar; yeni boot ayarları genellikle kart yeniden başlatılınca geçerli olur.
 - **Araya giren kart logları** (alt şerit, tıklayınca açılır): bu sırada gelen loglar kaybolmaz, burada toplanır. Kartın tüm çıktısı terminalde de görünmeye devam eder.
 - Pencere kart bitirmeden kapatılırsa sorulur: **Kalanları geçip bitir**, **Yalnız pencereyi kapat** (terminalden devam edersiniz) ya da **Vazgeç**.
 - Pencere açıkken o kartta Dosya Gezgini gibi arka plan komutları gönderilmez (gönderilseler alan değeri olarak yazılırdı); pencere bitince yeniden çalışır.
+- Komut bitene kadar kart penceresinde karta komut gönderen düğmeler (**hızlı komut**, **reboot**, **Sentinel**) kilitlidir; genel komut çubuğundan gönderilen komut, hızlı komut ve reboot da bu kartı atlar ("boot ayarları sürüyor" olarak bildirilir). Hepsinin değeri, kartın o an sorduğu boot alanına yazılırdı. Komut bitince ya da pencereden çıkınca düğmeler yeniden kullanılabilir.
+- Tek kart penceresinde kartın komut satırı açık kalır (istenirse terminalden de devam edilebilir).
 - **Genel komut çubuğundan gönderildiyse** her kart için ayrı pencere açılmaz; **tek pencere** açılır (birden çok bağlı kart varsa):
   - **Solda kartlar**, ızgaradaki sırayla (grup, sonra IP), her birinin durumuyla: *Kartın cevabı bekleniyor*, *Giriş bekliyor: (alan)*, *Sürüyor*, *✓ Tamamlandı — N alan değişti*, *✕ Tamamlanamadı (neden)*. Altta özet: "8 kart · 3 tamamlandı · 1 giriş bekliyor · 4 sürüyor".
   - **Sağda seçilen kartın boot ekranı**: tek kart penceresiyle aynı (alanlar, düğmeler, araya giren loglar, **Bu ayarları kaydet…**, **Boot ayarı kayıtları…**).
+  - Bu pencere açıkken kartların **komut satırı kilitlidir**: gri görünür ve "Boot ayarları sürüyor — pencereden devam edin" yazar; yanlışlıkla yazılan bir şey boot alanına gitmez. Komut satırına tıklamak bu pencereyi öne getirir ve o kartı seçer. Kartın komutu bitince (ya da çıkılınca) kilit kalkar.
   - Komut **bütün kartlara aynı anda** gider; listeden istediğiniz karta tıklayıp geçebilirsiniz. Gösterilen kart bitince sıradaki bitmemiş karta kendiliğinden geçilir.
-  - Bir karttan değişiklik yapmadan çıkmak için o kartta **Kalanları geçip bitir** (girilenler kaydedilir) ya da **Çık (Ctrl+D)**.
+  - Bir karttan değişiklik yapmadan çıkmak için o kartta **Kalanları geçip bitir** (girilenler kaydedilir) ya da **Çık (Ctrl+D)**; listede "Çıkıldı (Ctrl+D)" yazar.
+  - **Bu ayarları kaydet…** yalnız seçili kartın ayarlarını o kartın kayıtlarına ekler (toplu kayıt yoktur).
   - Pencere bütün kartlar bitmeden kapatılırsa sorulur: **Kalanları değiştirmeden bitir ve kapat** bitmemiş kartların kalan alanlarını değiştirmeden geçer (girilen değerler kaydedilir) ve bitince pencereyi kapatır; hiçbir kart boot ekranında beklemez. **Vazgeç** pencereyi açık bırakır.
   - Bu sırada bir karta kendi terminalinden yeniden `bspBootChange` yazılırsa komut bu pencerede, o kartın ekranında yeniden başlar. Kendi Boot ayarları penceresi zaten açık olan kart o pencerede yeniden başlar.
   - Bütün kartlara **aynı** ayarları vermek için: bir kartın ayarlarını **Bu ayarları kaydet…** ile kaydedip **Boot ayarı kayıtları** penceresinden diğer kartlara uygulayın (aşağıya bakın).
