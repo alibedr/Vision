@@ -126,7 +126,7 @@ namespace Vision
             _empty.Dock = DockStyle.Fill;
             _empty.TextAlign = ContentAlignment.MiddleCenter;
             _empty.BackColor = Theme.Input;
-            var header = new PlanHeader { Dock = DockStyle.Top, Height = 24 };
+            var header = new PlanHeader { Dock = DockStyle.Top, Height = 24, Content = _plan };
             right.Controls.Add(_empty);
             right.Controls.Add(_plan);
             right.Controls.Add(header);
@@ -648,6 +648,12 @@ namespace Vision
                 using (var p = new Pen(Theme.RowDivider)) g.DrawLine(p, e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
             }
 
+            protected override void OnClientSizeChanged(EventArgs e)
+            {
+                base.OnClientSizeChanged(e);
+                Invalidate();   // kısaltılan (…) adlar yeni genişliğe göre yeniden çizilsin
+            }
+
             protected override void Dispose(bool disposing)
             {
                 if (disposing) _bold.Dispose();
@@ -659,16 +665,33 @@ namespace Vision
 
         private sealed class PlanHeader : Control
         {
+            private Control _content;
+
             public PlanHeader()
             {
                 SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
+            }
+
+            /// <summary>
+            /// Başlığın hizalandığı liste: sütunlar listenin iç genişliğinden (dikey kaydırma çubuğu hariç) hesaplanır ve liste
+            /// boyut değiştirince başlık da yeniden çizilir — satırlarla aynı yerde durur.
+            /// </summary>
+            public Control Content
+            {
+                get { return _content; }
+                set
+                {
+                    _content = value;
+                    if (value != null) value.ClientSizeChanged += (s, e) => Invalidate();
+                }
             }
 
             protected override void OnPaint(PaintEventArgs e)
             {
                 using (var b = new SolidBrush(Theme.Input)) e.Graphics.FillRectangle(b, ClientRectangle);
                 const TextFormatFlags f = TextFormatFlags.NoPadding | TextFormatFlags.SingleLine | TextFormatFlags.VerticalCenter;
-                int col = (Width - LabelColumn - 16) / 2;
+                int width = _content != null ? _content.ClientSize.Width : Width;
+                int col = (width - LabelColumn - 16) / 2;
                 TextRenderer.DrawText(e.Graphics, "ALAN", Theme.SectionHeader, new Rectangle(8, 0, LabelColumn, Height), Theme.TextMuted, f);
                 TextRenderer.DrawText(e.Graphics, "KAYITTAKİ", Theme.SectionHeader, new Rectangle(8 + LabelColumn, 0, col, Height), Theme.TextMuted, f);
                 TextRenderer.DrawText(e.Graphics, "KARTTAKİ (ŞU AN)", Theme.SectionHeader, new Rectangle(8 + LabelColumn + col, 0, col, Height), Theme.TextMuted, f);
@@ -728,6 +751,14 @@ namespace Vision
             }
 
             private static string Show(string v) { return v.Length == 0 ? "(boş)" : v; }
+
+            // Sütun genişlikleri liste genişliğine bağlı: boyut değişince ListBox yalnız yeni açılan alanı çizer, eski satırlar
+            // eski sütun yerlerinde kalırdı (tıklanınca yerine atlıyordu). Tüm satırlar yeniden çizilir.
+            protected override void OnClientSizeChanged(EventArgs e)
+            {
+                base.OnClientSizeChanged(e);
+                Invalidate();
+            }
 
             protected override void Dispose(bool disposing)
             {

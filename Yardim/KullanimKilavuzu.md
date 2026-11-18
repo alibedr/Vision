@@ -761,7 +761,11 @@ Yazılışta her satır ayrı bir örnektir; satır sonundaki ` // açıklama` k
 Uygulama, bağlı kartların ulaşılabilirliğini komut beklemeden sürekli denetler. Denetim **TCP keepalive** ile mevcut bağlantı üzerinden yapılır: işletim sistemi boştaki bağlantıya küçük yoklama paketleri gönderir; bunları kartın kabuğu değil TCP yığını cevaplar. Terminale hiçbir şey yazılmaz, komutlarla çakışmaz, ek bağlantı açılmaz.
 
 - **Algılama:** Varsayılan ayarlarla kart kapandığında ya da kablosu çekildiğinde kopma yaklaşık **6–9 saniyede** algılanır. Tek bir kayıp yoklama kopma sayılmaz; 3 ardışık cevapsız yoklama gerekir. Birkaç saniyelik geçici kesintiler uyarı üretmez.
-- **Yeniden bağlanma:** Kopan kart, ulaşılabilir olunca aynı oturum üzerinden kendiliğinden yeniden bağlanır. Denemeler 3, 6, 12, 15, 15… saniye aralıklarla yapılır; başarısız denemeler ve bağlanıp hemen kopan bağlantılar sessizdir. Kesinti ekrana ve olay günlüğüne yalnız bir kez (kopma) ve kalıcı bağlantıda bir kez (toplam süre) yazılır.
+- **Yeniden bağlanma:** Kopan kart, ulaşılabilir olunca aynı oturum üzerinden kendiliğinden yeniden bağlanır; kart gelene kadar süre sınırı olmadan denenir. Başarısız denemeler ve bağlanıp hemen kopan bağlantılar sessizdir.
+  - **Karta reboot'u bu Vision gönderdiyse:** kart açılana kadar **2 saniyede bir** denenir.
+  - **Bağlantı habersiz koptuysa** (kartı başka biri yeniden başlattı, kart çöktü, ağ gitti): ilk deneme **30 saniye sonra**, sonra **15 saniyede bir**.
+  - Neden: kartlara birden çok kişi bağlanabilir ama kartın logları kart açıldıktan sonra **ilk bağlanan** oturuma gider. Reboot'u atanın Vision'ı önce bağlanır, loglar ona gelir; o kartta bağlı olan diğer kişilerin Vision'ı biraz sonra bağlanır (komut gönderebilirler, loglar onlara gelmez).
+  - Bu süreler ayar dosyasında değildir. Kesinti ekrana ve olay günlüğüne yalnız bir kez (kopma) ve kalıcı bağlantıda bir kez (toplam süre) yazılır.
 - **Durdurma:** Kopmuş kartta **Bağlantıyı Kes** derseniz otomatik yeniden bağlanma durur.
 - **Kapsam:** Hiç bağlanmadığınız kartlara izleme amacıyla bağlantı açılmaz.
 
@@ -776,7 +780,6 @@ Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındak
 | `KeepAliveProbeCount` | 3 | Kopma için ardışık cevapsız yoklama sayısı. |
 | `RetransmitTimeoutSec` | 10 | Gönderilen veri onaylanmazsa bağlantının düşürüleceği süre (sn). |
 | `AutoReconnect` | true | Kopan kart otomatik yeniden bağlansın. |
-| `ReconnectMinMs` / `ReconnectMaxMs` | 3000 / 15000 | Yeniden bağlanma denemeleri arası en kısa / en uzun süre. |
 | `ReconnectTimeoutMs` | 3000 | Her yeniden bağlanma denemesinin zaman aşımı. |
 | `StableAfterMs` | 5000 | Yeniden kurulan bağlantı bu kadar tutunca kalıcı sayılır ve kesinti süresi yazılır; daha önce koparsa aynı kesintinin devamıdır. |
 | `RebootDropWindowMs` | 60000 | Reboot gönderildikten sonra bu süre içindeki kopma beklenen kopmadır (kırmızı uyarı yok). |
