@@ -207,5 +207,37 @@ namespace VisionTests
             Check.SameBytes(data, card.CardFiles["/ata0a/yedek/a.bin"], "taşınan");
             NoLeftovers(card);
         }
+    
+
+        [Test]
+        public async Task Klasor_KopyalanamayanlarAtlanirSondaListelenir()
+        {
+            // 9 dosyalık klasör: f2 FTP'ye gönderilemez, f3–f7 kartta kopyalanamaz, f8 eksik yazılır (boyut tutmaz).
+            // Kalanlar (f1, f9 ve alt klasördeki g1) yine de karta yüklenmeli; ekranda ilk 5 + "…", olay günlüğünde hepsi.
+            string root = TempDir();
+            string dir = Path.Combine(root, "paket");
+            Directory.CreateDirectory(Path.Combine(dir, "alt"));
+            for (int i = 1; i <= 9; i++) LocalFile(dir, "f" + i + ".bin", Data(1000 + i, i));
+            LocalFile(Path.Combine(dir, "alt"), "g1.bin", Data(500, 50));
+            var card = new FakeCard();
+            var ftp = new FakeFtp(card);
+            ftp.FailUploadOf.Add("f2.bin");
+            foreach (int i in new[] { 3, 4, 5, 6, 7 }) card.FailCopyOf.Add("/f" + i + ".bin");
+            card.TruncateCopyOf.Add("/f8.bin");
+            var b = new FileBrowser(card);
+            OpResult r = await b.UploadAsync(new[] { dir }, ftp, Settings(), null, "/ata0a", new FtpCopyTracker());
+
+            Check.True(!r.Ok, "kopyalanamayan dosya varsa başarılı sayılmaz");
+            foreach (string ok in new[] { "/ata0a/paket/f1.bin", "/ata0a/paket/f9.bin", "/ata0a/paket/alt/g1.bin" })
+                Check.True(card.CardFiles.ContainsKey(ok), "kalan dosyalar yüklenmeli: " + ok);
+            Check.True(!card.CardFiles.ContainsKey("/ata0a/paket/f2.bin"), "FTP'ye gidemeyen dosya kopyalanmaz");
+            Check.True(r.Message.Contains("7/10 dosya karta yüklenemedi"), "sayı: " + r.Message);
+            Check.True(r.Message.Contains("f2.bin (FTP'ye gönderilemedi"), "FTP hatası listede: " + r.Message);
+            Check.True(r.Message.Contains("… (+2)") && !r.Message.Contains("f8.bin"), "ekranda ilk 5 + …: " + r.Message);
+            string log = string.Join("\n", card.Events);
+            foreach (string name in new[] { "f2.bin", "f3.bin", "f4.bin", "f5.bin", "f6.bin", "f7.bin", "f8.bin (doğrulama" })
+                Check.True(log.Contains(name), "olay günlüğünde tam liste: " + name + " yok — " + log);
+            Directory.Delete(root, true);
+        }
     }
 }

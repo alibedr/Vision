@@ -479,8 +479,18 @@ namespace Vision
         /// <summary>Hata değil uyarı (ör. içine girilemeyen cihaz): uyarı rengiyle gösterilir.</summary>
         public bool IsWarning { get; set; }
 
+        /// <summary>Olay günlüğü için tam ayrıntı (ekrandaki ileti kısaltılmışsa, ör. ilk 5 dosyadan sonrası "…"); yoksa null.</summary>
+        public string Detail { get; set; }
+
         public static OpResult Success(string message) { return new OpResult { Ok = true, Message = message }; }
         public static OpResult Fail(string message) { return new OpResult { Ok = false, Message = message }; }
+    }
+
+    /// <summary>Klasör yüklemesinde kopyalanamayan dosyalar: ekran için kısa (ilk 5 + "…"), olay günlüğü için tam liste.</summary>
+    public sealed class FolderCopyFailure
+    {
+        public string Short;
+        public string Full;
     }
 
     /// <summary>
@@ -1306,6 +1316,8 @@ namespace Vision
             destDir = destDir ?? Current.Path;
             int ok = 0;
             var failures = new List<string>();
+            // Ekrandaki kısa iletinin olay günlüğüne yazılacak tam hali (klasördeki kopyalanamayan dosyaların hepsi)
+            var fullOf = new Dictionary<string, string>();
             var verify = new List<KeyValuePair<string, long>>();   // tek copy ile yüklenen dosyalar: boyut doğrulaması
             BeginWork("yükleme");
             try
@@ -1375,6 +1387,7 @@ namespace Vision
                     if (nameProblem != null) { failures.Add(name + ": " + nameProblem); continue; }
                     bool inParts = !isDir && fileBytes >= PartThresholdBytes;
                     if (tracker != null && !inParts) tracker.Add(name, isDir);
+                    var ftpFailed = new List<KeyValuePair<string, Exception>>();
 
                     // 1) FTP sunucusuna gönder (büyük dosya aşağıda parça parça gönderilir)
                     PendingCommand = "FTP'ye gönderiliyor " + step;
@@ -1384,7 +1397,8 @@ namespace Vision
                     {
                         if (!inParts) _tp.StartFtp("FTP'ye gönderiliyor", isDir ? plan.SmallBytes : fileBytes);
                         // Klasördeki büyük dosyalar burada gönderilmez: kartta kopyalanırken parça parça gider (G42)
-                        if (isDir) await uploader.UploadDirectoryAsync(local, name, _tp.FtpBytes, _tp.Token, f => LocalSize(f) < PartThresholdBytes);
+                        // Gönderilemeyen dosya atlanır, klasörün kalanı gider; sonda listelenir
+                        if (isDir) await uploader.UploadDirectoryAsync(local, name, _tp.FtpBytes, _tp.Token, f => LocalSize(f) < PartThresholdBytes, ftpFailed);
                         else if (!inParts) await uploader.UploadFileAsync(local, name, _tp.FtpBytes, _tp.Token);
                         else await uploader.EnsureWorkFolderAsync();
                         _tp.EndFtp();
@@ -1413,10 +1427,12 @@ namespace Vision
                     string dst = FsPath.Join(destDir, name);
                     if (isDir)
                     {
-                        string dirFailure = await CopyFolderFromFtpAsync(plan, src, dst, step, progress, uploader, settings, tracker);
+                        FolderCopyFailure dirFailure = await CopyFolderFromFtpAsync(plan, src, dst, step, progress, uploader, settings, tracker, ftpFailed);
                         if (dirFailure != null)
                         {
-                            failures.Add(name + ": " + dirFailure);
+                            string shortText = name + ": " + dirFailure.Short;
+                            failures.Add(shortText);
+                            fullOf[shortText] = name + ": " + dirFailure.Full;
                             if (Error != null || _tp.CancelRequested) break;      // eksik komut / bağlantı koptu / iptal: sonraki öğeler denenmez
                             continue;
                         }
@@ -1487,12 +1503,20 @@ namespace Vision
                     Notice = ok + " öğe karta yüklendi → " + destDir + (modeNote != null ? "  ·  " + modeNote : "");
                     return OpResult.Success(Notice);
                 }
+                string detail = null;
                 if (Error == null)
                 {
                     Error = (ok > 0 ? ok + " öğe yüklendi; " : "") + failures.Count + " öğe yüklenemedi: " + string.Join(" · ", failures);
                     ErrorIsWarning = false;
+                    string full = (ok > 0 ? ok + " öğe yüklendi; " : "") + failures.Count + " öğe yüklenemedi: " +
+                                  string.Join(" · ", failures.Select(f => { string x; return fullOf.TryGetValue(f, out x) ? x : f; }));
+                    if (full != Error) detail = full;
                 }
-                return OpResult.Fail(Error);
+                else if (failures.Count > 0)
+                {
+                    detail = Error + "  ·  " + string.Join(" · ", failures.Select(f => { string x; return fullOf.TryGetValue(f, out x) ? x : f; }));
+                }
+                return new OpResult { Ok = false, Message = Error, Detail = detail };
             }
             finally
             {
@@ -1822,9 +1846,16 @@ namespace Vision
         /// Bir dosya kopyalanamazsa diğerleri denenmeye devam eder; bağlantı koparsa ya da komut kartta yoksa durur.
         /// Dönüş: sorun yoksa null, varsa açıklama.
         /// </summary>
-        private async Task<string> CopyFolderFromFtpAsync(FolderPlan plan, string srcRoot, string dstRoot, string step, IProgress<string> progress,
-                                                          IFileUploader uploader, TransferSettings settings, FtpCopyTracker tracker)
+        private async Task<FolderCopyFailure> CopyFolderFromFtpAsync(FolderPlan plan, string srcRoot, string dstRoot, string step, IProgress<string> progress,
+                                                          IFileUploader uploader, TransferSettings settings, FtpCopyTracker tracker,
+                                                          IList<KeyValuePair<string, Exception>> ftpFailed = null)
         {
+            var failed = new List<string>();
+            // FTP'ye gönderilemeyen dosyalar (klasörün kalanı gitti): kartta kopyalanmaz, listede nedeniyle görünür
+            var ftpReason = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (ftpFailed != null)
+                foreach (KeyValuePair<string, Exception> f in ftpFailed) ftpReason[f.Key] = FtpErrorText(f.Value);
+
             var dirs = new List<string> { "" };
             dirs.AddRange(plan.Dirs);
             foreach (string rel in dirs)
@@ -1839,30 +1870,36 @@ namespace Vision
                 if (common != null && (r.Failure != null || common.MissingCommand != null))
                 {
                     SetError(common);
-                    return "kartta " + dst + " klasörü açılamadı (" + common.Message + ")";
+                    return FolderFailure("kartta " + dst + " klasörü açılamadı (" + common.Message + ")", failed, plan.Files.Count, 0, null);
                 }
                 // Dönüş değeri 0 değilse klasör büyük olasılıkla zaten var: devam edilir, dosya kopyası sonucu belirler
             }
 
-            var failed = new List<string>();
+            var copied = new List<KeyValuePair<string, long>>();      // tek copy ile kopyalanan: sonda boyutu denetlenir
             for (int k = 0; k < plan.Files.Count; k++)
             {
                 if (_tp != null && _tp.CancelRequested)
-                    return "yükleme iptal edildi; " + k + "/" + plan.Files.Count + " dosya kopyalanmıştı";
+                    return FolderFailure("yükleme iptal edildi", failed, plan.Files.Count, k, null);
                 string rel = plan.Files[k];
+                string reason;
+                if (ftpReason.TryGetValue(plan.LocalPathOf(rel), out reason))
+                {
+                    failed.Add(rel + " (FTP'ye gönderilemedi: " + reason + ")");
+                    continue;
+                }
                 string src = FsPath.Join(srcRoot, rel);
                 string dst = FsPath.Join(dstRoot, rel);
                 string cmd = "copy " + FsPath.Quote(src) + ", " + FsPath.Quote(dst);
                 long size = k < plan.Sizes.Count ? plan.Sizes[k] : 0;
                 if (size >= PartThresholdBytes)
                 {
-                    // Büyük dosya FTP'ye klasörle gönderilmedi: parça parça aktarılır (G42)
+                    // Büyük dosya FTP'ye klasörle gönderilmedi: parça parça aktarılır (G42); boyutu kendi içinde doğrulanır
                     string partBase = "_parca_" + Guid.NewGuid().ToString("N").Substring(0, 8) + "_" + System.IO.Path.GetFileName(plan.LocalPathOf(rel));
                     string partFailure = await UploadInPartsAsync(uploader, settings, plan.LocalPathOf(rel), partBase, size, dst,
                         step + "  ·  dosya " + (k + 1) + "/" + plan.Files.Count + " " + rel, progress, tracker);
                     if (partFailure == null) continue;
                     if (Error != null || Cancelled)
-                        return rel + ": " + partFailure + "; " + k + "/" + plan.Files.Count + " dosya kopyalanmıştı";
+                        return FolderFailure(rel + ": " + partFailure, failed, plan.Files.Count, k, null);
                     failed.Add(rel + " (" + partFailure + ")");
                     continue;
                 }
@@ -1873,17 +1910,70 @@ namespace Vision
                 ShellResponse resp = await Exec(cmd, CopyTimeoutSec(size));
                 if (_tp != null) _tp.EndCard();
                 OpResult bad = CheckReturn(resp, rel, null);
-                if (bad == null) continue;
+                if (bad == null) { copied.Add(new KeyValuePair<string, long>(rel, size)); continue; }
                 if (resp.Failure != null || bad.MissingCommand != null)
                 {
                     SetError(bad);
-                    return "kartta kopyalama durdu (" + bad.Message + "); " + k + "/" + plan.Files.Count + " dosya kopyalanmıştı";
+                    return FolderFailure("kartta kopyalama durdu (" + bad.Message + ")", failed, plan.Files.Count, k, null);
                 }
-                failed.Add(rel + (resp.ReturnCode.HasValue ? " (" + resp.ReturnCode.Value + ")" : ""));
+                failed.Add(rel + (resp.ReturnCode.HasValue ? " (kart hata kodu " + resp.ReturnCode.Value + ")" : ""));
             }
+
+            // Boyut doğrulaması (G42.11'in klasör içi karşılığı): her hedef klasör bir kez listelenir, kopyalanan dosyaların
+            // kartta boyutu bilgisayardakiyle aynı mı? "ll" yoksa ("ls" boyut vermez) denetlenemez.
+            await VerifyFolderSizesAsync(dstRoot, copied, failed, step, progress);
+
             if (failed.Count == 0) return null;
-            return "FTP'ye gönderildi ama kartta " + failed.Count + "/" + plan.Files.Count + " dosya kopyalanamadı: " +
-                   string.Join(", ", failed.Take(5)) + (failed.Count > 5 ? " …" : "") + " (kaynak " + srcRoot + ")";
+            return FolderFailure(null, failed, plan.Files.Count, plan.Files.Count, srcRoot);
+        }
+
+        /// <summary>Kopyalanan dosyaların karttaki boyutunu bilgisayardakiyle karşılaştırır; tutmayanı / bulunmayanı listeye ekler.</summary>
+        private async Task VerifyFolderSizesAsync(string dstRoot, List<KeyValuePair<string, long>> copied, List<string> failed, string step, IProgress<string> progress)
+        {
+            if (copied.Count == 0 || _listCommand != "ll") return;
+            Func<string, string> dirOf = rel => { int i = rel.LastIndexOf('/'); return i < 0 ? dstRoot : FsPath.Join(dstRoot, rel.Substring(0, i)); };
+            foreach (var group in copied.GroupBy(c => dirOf(c.Key), StringComparer.OrdinalIgnoreCase))
+            {
+                if (_tp != null && _tp.CancelRequested) return;
+                string dir = group.Key;
+                string cmd = _listCommand + " " + FsPath.Quote(dir);
+                PendingCommand = "Boyutlar denetleniyor " + step + "  ·  " + cmd;
+                Raise();
+                if (progress != null) progress.Report(PendingCommand);
+                ShellResponse r = await Exec(cmd, ShortTimeoutSec);
+                if (r.Failure != null) return;                      // bağlantı koptu: denetlenemedi (kopyalar başarılıydı)
+                if (!r.IsSuccess) continue;
+                var sizes = new Dictionary<string, long?>(StringComparer.OrdinalIgnoreCase);
+                foreach (FsEntry e in LsParser.Parse(r.OutputLines, dir))
+                    if (e.Kind != FsKind.Folder) sizes[e.Name] = e.Size;
+                foreach (KeyValuePair<string, long> c in group)
+                {
+                    string name = FsPath.LastSegment(c.Key);
+                    long? onCard;
+                    if (!sizes.TryGetValue(name, out onCard))
+                        failed.Add(c.Key + " (doğrulama: kopyalandı ama kartta bulunamadı)");
+                    else if (onCard.HasValue && onCard.Value != c.Value)
+                        failed.Add(c.Key + " (doğrulama: kartta " + DeviceSpace.FormatBytes(onCard.Value) + ", bilgisayarda " +
+                                   DeviceSpace.FormatBytes(c.Value) + ")");
+                }
+            }
+        }
+
+        /// <summary>Kısa (ekran: ilk 5 dosya + "…") ve tam (olay günlüğü: hepsi) açıklama.</summary>
+        private static FolderCopyFailure FolderFailure(string stopReason, List<string> failed, int total, int processed, string srcRoot)
+        {
+            const int shown = 5;
+            string head = stopReason != null
+                ? stopReason + "; " + (processed - failed.Count) + "/" + total + " dosya kopyalanmıştı" + (failed.Count > 0 ? "; kopyalanamayan " + failed.Count + ": " : "")
+                : failed.Count + "/" + total + " dosya karta yüklenemedi: ";
+            string tail = stopReason == null && srcRoot != null ? " (kaynak " + srcRoot + ")" : "";
+            string shortList = string.Join(", ", failed.Take(shown)) + (failed.Count > shown ? " … (+" + (failed.Count - shown) + ")" : "");
+            string fullList = string.Join(", ", failed);
+            return new FolderCopyFailure
+            {
+                Short = head + (failed.Count > 0 || stopReason == null ? shortList : "") + tail,
+                Full = head + (failed.Count > 0 || stopReason == null ? fullList : "") + tail,
+            };
         }
 
         // ---------- Büyük dosya yükleme (G39) ----------
@@ -2575,7 +2665,7 @@ namespace Vision
         {
             if (r == null) return;
             if (r.Ok) LogEvent(category, okMessage ?? r.Message);
-            else if (_rejectCount == rejectsBefore) LogEvent(category, "Başarısız: " + r.Message);
+            else if (_rejectCount == rejectsBefore) LogEvent(category, "Başarısız: " + (r.Detail ?? r.Message));
         }
 
         private OpResult Reject(string message)

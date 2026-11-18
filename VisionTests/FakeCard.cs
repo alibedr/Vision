@@ -22,6 +22,10 @@ namespace VisionTests
         public readonly Dictionary<string, byte[]> CardFiles = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
         public readonly Dictionary<string, byte[]> FtpFiles = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
         public readonly List<string> Commands = new List<string>();
+        /// <summary>Hedefi bu metinle biten copy -1 döndürür (kartta kopyalanamayan dosya).</summary>
+        public readonly List<string> FailCopyOf = new List<string>();
+        /// <summary>Hedefi bu metinle biten copy dosyayı bir bayt eksik yazar (boyut doğrulaması testi).</summary>
+        public readonly List<string> TruncateCopyOf = new List<string>();
         public readonly Dictionary<string, string> Cleanups = new Dictionary<string, string>();
         public readonly List<string> Events = new List<string>();
         public int TransfersActive;
@@ -192,7 +196,11 @@ namespace VisionTests
                 byte[] data;
                 bool ok = IsFtp(s[0]) ? FtpFiles.TryGetValue(FtpName(s[0]), out data) : CardFiles.TryGetValue(s[0], out data);
                 if (!ok) return Reply(c, -1);
-                if (IsFtp(s[1])) FtpFiles[FtpName(s[1])] = data.ToArray(); else CardFiles[s[1]] = data.ToArray();
+                if (FailCopyOf.Any(x => s[1].EndsWith(x, StringComparison.OrdinalIgnoreCase))) return Reply(c, -1);
+                byte[] copy = data.ToArray();
+                if (TruncateCopyOf.Any(x => s[1].EndsWith(x, StringComparison.OrdinalIgnoreCase)) && copy.Length > 0)
+                    Array.Resize(ref copy, copy.Length - 1);          // kopya eksik yazıldı (doğrulama testi)
+                if (IsFtp(s[1])) FtpFiles[FtpName(s[1])] = copy; else CardFiles[s[1]] = copy;
                 return Reply(c, 0);
             }
             if (c == "tickGet") return Reply(c, 123456);
@@ -237,11 +245,22 @@ namespace VisionTests
             return Task.FromResult(0);
         }
 
-        public Task UploadDirectoryAsync(string localDir, string remoteName, Action<long> sent = null, CancellationToken ct = default(CancellationToken), Func<string, bool> include = null)
+        /// <summary>Bu dosyalar (yerel adı bu metinle bitenler) FTP'ye gönderilemez (klasör yükleme testi).</summary>
+        public readonly List<string> FailUploadOf = new List<string>();
+
+        public Task UploadDirectoryAsync(string localDir, string remoteName, Action<long> sent = null, CancellationToken ct = default(CancellationToken),
+                                         Func<string, bool> include = null, ICollection<KeyValuePair<string, Exception>> failed = null)
         {
             foreach (string f in Directory.GetFiles(localDir, "*", SearchOption.AllDirectories))
             {
                 if (include != null && !include(f)) continue;
+                if (FailUploadOf.Any(x => f.EndsWith(x, StringComparison.OrdinalIgnoreCase)))
+                {
+                    var ex = new IOException("dosya başka bir programda açık");
+                    if (failed == null) throw ex;
+                    failed.Add(new KeyValuePair<string, Exception>(f, ex));
+                    continue;
+                }
                 string rel = f.Substring(localDir.Length).TrimStart('\\', '/').Replace('\\', '/');
                 _card.FtpFiles[remoteName + "/" + rel] = File.ReadAllBytes(f);
             }

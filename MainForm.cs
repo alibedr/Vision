@@ -158,6 +158,11 @@ namespace Vision
             _split.Panel1.BackColor = Theme.Sidebar;
             _split.Panel2.BackColor = Theme.Window;
             _split.Panel1.Controls.Add(_explorer);
+            // Sekmeye göre değişen sol menü: Seri sekmesinde seri portlar, Sentinel'de bağlı kartlar (ApplySidebar)
+            _serialView.Sidebar.Visible = false;
+            _sentinelView.Sidebar.Visible = false;
+            _split.Panel1.Controls.Add(_serialView.Sidebar);
+            _split.Panel1.Controls.Add(_sentinelView.Sidebar);
 
             // Çalışma alanı üst çubuğu
             var bar = new Panel { Dock = DockStyle.Top, Height = 56, BackColor = Theme.Surface };
@@ -324,7 +329,7 @@ namespace Vision
                 _split.SplitterDistance = 290;
             }
             catch (InvalidOperationException) { }
-            SetSidebarCollapsed(_config.Settings.SidebarCollapsed);   // son tercih
+            ApplySidebar(_activeTab);   // son tercih (sekme başına)
             UpdateWorkspaceTitle();
             UpdateStatus();
         }
@@ -422,7 +427,7 @@ namespace Vision
             else if (e.Control && !e.Shift && e.KeyCode == Keys.B)
             {
                 e.SuppressKeyPress = true;
-                SetSidebarCollapsed(!_split.Panel1Collapsed);
+                if (_activeTab != MainTab.Commands) SetSidebarCollapsed(!_split.Panel1Collapsed);
             }
             else if (e.Control && !e.Shift && (e.KeyCode == Keys.D1 || e.KeyCode == Keys.D2 || e.KeyCode == Keys.D3 || e.KeyCode == Keys.D4 || e.KeyCode == Keys.D5))
             {
@@ -770,6 +775,7 @@ namespace Vision
             _sentinelTab.Active = tab == MainTab.Sentinel;
             _serialTab.Active = tab == MainTab.Serial;
             _serialView.Visible = tab == MainTab.Serial;
+            ApplySidebar(tab);
             _workspaceHost.Visible = tab == MainTab.Workspace;
             _fileExplorer.Visible = tab == MainTab.Files;
             _commandLibrary.Visible = tab == MainTab.Commands;
@@ -782,16 +788,53 @@ namespace Vision
         /// Kart Gezgini kenar çubuğunu daraltır / açar. Ağaç, seçim, işaretler ve sekmeler olduğu gibi kalır;
         /// sağdaki alan boşalan genişliği kullanır. Tercih kaydedilir.
         /// </summary>
+        /// <summary>Etkin sekmenin sol menüsünü açar / kapatır; tercih o sekme için saklanır.</summary>
         private void SetSidebarCollapsed(bool collapsed)
         {
-            _split.Panel1Collapsed = collapsed;
-            _sidebarToggle.Icon = collapsed ? IconKind.SidebarShow : IconKind.SidebarHide;
-            _sidebarToggle.SetTip(_sidebarTips, (collapsed ? "Kart Gezgini'ni göster" : "Kart Gezgini'ni gizle") + "  (Ctrl+B)");
-            if (_config.Settings.SidebarCollapsed != collapsed)
+            if (_activeTab == MainTab.Commands) return;            // Komut Kütüphanesi'nde sol menü yok
+            if (SidebarCollapsedFor(_activeTab) != collapsed)
             {
-                _config.Settings.SidebarCollapsed = collapsed;
+                AppSettings st = _config.Settings;
+                switch (_activeTab)
+                {
+                    case MainTab.Files: st.FilesSidebarCollapsed = collapsed; break;
+                    case MainTab.Serial: st.SerialSidebarCollapsed = collapsed; break;
+                    case MainTab.Sentinel: st.SentinelSidebarCollapsed = collapsed; break;
+                    default: st.SidebarCollapsed = collapsed; break;
+                }
                 SaveConfig();
             }
+            ApplySidebar(_activeTab);
+        }
+
+        private bool SidebarCollapsedFor(MainTab tab)
+        {
+            AppSettings st = _config.Settings;
+            switch (tab)
+            {
+                case MainTab.Files: return st.FilesSidebarCollapsed;
+                case MainTab.Serial: return st.SerialSidebarCollapsed;
+                case MainTab.Sentinel: return st.SentinelSidebarCollapsed;
+                case MainTab.Commands: return true;
+                default: return st.SidebarCollapsed;
+            }
+        }
+
+        /// <summary>
+        /// Sekmeye göre değişen sol menü: Telnet ve Kart Dosya Gezgini'nde Kart Gezgini, Seri'de seri portlar, Sentinel'de
+        /// bağlı kartlar; Komut Kütüphanesi'nde sol menü yok. Açık / kapalı durumu her sekmede ayrı hatırlanır.
+        /// </summary>
+        private void ApplySidebar(MainTab tab)
+        {
+            _explorer.Visible = tab == MainTab.Workspace || tab == MainTab.Files;
+            _serialView.Sidebar.Visible = tab == MainTab.Serial;
+            _sentinelView.Sidebar.Visible = tab == MainTab.Sentinel;
+            bool collapsed = SidebarCollapsedFor(tab);
+            _split.Panel1Collapsed = collapsed;
+            _sidebarToggle.Visible = tab != MainTab.Commands;
+            _sidebarToggle.Icon = collapsed ? IconKind.SidebarShow : IconKind.SidebarHide;
+            string what = tab == MainTab.Serial ? "Seri portları" : tab == MainTab.Sentinel ? "Kart listesini" : "Kart Gezgini'ni";
+            _sidebarToggle.SetTip(_sidebarTips, (collapsed ? what + " göster" : what + " gizle") + "  (Ctrl+B)");
         }
 
         private readonly ToolTip _sidebarTips = new DarkToolTip();
@@ -1655,6 +1698,7 @@ namespace Vision
             Action sentinelTab = () =>
             {
                 ShowTab(MainTab.Sentinel);
+                if (_split.Panel1Collapsed) SetSidebarCollapsed(false);   // kart listesi sol menüde: tur için açılır
                 CardView v = TourView();
                 if (v != null) _sentinelView.SelectCard(v.Session.Card);
             };

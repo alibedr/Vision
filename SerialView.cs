@@ -21,7 +21,11 @@ namespace Vision
         private readonly Func<List<SerialPortProfile>> _profiles;
         private readonly Action _save;
 
-        private readonly Panel _left = new Panel { Dock = DockStyle.Left, Width = 270, BackColor = Theme.Sidebar };
+        // Port listesi ana pencerenin sol menüsünde durur (sekmeye göre değişen sol menü): Sidebar ile verilir
+        private readonly Panel _left = new Panel { Dock = DockStyle.Fill, BackColor = Theme.Sidebar };
+
+        /// <summary>Seri portlar listesi: ana pencere bunu sol menüye koyar (Seri sekmesindeyken görünür, kapatılabilir).</summary>
+        public Control Sidebar { get { return _left; } }
         private readonly PortList _list = new PortList();
         private readonly Button _openBtn = Theme.MakeButton("Aç", Theme.ButtonKind.Primary);
         private readonly Button _settingsBtn = Theme.MakeButton("Ayarlar…", Theme.ButtonKind.Secondary);
@@ -78,7 +82,6 @@ namespace Vision
             };
             _left.Controls.Add(listHost);
             _left.Controls.Add(buttons);
-            _left.Paint += (s, e) => { using (var p = new Pen(Theme.Border)) e.Graphics.DrawLine(p, _left.Width - 1, 0, _left.Width - 1, _left.Height); };
             _tips.SetToolTip(_openBtn, "Seçili portun penceresini açar ve portu açar (en fazla " + MaxViews + " pencere)");
             _tips.SetToolTip(_settingsBtn, "Port ayarları: ad, baud rate, data, parity, stop, akış denetimi, gecikme");
 
@@ -86,7 +89,6 @@ namespace Vision
             _grid.Layout += (s, e) => LayoutViews();
 
             Controls.Add(_grid);
-            Controls.Add(_left);
 
             _menu.Renderer = new DarkMenuRenderer();
             var mOpen = new ToolStripMenuItem("Aç ve bağlan", null, (s, e) => OpenSelected());

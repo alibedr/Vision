@@ -220,8 +220,12 @@ namespace Vision
         Task UploadFileRangeAsync(string localPath, long offset, long length, string remoteName, Action<long> sent = null, CancellationToken ct = default(CancellationToken));
         /// <param name="sent">İsteğe bağlı: klasördeki tüm dosyalar için toplam gönderilen bayt.</param>
         /// <param name="include">İsteğe bağlı: false dönen yerel dosyalar gönderilmez (büyük dosyalar ayrıca parça parça gider).</param>
+        /// <param name="failed">
+        /// İsteğe bağlı: verilirse gönderilemeyen dosya (yerel yol, hata) buraya eklenir ve kalan dosyalarla devam edilir;
+        /// verilmezse ilk hatada durulur. İptal her durumda durdurur.
+        /// </param>
         Task UploadDirectoryAsync(string localDir, string remoteName, Action<long> sent = null, CancellationToken ct = default(CancellationToken),
-                                  Func<string, bool> include = null);
+                                  Func<string, bool> include = null, ICollection<KeyValuePair<string, Exception>> failed = null);
         Task DeleteAsync(string remoteName, bool isDirectory);
         /// <summary>FTP çalışma klasöründeki adlar (NLST).</summary>
         Task<IList<string>> ListNamesAsync();
@@ -451,25 +455,51 @@ namespace Vision
         }
 
         public async Task UploadDirectoryAsync(string localDir, string remoteName, Action<long> sent = null, CancellationToken ct = default(CancellationToken),
-                                               Func<string, bool> include = null)
+                                               Func<string, bool> include = null, ICollection<KeyValuePair<string, Exception>> failed = null)
         {
-            await UploadDirectoryAsync(localDir, remoteName, sent, new long[1], ct, include).ConfigureAwait(false);
+            await UploadDirectoryAsync(localDir, remoteName, sent, new long[2], ct, include, failed).ConfigureAwait(false);
         }
 
+        /// <summary>Klasör gönderilirken art arda bu kadar dosya gönderilemezse FTP'de sorun var sayılıp durulur.</summary>
+        public const int MaxConsecutiveFolderFailures = 5;
+
+        // doneBefore[0]: o ana kadar gönderilen bayt; doneBefore[1]: art arda gönderilemeyen dosya sayısı
         private async Task UploadDirectoryAsync(string localDir, string remoteName, Action<long> sent, long[] doneBefore, CancellationToken ct,
-                                                Func<string, bool> include)
+                                                Func<string, bool> include, ICollection<KeyValuePair<string, Exception>> failed)
         {
             ct.ThrowIfCancellationRequested();
-            await MakeDirectoryAsync(remoteName).ConfigureAwait(false);
+            try
+            {
+                await MakeDirectoryAsync(remoteName).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                if (failed == null || ex is OperationCanceledException) throw;
+                // Klasör açılamadı: içindeki dosyaların hepsi gönderilemedi sayılır, diğer klasörlerle devam edilir
+                foreach (string f in Directory.GetFiles(localDir, "*", SearchOption.AllDirectories))
+                    if (include == null || include(f)) failed.Add(new KeyValuePair<string, Exception>(f, ex));
+                return;
+            }
             foreach (string dir in Directory.GetDirectories(localDir))
-                await UploadDirectoryAsync(dir, remoteName + "/" + Path.GetFileName(dir), sent, doneBefore, ct, include).ConfigureAwait(false);
+                await UploadDirectoryAsync(dir, remoteName + "/" + Path.GetFileName(dir), sent, doneBefore, ct, include, failed).ConfigureAwait(false);
             foreach (string file in Directory.GetFiles(localDir))
             {
                 if (include != null && !include(file)) continue;
                 long before = doneBefore[0];
                 Action<long> fileSent = null;
                 if (sent != null) fileSent = n => sent(before + n);
-                await UploadFileAsync(file, remoteName + "/" + Path.GetFileName(file), fileSent, ct).ConfigureAwait(false);
+                try
+                {
+                    await UploadFileAsync(file, remoteName + "/" + Path.GetFileName(file), fileSent, ct).ConfigureAwait(false);
+                    doneBefore[1] = 0;
+                }
+                catch (Exception ex)
+                {
+                    if (failed == null || ex is OperationCanceledException || ct.IsCancellationRequested) throw;
+                    // Art arda çok dosya gönderilemiyorsa sorun dosyada değil FTP'dedir: boşuna beklememek için durulur
+                    if (++doneBefore[1] >= MaxConsecutiveFolderFailures) throw;
+                    failed.Add(new KeyValuePair<string, Exception>(file, ex));   // atla, kalanlarla devam et
+                }
                 try { doneBefore[0] = before + new FileInfo(file).Length; } catch { }
             }
         }
