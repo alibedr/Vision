@@ -1,4 +1,4 @@
-# Vision 1.7 — Sürüm notları
+# Vision 1.8 — Sürüm notları
 
 **Yayın tarihi:** 18.11.2026
 
@@ -23,20 +23,28 @@ günlükleri ise `Vision.exe`'nin yanındaki `logs` klasöründedir; bunları sa
 
 ## Bu sürümde yeni
 
-- **Kart açılınca loglar reboot'u atana gelir.** Kartlara birden çok kişi bağlanabilir ama kartın logları kart açıldıktan
-  sonra ilk bağlanan oturuma gider. Artık karta reboot'u gönderen Vision kart açılana kadar 2 saniyede bir dener; bağlantısı
-  habersiz kopan diğer Vision'lar önce 30 saniye bekler, sonra 15 saniyede bir dener. Böylece kart açılınca önce reboot'u
-  atan bağlanır ve loglar ona gelir. Vision kart geri gelene kadar denemeyi sürdürür; kesinti süresi olay günlüğüne yazılır.
-
-## Düzeltmeler
-
-- **Bağlan / Kes art arda basılınca:** Kart "bağlı değil" görünürken arka planda bir bağlantı açık kalıyor ve terminale log
-  akmaya devam ediyordu. Artık Kes'e basılınca kurulmakta olan bağlantı da kapatılır; kart gerçekten bağlantısız kalır.
-- **Boot ayarı kayıtları penceresi:** Pencere genişletilince karşılaştırma satırları başlıkla birlikte kaymıyor, tıklanınca
-  yerine atlıyordu. Artık satırlar başlıkla birlikte hizalı kalır.
+- **Seri sekmesi: kartlara COM portundan bağlantı.** TeraTerm açmadan, USB-seri çeviriciyle kartlara seri porttan
+  bağlanılır. Telnet'ten bağımsızdır; kartın ağı yokken, açılışta ya da bootrom'dayken de çalışır.
+  - Bilgisayardaki portlar Windows'taki adlarıyla listelenir; porta kartın adı verilebilir (ör. "Kart 3").
+  - En fazla 12 port aynı anda, Telnet'teki gibi ızgarada; her pencere büyütülebilir.
+  - Port başına ayarlar: baud rate, data, parity, stop, akış denetimi ve gönderme gecikmesi (varsayılan 115200 8N1).
+  - TeraTerm gibi terminale tıklayıp doğrudan yazılır; seçilen metin kendiliğinden kopyalanır, Shift+Insert yapıştırır.
+  - Seride yazılan komutlar Telnet'ten ayrı bir geçmişte saklanır (tek tık yazar, çift tık gönderir); çıktı dosyaya
+    kaydedilebilir.
+- **Sekmeye göre değişen sol menü.** Telnet ve Kart Dosya Gezgini'nde Kart Gezgini, Seri'de seri portlar, Sentinel'de kart
+  listesi, Komut Kütüphanesi'nde arama ve komut listesi. Genişlik bütün sekmelerde aynı olduğu için sekme değiştirince ekran
+  kaymaz; her sekmenin menüsü ayrı gizlenir ve açık / kapalı durumu ayrı hatırlanır.
+- **Klasör yükleme daha dayanıklı.** Bir dosya FTP'ye gönderilemez ya da kartta kopyalanamazsa yükleme durmaz: o dosya
+  atlanır, kalanlar yüklenir. Sonunda kartta her dosyanın boyutu bilgisayardakiyle karşılaştırılır. Yüklenemeyenler sonda
+  listelenir: ekranda ilk 5'i, kartın olay günlüğünde hepsi nedenleriyle.
+- **Yeni sekme sırası ve kısayollar:** Telnet (Ctrl+1), Kart Dosya Gezgini (Ctrl+2), Seri (Ctrl+3), Sentinel (Ctrl+4),
+  Komut Kütüphanesi (Ctrl+5).
+- Uygulama turu ve Kullanım Kılavuzu yeni özelliklere göre güncellendi.
 
 ## Önemli notlar
 
+- Seri port aynı anda yalnız bir programda açılabilir: port TeraTerm'de açıksa Vision açamaz ve bunu söyler.
+- Komut Kütüphanesi'nin kısayolu Ctrl+3'ten Ctrl+5'e geçti (Ctrl+3 artık Seri sekmesi).
 - Boot ayarı kayıtları, FTP parolası dahil kartın tüm boot alanlarını `config.xml` içinde düz metin olarak saklar.
 - Sorun bildirirken `logs\hatalar.log` dosyasını eklemeniz sorunun bulunmasını kolaylaştırır. Kartla ilgili olayların
   zaman çizelgesi için terminalde sağ tık → **Olay günlüğü…**
@@ -45,6 +53,7 @@ günlükleri ise `Vision.exe`'nin yanındaki `logs` klasöründedir; bunları sa
 
 | Sürüm | Değişiklikler |
 |---|---|
+| 1.7 | Kart açılınca loglar reboot'u atana gelir: reboot'u gönderen Vision 2 sn'de bir, habersiz kopan diğerleri 30 sn bekleyip 15 sn'de bir dener. Düzeltmeler: Bağlan / Kes art arda basılınca arka planda bağlantı açık kalması; Boot ayarı kayıtları penceresi genişletilince satırların kayması. |
 | 1.6 | Boot ayarı kayıtları: kartın boot ayarlarını adıyla kaydetme (kart başına en fazla 5), şu anki ayarlarla karşılaştırma, önizleme + onayla aynı ya da başka karta geri yükleme (başka kartta IP alanları atlanır), doğrulama ve yeniden başlatma önerisi; Boot ayarları penceresinden "Bu ayarları kaydet…" ve "Boot ayarı kayıtları…". Kendi gönderdiğimiz reboot'ta kırmızı uyarı yerine sarı "yeniden başlatılıyor"; kesinti ekrana ve olay günlüğüne yalnız bir kez, bağlantı gelince toplam süreyle yazılır. |
 | 1.5 | Otomatik testler (her derlemede çalışır); kart başına olay günlüğü (bağlantı, reboot, boot ayarı değişiklikleri, Sentinel, dosya işlemleri, aktarımlar — süzme, arama, CSV); reboot onayında "Temizleyip yeniden başlat". |
 | 1.4 | Yüksek kontrast temasından başka temaya geçişteki renk sorunu düzeltildi; reboot onay ister; kartta ve genel komut çubuğunda en fazla 5 hızlı komut; Dosya Gezgini'nde çoklu seçim (Ctrl+A, Ctrl / Shift + tık) ile toplu silme, kaydetme, taşıma / kopyalama ve sürükleme. |
