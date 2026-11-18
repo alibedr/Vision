@@ -31,7 +31,7 @@ Vision ilk açıldığında **uygulama turu** başlar: ekran kararır, anlatıla
 
 | Bölüm | Konum | Ne işe yarar |
 |---|---|---|
-| Sol menü | Sol kenar | **Sekmeye göre değişir:** Telnet ve Kart Dosya Gezgini'nde **Kart Gezgini** (grupları ve kartları listeler; kart ekleme, seçme, bağlanma ve gösterme buradan yapılır), Seri'de **seri portlar**, Sentinel'de **bağlı kartlar** listesi; Komut Kütüphanesi'nde sol menü yoktur. Sekme şeridinin en solundaki kenar çubuğu düğmesi (Ctrl+B) o sekmenin menüsünü gizler / gösterir; açık / kapalı durumu **her sekme için ayrı** hatırlanır (Vision kapanıp açılınca da). Genişlik bütün sekmelerde aynıdır. |
+| Sol menü | Sol kenar | **Sekmeye göre değişir:** Telnet ve Kart Dosya Gezgini'nde **Kart Gezgini** (grupları ve kartları listeler; kart ekleme, seçme, bağlanma ve gösterme buradan yapılır), Seri'de **seri portlar**, Sentinel'de **bağlı kartlar** listesi, Komut Kütüphanesi'nde **arama ve modül / komut listesi**. Sekme şeridinin en solundaki kenar çubuğu düğmesi (Ctrl+B) o sekmenin menüsünü gizler / gösterir; açık / kapalı durumu **her sekme için ayrı** hatırlanır (Vision kapanıp açılınca da). Genişlik bütün sekmelerde aynıdır. |
 | Sekmeler | Sağ alanın üstü | **Telnet** (kart terminalleri), **Kart Dosya Gezgini**, **Seri** (COM portundan bağlantı), **Sentinel** ve **Komut Kütüphanesi** arasında geçiş (Ctrl+1 / 2 / 3 / 4 / 5). Aynı şeridin en sağında **Yardım** (Kullanım Kılavuzu, Uygulama turu, Hakkında) ve **Temalar** menüsü (hazır temalar ve özelleştirme; aşağıya bakın) bulunur. |
 | Telnet sekmesi | Sağ alan | Seçilen kartların terminal pencereleri ızgara düzeninde görünür (en fazla 24 kart). |
 | Terminal ayarları | Telnet sekmesinin üst çubuğu | Satır sonu, yerel eko, zaman damgası, dosyaya kaydet, satır sınırı ve "Tümünü kapat". |
@@ -767,7 +767,7 @@ Bir komutu kütüphaneden alıp doğrudan bir kartta denemek için:
 | Bölüm | Ne gösterir |
 |---|---|
 | Üst çubuk | Toplam komut ve modül sayısı. |
-| Sol liste | Arama kutusu ve modül ağacı. Her modül başlığında komut sayısı yazar; başlığın solundaki ok ile modül daraltılır / genişletilir. Alttaki iki simge tüm modülleri genişletir / daraltır. |
+| Sol liste | Arama kutusu ve modül ağacı; ana pencerenin **sol menüsünde** durur (diğer sekmelerle aynı genişlikte). Sol menü kenar çubuğu düğmesiyle ya da Ctrl+B ile gizlenince komut sayfası tüm genişliği kullanır (uzun örnek çıktıları okumak için); Ctrl+F menü kapalıysa açıp aramaya gider. Her modül başlığında komut sayısı yazar; başlığın solundaki ok ile modül daraltılır / genişletilir. Alttaki iki simge tüm modülleri genişletir / daraltır. |
 | Komut sayfası | Komutun adı, bulunduğu modül (tıklayınca modülün sayfasına gider), açıklama, yazılış (**Karta aktar** ile bir kartın komut satırına, **Kopyala** ile panoya) ve örnek çıktı. |
 | Modül sayfası | Bir modül başlığı seçilince açılır: modülün açıklaması, komut sayısı ve komutlarının listesi (ad, yazılış, özet). Listeden bir komuta tıklamak o komutu açar. |
 
@@ -836,7 +836,7 @@ Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındak
 | Ctrl+G | Genel komut çubuğuna odaklan (Telnet sekmesine geçer) |
 | Ctrl+1 / 2 / 3 / 4 / 5 | Telnet / Kart Dosya Gezgini / Seri / Sentinel / Komut Kütüphanesi sekmesi |
 | F5 | Sentinel sekmesinde sayfayı yenile |
-| Ctrl+B | O sekmenin sol menüsünü (Kart Gezgini, Sentinel kart listesi) gizle / göster; Seri sekmesinde Ctrl+B karta gider, menü ◀ düğmesiyle gizlenir |
+| Ctrl+B | O sekmenin sol menüsünü (Kart Gezgini, Sentinel kart listesi, Komut Kütüphanesi listesi) gizle / göster; Seri sekmesinde Ctrl+B karta gider, menü ◀ düğmesiyle gizlenir |
 | Seri pencerede: tuşlar, Ctrl+harf | Doğrudan karta gönderilir (Ctrl+C = kesme) |
 | Seri pencerede: Shift+Insert | Panodaki metni karta yapıştır |
 | Tab / ↓ / → | Komut satırında otomatik tamamlama önerisini kabul et (çalıştırmaz) |

@@ -161,8 +161,11 @@ namespace Vision
             // Sekmeye göre değişen sol menü: Seri sekmesinde seri portlar, Sentinel'de bağlı kartlar (ApplySidebar)
             _serialView.Sidebar.Visible = false;
             _sentinelView.Sidebar.Visible = false;
+            _commandLibrary.Sidebar.Visible = false;
             _split.Panel1.Controls.Add(_serialView.Sidebar);
             _split.Panel1.Controls.Add(_sentinelView.Sidebar);
+            _split.Panel1.Controls.Add(_commandLibrary.Sidebar);
+            _commandLibrary.SidebarNeeded = () => { if (_activeTab == MainTab.Commands && _split.Panel1Collapsed) SetSidebarCollapsed(false); };
 
             // Çalışma alanı üst çubuğu
             var bar = new Panel { Dock = DockStyle.Top, Height = 56, BackColor = Theme.Surface };
@@ -424,10 +427,16 @@ namespace Vision
                 e.SuppressKeyPress = true;
                 ShowAddCardsDialog(null);
             }
+            else if (e.Control && !e.Shift && e.KeyCode == Keys.F && _activeTab == MainTab.Commands)
+            {
+                // Odak sol menüdeyken (kütüphane görünümünün dışında) de arama: menü kapalıysa açılır
+                e.SuppressKeyPress = true;
+                _commandLibrary.FocusSearch();
+            }
             else if (e.Control && !e.Shift && e.KeyCode == Keys.B)
             {
                 e.SuppressKeyPress = true;
-                if (_activeTab != MainTab.Commands) SetSidebarCollapsed(!_split.Panel1Collapsed);
+                SetSidebarCollapsed(!_split.Panel1Collapsed);
             }
             else if (e.Control && !e.Shift && (e.KeyCode == Keys.D1 || e.KeyCode == Keys.D2 || e.KeyCode == Keys.D3 || e.KeyCode == Keys.D4 || e.KeyCode == Keys.D5))
             {
@@ -791,7 +800,6 @@ namespace Vision
         /// <summary>Etkin sekmenin sol menüsünü açar / kapatır; tercih o sekme için saklanır.</summary>
         private void SetSidebarCollapsed(bool collapsed)
         {
-            if (_activeTab == MainTab.Commands) return;            // Komut Kütüphanesi'nde sol menü yok
             if (SidebarCollapsedFor(_activeTab) != collapsed)
             {
                 AppSettings st = _config.Settings;
@@ -800,6 +808,7 @@ namespace Vision
                     case MainTab.Files: st.FilesSidebarCollapsed = collapsed; break;
                     case MainTab.Serial: st.SerialSidebarCollapsed = collapsed; break;
                     case MainTab.Sentinel: st.SentinelSidebarCollapsed = collapsed; break;
+                    case MainTab.Commands: st.CommandsSidebarCollapsed = collapsed; break;
                     default: st.SidebarCollapsed = collapsed; break;
                 }
                 SaveConfig();
@@ -815,25 +824,27 @@ namespace Vision
                 case MainTab.Files: return st.FilesSidebarCollapsed;
                 case MainTab.Serial: return st.SerialSidebarCollapsed;
                 case MainTab.Sentinel: return st.SentinelSidebarCollapsed;
-                case MainTab.Commands: return true;
+                case MainTab.Commands: return st.CommandsSidebarCollapsed;
                 default: return st.SidebarCollapsed;
             }
         }
 
         /// <summary>
         /// Sekmeye göre değişen sol menü: Telnet ve Kart Dosya Gezgini'nde Kart Gezgini, Seri'de seri portlar, Sentinel'de
-        /// bağlı kartlar; Komut Kütüphanesi'nde sol menü yok. Açık / kapalı durumu her sekmede ayrı hatırlanır.
+        /// bağlı kartlar, Komut Kütüphanesi'nde arama ve modül ağacı. Genişlik ortak (sekme değişince ekran kaymaz);
+        /// açık / kapalı durumu her sekmede ayrı hatırlanır.
         /// </summary>
         private void ApplySidebar(MainTab tab)
         {
             _explorer.Visible = tab == MainTab.Workspace || tab == MainTab.Files;
             _serialView.Sidebar.Visible = tab == MainTab.Serial;
             _sentinelView.Sidebar.Visible = tab == MainTab.Sentinel;
+            _commandLibrary.Sidebar.Visible = tab == MainTab.Commands;
             bool collapsed = SidebarCollapsedFor(tab);
             _split.Panel1Collapsed = collapsed;
-            _sidebarToggle.Visible = tab != MainTab.Commands;
             _sidebarToggle.Icon = collapsed ? IconKind.SidebarShow : IconKind.SidebarHide;
-            string what = tab == MainTab.Serial ? "Seri portları" : tab == MainTab.Sentinel ? "Kart listesini" : "Kart Gezgini'ni";
+            string what = tab == MainTab.Serial ? "Seri portları" : tab == MainTab.Sentinel ? "Kart listesini"
+                        : tab == MainTab.Commands ? "Komut listesini" : "Kart Gezgini'ni";
             _sidebarToggle.SetTip(_sidebarTips, (collapsed ? what + " göster" : what + " gizle") + "  (Ctrl+B)");
         }
 
@@ -1198,7 +1209,11 @@ namespace Vision
         {
             Action telnet = () => ShowTab(MainTab.Workspace);
             Action files = TourShowFiles;
-            Action commands = () => ShowTab(MainTab.Commands);
+            Action commands = () =>
+            {
+                ShowTab(MainTab.Commands);
+                if (_activeTab == MainTab.Commands && _split.Panel1Collapsed) SetSidebarCollapsed(false);   // liste ve arama sol menüde
+            };
             Func<Func<CardView, Control[]>, Func<Rectangle?>> cardPart = pick => () =>
             {
                 CardView v = TourView();
@@ -1239,7 +1254,7 @@ namespace Vision
                 Title = "Sekmeler",
                 Body = () => "Telnet: kart terminalleri  ·  Kart Dosya Gezgini: kartın dosyaları  ·  Seri: COM portundan karta doğrudan bağlantı  ·  " +
                              "Sentinel: kartın sağlık sayfası  ·  Komut Kütüphanesi: hazır VxWorks komutları.\n\nKısayollar: Ctrl+1 / 2 / 3 / 4 / 5.\n\n" +
-                             "Soldaki menü sekmeye göre değişir (Kart Gezgini, seri portlar, Sentinel kart listesi); ◀ düğmesi ya da Ctrl+B " +
+                             "Soldaki menü sekmeye göre değişir (Kart Gezgini, seri portlar, Sentinel kart listesi, Komut Kütüphanesi listesi); ◀ düğmesi ya da Ctrl+B " +
                              "o sekmenin menüsünü gizler / gösterir ve her sekme kendi durumunu hatırlar.",
                 Target = () => TourRect(_workspaceTab, _filesTab, _serialTab, _sentinelTab, _commandsTab),
                 Enter = telnet,
@@ -1754,7 +1769,7 @@ namespace Vision
                 Title = title,
                 Body = () => body,
                 Target = target,
-                Available = () => { ShowTab(MainTab.Commands); return target() != null; },
+                Available = () => { commands(); return target() != null; },
                 Enter = commands,
             });
             int libStart = steps.Count;

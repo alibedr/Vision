@@ -258,6 +258,8 @@ namespace Vision
         public bool SerialSidebarCollapsed { get; set; }
         /// <summary>Sol menü daraltılmış mı — Sentinel sekmesinde (bağlı kartlar).</summary>
         public bool SentinelSidebarCollapsed { get; set; }
+        /// <summary>Sol menü daraltılmış mı — Komut Kütüphanesi sekmesinde (arama ve modül ağacı).</summary>
+        public bool CommandsSidebarCollapsed { get; set; }
 
         /// <summary>Eski sürümlerin tema ayarı (koyu / açık). Yeni sürüm UiThemeId kullanır; uyumluluk için güncel tutulur.</summary>
         public ThemeMode UiTheme { get; set; }
