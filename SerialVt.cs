@@ -136,9 +136,11 @@ namespace Vision
                         // Akan yazıya dönüldü: ekranın son hâli ve Screen'de kalırken gelen akan kısım günlüğe (kaybolmasın,
                         // görünüm değişince sayfa değişmiş gibi olmasın)
                         logOut.Append("\u0001● Kart tam ekran gösterimden çıktı — ekranın son hâli:\u0002");
-                        string shot = !string.IsNullOrWhiteSpace(_flowSnapshot) ? _flowSnapshot : _lastClearedScreen;
-                        int skip = !string.IsNullOrWhiteSpace(_flowSnapshot) ? Math.Min(_flowSnapshotAt, _sinceDraw.Length) : 0;
-                        if (!string.IsNullOrWhiteSpace(shot)) logOut.Append(shot.Replace("\n", "\r\n"));
+                        // Önce en son temizlenen dolu ekran (ör. menüden çıkınca BIOS temizler), sonra akış başladığındaki ekran
+                        bool flow = !string.IsNullOrWhiteSpace(_flowSnapshot);
+                        int skip = flow ? Math.Min(_flowSnapshotAt, _sinceDraw.Length) : 0;
+                        if (!string.IsNullOrWhiteSpace(_lastClearedScreen)) logOut.Append(_lastClearedScreen.Replace("\n", "\r\n")).Append("\r\n");
+                        if (flow) logOut.Append(_flowSnapshot.Replace("\n", "\r\n"));
                         logOut.Append(_sinceDraw.ToString(skip, _sinceDraw.Length - skip));
                         _sinceDraw.Clear();
                         _flowSnapshot = _lastClearedScreen = null;
@@ -148,7 +150,10 @@ namespace Vision
                 else
                 {
                     if (before == SerialViewMode.Log)
+                    {
                         logOut.Append("\u0001● Kart tam ekran çizmeye başladı (BIOS / boot menüsü) — Ekran görünümünde\u0002");
+                        _lastClearedScreen = null;   // yeni bir tam ekran oturumu
+                    }
                     if (_sinceDraw.Length < SinceDrawLimit) _sinceDraw.Append(c);
                 }
             }
