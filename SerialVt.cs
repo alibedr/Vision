@@ -62,6 +62,10 @@ namespace Vision
         private DateTime _positioningSince;
         private int _plainScrolls;               // Screen modunda son konumlamadan beri gelen satır sonu sayısı
         private readonly StringBuilder _sinceDraw = new StringBuilder();   // Screen modunda son çizimden beri gelen ham akış
+        // Günlüğe dönerken kesintisizlik (1.10): BIOS ekranının son hâli günlüğe metin olarak eklenir, altına akan satırlar
+        private string _flowSnapshot;            // akış başladığında (son çizimden sonraki ilk satır sonunda) ekran
+        private int _flowSnapshotAt;             // o anda _sinceDraw'ın uzunluğu (ekranda zaten görünen kısım)
+        private string _lastClearedScreen;       // ekran temizlenmeden hemen önceki dolu ekran (menüden çıkınca BIOS temizler)
         private const int SinceDrawLimit = 64 * 1024;
         private readonly Func<DateTime> _now;
 
@@ -129,10 +133,15 @@ namespace Vision
                 {
                     if (before == SerialViewMode.Screen)
                     {
-                        // Akan yazıya dönüldü: Screen'de kalırken gelen akan kısım günlüğe (kaybolmasın)
-                        logOut.Append("\u0001● Kart tam ekran gösterimden çıktı — günlük görünümüne dönüldü\u0002");
-                        logOut.Append(_sinceDraw.ToString());
+                        // Akan yazıya dönüldü: ekranın son hâli ve Screen'de kalırken gelen akan kısım günlüğe (kaybolmasın,
+                        // görünüm değişince sayfa değişmiş gibi olmasın)
+                        logOut.Append("\u0001● Kart tam ekran gösterimden çıktı — ekranın son hâli:\u0002");
+                        string shot = !string.IsNullOrWhiteSpace(_flowSnapshot) ? _flowSnapshot : _lastClearedScreen;
+                        int skip = !string.IsNullOrWhiteSpace(_flowSnapshot) ? Math.Min(_flowSnapshotAt, _sinceDraw.Length) : 0;
+                        if (!string.IsNullOrWhiteSpace(shot)) logOut.Append(shot.Replace("\n", "\r\n"));
+                        logOut.Append(_sinceDraw.ToString(skip, _sinceDraw.Length - skip));
                         _sinceDraw.Clear();
+                        _flowSnapshot = _lastClearedScreen = null;
                     }
                     logOut.Append(c);
                 }
@@ -209,10 +218,16 @@ namespace Vision
         private void LineFeed()
         {
             _wrapPending = false;
+            if (Mode == SerialViewMode.Screen && _plainScrolls == 0)
+            {
+                // Son çizimden sonraki ilk satır sonu: akış başlıyor olabilir — ekranın bu hâli günlüğe aktarılmak üzere saklanır
+                _flowSnapshot = Text();
+                _flowSnapshotAt = _sinceDraw.Length;
+            }
             if (CursorRow == _bottom) ScrollUp(_top, _bottom, 1);
             else if (CursorRow < Rows - 1) CursorRow++;
-            // Konumlamasız ekranın bir boyu kadar satır geldiyse kart tam ekran çizmeyi bırakmış, akan yazıya dönmüştür
-            if (Mode == SerialViewMode.Screen && ++_plainScrolls >= Rows) Mode = SerialViewMode.Log;
+            // Konumlamasız 25 satır (BIOS ekranının bir boyu) geldiyse kart tam ekran çizmeyi bırakmış, akan yazıya dönmüştür
+            if (Mode == SerialViewMode.Screen && ++_plainScrolls >= DefaultRows) Mode = SerialViewMode.Log;
             Touch();
         }
 
@@ -380,6 +395,7 @@ namespace Vision
         private void NotePositioning(bool strong)
         {
             _plainScrolls = 0;
+            _flowSnapshot = null;
             if (Mode == SerialViewMode.Screen) { _sinceDraw.Clear(); return; }
             DateTime now = _now();
             if (_positioning == 0 || (now - _positioningSince).TotalSeconds > 2) { _positioning = 0; _positioningSince = now; }
@@ -396,6 +412,11 @@ namespace Vision
         {
             if (mode == 2 || mode == 3)
             {
+                if (Mode == SerialViewMode.Screen)
+                {
+                    string before = Text();
+                    if (!string.IsNullOrWhiteSpace(before)) _lastClearedScreen = before;
+                }
                 for (int r = 0; r < Rows; r++) _cells[r] = NewRow();
                 NotePositioning(true);
             }
@@ -557,6 +578,33 @@ namespace Vision
             var chars = new char[Cols];
             for (int c = 0; c < Cols; c++) chars[c] = _cells[row][c].Ch == '\0' ? ' ' : _cells[row][c].Ch;
             return new string(chars).TrimEnd();
+        }
+
+        /// <summary>
+        /// Ekran boyutunu değiştirir (Ekran görünümü pencereyi doldursun diye; en az 80×25 — BIOS bu alana çizer).
+        /// İçerik sol üstten korunur, imleç alana sığdırılır, kaydırma bölgesi tüm ekran olur.
+        /// </summary>
+        public void Resize(int cols, int rows)
+        {
+            cols = Math.Max(DefaultCols, Math.Min(400, cols));
+            rows = Math.Max(DefaultRows, Math.Min(200, rows));
+            if (cols == Cols && rows == Rows) return;
+            var cells = new Cell[rows][];
+            int oldRows = Rows, oldCols = Cols;
+            Cols = cols;
+            Rows = rows;
+            for (int r = 0; r < rows; r++)
+            {
+                cells[r] = NewRow();
+                if (r < oldRows) for (int c = 0; c < Math.Min(cols, oldCols); c++) cells[r][c] = _cells[r][c];
+            }
+            _cells = cells;
+            _top = 0;
+            _bottom = rows - 1;
+            CursorRow = Math.Min(CursorRow, rows - 1);
+            CursorCol = Math.Min(CursorCol, cols - 1);
+            _wrapPending = false;
+            Touch();
         }
 
         /// <summary>Görünümü elle değiştirmek (başlıktaki düğme).</summary>

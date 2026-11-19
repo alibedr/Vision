@@ -147,6 +147,48 @@ namespace VisionTests
         }
 
         [Test]
+        public void Vt_DonunceEkraninSonHaliGunlugeEklenir()
+        {
+            var vt = new VtScreen();
+            Feed(vt, "\u001b[2J\u001b[1;1HBoot Manager\u001b[3;5HUEFI: Disk 1\u001b[25;1H");
+            var sb = new StringBuilder();
+            for (int i = 0; i < 26; i++) sb.Append("Loading " + i + "\r\n");
+            string log = Feed(vt, sb.ToString());
+            Check.Equal(SerialViewMode.Log, vt.Mode, "günlüğe dönüldü");
+            int menu = log.IndexOf("Boot Manager", StringComparison.Ordinal), disk = log.IndexOf("    UEFI: Disk 1", StringComparison.Ordinal);
+            int first = log.IndexOf("Loading 0", StringComparison.Ordinal);
+            Check.True(menu >= 0 && disk > menu && first > disk, "önce ekranın son hâli, sonra akan satırlar: " + log);
+            Check.Equal(1, CountOf(log, "Loading 0\r\n"), "akan satır iki kez yazılmaz");
+
+            // Menüden çıkarken BIOS ekranı temizlerse: temizlenmeden önceki ekran aktarılır
+            var vt2 = new VtScreen();
+            Feed(vt2, "\u001b[2J\u001b[1;1HSetup Utility\u001b[2;1HExit\u001b[3;1H");
+            Feed(vt2, "\u001b[2J");
+            string log2 = Feed(vt2, sb.ToString());
+            Check.True(log2.Contains("Setup Utility") && log2.Contains("Loading 25"), "temizlenen menü de günlüğe: " + log2);
+        }
+
+        private static int CountOf(string s, string part)
+        {
+            int n = 0, i = 0;
+            while ((i = s.IndexOf(part, i, StringComparison.Ordinal)) >= 0) { n++; i += part.Length; }
+            return n;
+        }
+
+        [Test]
+        public void Vt_BoyutDegisinceIcerikKorunur()
+        {
+            var vt = new VtScreen();
+            Feed(vt, "\u001b[2J\u001b[1;1HBoot\u001b[25;80HX");
+            vt.Resize(120, 40);
+            Check.Equal(120, vt.Cols, "genişledi");
+            Check.Equal("Boot", vt.RowText(0), "sol üst korunur");
+            Check.Equal('X', vt[24, 79].Ch, "80×25 içindeki her şey yerinde");
+            vt.Resize(60, 10);
+            Check.True(vt.Cols == 80 && vt.Rows == 25, "en az 80×25 kalır");
+        }
+
+        [Test]
         public void Vt_TekTukImlecKomutuGorunumuDegistirmez()
         {
             DateTime t = new DateTime(2026, 11, 19, 12, 0, 0);

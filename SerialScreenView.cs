@@ -67,15 +67,17 @@ namespace Vision
     }
 
     /// <summary>
-    /// Seri penceresinin Ekran görünümü (1.10): <see cref="VtScreen"/>'i TeraTerm'deki gibi 80×25'lik bir terminal olarak
-    /// çizer (BIOS / boot manager menüleri: renkler, ters renk, çerçeveler, imleç). Yazı boyutu ızgara alana sığacak kadar
-    /// ayarlanır. Tuşlar doğrudan karta gider (günlük görünümüyle aynı eşleme).
+    /// Seri penceresinin Ekran görünümü (1.10): <see cref="VtScreen"/>'i TeraTerm'deki gibi terminal olarak çizer (BIOS /
+    /// boot manager menüleri: renkler, ters renk, çerçeveler, imleç). Günlükle tek sayfa gibi görünür: aynı yazı tipi ve
+    /// boyutu, sol üstten başlar, pencerenin tamamını kaplar (ızgara pencereye göre büyür, en az 80×25); yazı yalnız pencere
+    /// 80×25'e yetmezse küçülür. Renkler temaya çevrilir: kartın siyah zemini temanın terminal zemini, gri / beyaz yazı
+    /// temanın yazısı, diğer renkler temanın vurgu / uyarı / hata tonları. Tuşlar doğrudan karta gider.
     /// </summary>
     internal sealed class SerialScreenView : Control
     {
         private const int WM_SYSKEYDOWN = 0x0104;
         private const int WM_SYSKEYUP = 0x0105;
-        private const float MaxFontSize = 11f, MinFontSize = 5f;
+        private const float MinFontSize = 5f;
 
         private readonly VtScreen _screen;
         private Font _font;
@@ -86,15 +88,6 @@ namespace Vision
         public Action PasteRequested;
         public int DrawnVersion { get; private set; }
 
-        // Standart 16 renk (VGA): BIOS menüleri bunları kullanır; "varsayılan" renkler temadan gelir
-        private static readonly Color[] Palette =
-        {
-            Color.FromArgb(0, 0, 0), Color.FromArgb(170, 0, 0), Color.FromArgb(0, 170, 0), Color.FromArgb(170, 85, 0),
-            Color.FromArgb(0, 0, 170), Color.FromArgb(170, 0, 170), Color.FromArgb(0, 170, 170), Color.FromArgb(170, 170, 170),
-            Color.FromArgb(85, 85, 85), Color.FromArgb(255, 85, 85), Color.FromArgb(85, 255, 85), Color.FromArgb(255, 255, 85),
-            Color.FromArgb(85, 85, 255), Color.FromArgb(255, 85, 255), Color.FromArgb(85, 255, 255), Color.FromArgb(255, 255, 255),
-        };
-
         public SerialScreenView(VtScreen screen)
         {
             _screen = screen;
@@ -104,22 +97,94 @@ namespace Vision
             Cursor = Cursors.IBeam;
         }
 
+        /// <summary>
+        /// Yazı boyutu günlükteki gibi; pencere 80×25'e yetmiyorsa sığana kadar küçülür. Ekran ızgarası pencereyi doldurur.
+        /// </summary>
         private void EnsureFont()
         {
-            int w = Math.Max(1, ClientSize.Width - 8), h = Math.Max(1, ClientSize.Height - 8);
-            // Izgarayı sığdıran en büyük boyut (en çok 11 pt)
-            float size = MaxFontSize;
-            while (true)
+            int w = Math.Max(1, ClientSize.Width), h = Math.Max(1, ClientSize.Height);
+            float size = Theme.Mono.Size;
+            while (size > MinFontSize)
             {
                 Size cell = Measure(size);
-                if ((cell.Width * _screen.Cols <= w && cell.Height * _screen.Rows <= h) || size <= MinFontSize) break;
+                if (cell.Width * VtScreen.DefaultCols <= w && cell.Height * VtScreen.DefaultRows <= h) break;
                 size -= 0.5f;
             }
-            if (_font != null && Math.Abs(size - _fontSize) < 0.01f) return;
-            if (_font != null) _font.Dispose();
-            _fontSize = size;
-            _font = new Font(Theme.Mono.FontFamily, size);
-            _cell = Measure(size);
+            if (_font == null || Math.Abs(size - _fontSize) >= 0.01f)
+            {
+                if (_font != null) _font.Dispose();
+                _fontSize = size;
+                _font = new Font(Theme.Mono.FontFamily, size);
+                _cell = Measure(size);
+            }
+            _screen.Resize(w / _cell.Width, h / _cell.Height);
+        }
+
+        protected override void OnResize(EventArgs e)
+        {
+            base.OnResize(e);
+            if (ClientSize.Width > 0 && ClientSize.Height > 0) { EnsureFont(); Invalidate(); }
+        }
+
+        // ---------- Tema renkleri ----------
+
+        private static Color Fore(VtScreen.Cell cell)
+        {
+            int i = cell.Fg < 0 ? 7 : (cell.Bold && cell.Fg < 8 ? cell.Fg + 8 : cell.Fg);
+            switch (i)
+            {
+                case 0: return Theme.Input;                       // siyah yazı (açık zemin üstünde): zemin rengi
+                case 1: case 9: return Theme.Danger;
+                case 2: case 10: return Theme.Success;
+                case 3: case 11: return Theme.Warning;
+                case 4: case 12: case 5: case 13: case 6: case 14: return Theme.Accent;
+                case 8: return Theme.TextMuted;
+                case 15: return Theme.Text;
+                default: return Theme.Terminal;                   // gri / varsayılan
+            }
+        }
+
+        private static Color Back(VtScreen.Cell cell)
+        {
+            int i = cell.Bg < 0 ? 0 : cell.Bg;
+            switch (i)
+            {
+                case 0: return Theme.Input;                       // kartın siyah zemini: temanın terminal zemini
+                case 1: case 9: return Theme.DangerSurface;
+                case 2: case 10: return Theme.SuccessBanner;
+                case 3: case 11: return Blend(Theme.Warning, Theme.Input, 0.35);
+                case 4: case 12: case 5: case 13: return Theme.AccentFill;   // BIOS'un mavi zemini / seçim çubuğu
+                case 6: case 14: return Blend(Theme.AccentFill, Theme.Input, 0.6);
+                case 8: return Theme.SurfaceHigh;
+                default: return Theme.ListSelectedStrong;         // gri / beyaz çubuk (seçili satır)
+            }
+        }
+
+        private static Color Blend(Color a, Color b, double t)
+        {
+            return Color.FromArgb((int)(a.R * t + b.R * (1 - t)), (int)(a.G * t + b.G * (1 - t)), (int)(a.B * t + b.B * (1 - t)));
+        }
+
+        private static double Luminance(Color c)
+        {
+            Func<double, double> f = v => { v /= 255.0; return v <= 0.03928 ? v / 12.92 : Math.Pow((v + 0.055) / 1.055, 2.4); };
+            return 0.2126 * f(c.R) + 0.7152 * f(c.G) + 0.0722 * f(c.B);
+        }
+
+        private static double Contrast(Color a, Color b)
+        {
+            double la = Luminance(a), lb = Luminance(b);
+            return (Math.Max(la, lb) + 0.05) / (Math.Min(la, lb) + 0.05);
+        }
+
+        /// <summary>Temaya çevrilen renkler bir zeminde okunmuyorsa yazı beyaz ya da temanın yazısı olur.</summary>
+        private static Color Readable(Color fore, Color back)
+        {
+            if (Contrast(fore, back) >= 3.0) return fore;
+            Color a = Color.White, b = Theme.Text, c = Theme.Input;
+            Color best = a;
+            foreach (Color x in new[] { b, c }) if (Contrast(x, back) > Contrast(best, back)) best = x;
+            return best;
         }
 
         private static Size Measure(float size)
@@ -134,11 +199,11 @@ namespace Vision
         protected override void OnPaint(PaintEventArgs e)
         {
             Graphics g = e.Graphics;
-            Color defBack = Theme.Input, defFore = Theme.Terminal;
+            Color defBack = Theme.Input;
             g.Clear(defBack);
             EnsureFont();
             DrawnVersion = _screen.Version;
-            const int ox = 4, oy = 4;
+            const int ox = 0, oy = 0;   // günlükle aynı yerden başlar (kenar boşluğu dıştaki panelde)
             const TextFormatFlags flags = TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine;
             for (int r = 0; r < _screen.Rows; r++)
             {
@@ -148,9 +213,15 @@ namespace Vision
                 for (int c = 0; c < _screen.Cols; c++)
                 {
                     VtScreen.Cell cell = _screen[r, c];
-                    Color fore = cell.Fg < 0 ? defFore : Palette[(cell.Bold && cell.Fg < 8) ? cell.Fg + 8 : cell.Fg];
-                    Color back = cell.Bg < 0 ? defBack : Palette[cell.Bg];
-                    if (cell.Reverse) { Color t = fore; fore = back; back = t; }
+                    Color fore = Fore(cell), back = Back(cell);
+                    if (cell.Reverse)
+                    {
+                        // Ters renk (BIOS'ta seçili satır): temada seçili satır görünümü
+                        bool plain = cell.Bg < 0 || cell.Bg == 0;
+                        Color t = fore; fore = back; back = t;
+                        if (plain) { back = Theme.ListSelectedStrong; fore = Theme.ListSelectedText; }
+                    }
+                    fore = Readable(fore, back);
                     bool cursor = _screen.CursorVisible && r == _screen.CursorRow && c == _screen.CursorCol;
                     if (cursor && Focused) { Color t = fore; fore = back; back = t; }
                     var rect = new Rectangle(ox + c * _cell.Width, y, _cell.Width, _cell.Height);
