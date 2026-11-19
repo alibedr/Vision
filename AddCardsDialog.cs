@@ -77,6 +77,8 @@ namespace Vision
             }
 
             _count.ValueChanged += (s, e) => SyncIpRows(false);
+            // Sayı kutusu değeri ancak kutudan çıkınca bildirir: yazdıkça (ör. 5) IP satırları hemen güncellensin
+            _count.TextChanged += (s, e) => { if (TypedCount() != _ipBoxes.Count) SyncIpRows(false); };
             _fillBtn.Click += (s, e) => SyncIpRows(true);
             _startIp.TextChanged += (s, e) =>
             {
@@ -210,10 +212,18 @@ namespace Vision
 
         // ---------- Dinamik IP alanları ----------
 
+        /// <summary>Kart sayısı: kutuya yazılmakta olan geçerli sayı (henüz onaylanmamış olsa da), yoksa kutunun değeri.</summary>
+        private int TypedCount()
+        {
+            int n;
+            if (int.TryParse(_count.Text.Trim(), out n) && n >= _count.Minimum && n <= _count.Maximum) return n;
+            return (int)_count.Value;
+        }
+
         /// <summary>IP satırı sayısını kart sayısına eşitler. overwrite=true ise tümünü başlangıç IP'sinden doldurur.</summary>
         private void SyncIpRows(bool overwrite)
         {
-            int target = (int)_count.Value;
+            int target = TypedCount();
             string start = _startIp.Text.Trim();
             bool startValid = IpUtil.IsValidIPv4(start);
             if (overwrite && !startValid)

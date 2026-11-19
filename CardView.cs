@@ -171,7 +171,7 @@ namespace Vision
             foreach (var b in new IconButton[] { _connectBtn, _snapBtn, _clearBtn, _maxBtn, _closeBtn }) b.Width = 28;
 
             _tips.SetToolTip(_uptime, "Bağlantı süresi (bağlantı kurulduğu andan itibaren)");
-            _clearBtn.SetTip(_tips, "Temizle — ekranı ve geçmişi temizler");
+            _clearBtn.SetTip(_tips, "Temizle — ekranı ve geçmişi temizler (onay sorar)");
             _connectBtn.SetTip(_tips, ConnectionAction.ConnectLabel);
             _maxBtn.SetTip(_tips, "Büyüt");
             _closeBtn.SetTip(_tips, "Kapat — görünümü kapatır (bağlantı ve kart yapılandırması korunur)");
@@ -187,7 +187,7 @@ namespace Vision
                 if (SelectionLogic.IsLive(Session.State)) Session.Disconnect();
                 else await Session.ConnectAsync();
             };
-            _clearBtn.Click += (s, e) => ClearTerminal();
+            _clearBtn.Click += (s, e) => AskClearTerminal();
             _maxBtn.Click += (s, e) => { var h = MaximizeToggled; if (h != null) h(this); };
             _closeBtn.Click += (s, e) => { var h = CloseRequested; if (h != null) h(this); };
             _header.DoubleClick += (s, e) => { var h = MaximizeToggled; if (h != null) h(this); };
@@ -295,6 +295,11 @@ namespace Vision
             // Enter tuşu YALNIZCA burada işlenir (tek işleyici). SuppressKeyPress, TextBox'ın
             // kendi Enter işlemesini ve uyarı sesini engeller; formda AcceptButton yoktur.
             _input.KeyDown += Input_KeyDown;
+            // Fare tekerleği komut satırının üzerinde: ↑ / ↓ gibi geçmişte gezinir (Axis alışkanlığı)
+            _input.MouseDown += (s, e) => { if (Session.BootInputLocked) BootChangeMultiDialog.Reveal(Session); };
+            HistoryWheel.Attach(_input, () => Session.State == CardState.Connected && !Session.BootInputLocked,
+                () => { string prev = Session.CommandHistory.Previous(_input.Text); if (prev != null) SetInput(prev); },
+                () => { string next = Session.CommandHistory.Next(); if (next != null) SetInput(next); });
             // Ortak, kalıcı komut geçmişinden otomatik tamamlama (Tab / ↓ / → ile kabul; çalıştırmaz)
             _autoComplete = new InputAutoComplete(_input, () => Session.CommandHistory);
             _sendBtn.Click += async (s, e) => await SendCurrentAsync();
@@ -346,6 +351,7 @@ namespace Vision
             _tx.ForeColor = now - Session.LastTxUtc < ActivityWindow ? Theme.Accent : Theme.TextFaint;
 
             if (Session.State != _shownState) RefreshState();
+            RefreshBootLock();
             RefreshSentinelButton();
             RefreshUptime();
             RefreshResponses();
@@ -783,6 +789,18 @@ namespace Vision
             }
         }
 
+        /// <summary>Temizle düğmesi: önce onay (1.9 — yanlışlıkla basılınca ekran ve geçmiş kaybolmasın; varsayılan Vazgeç).</summary>
+        private void AskClearTerminal()
+        {
+            int c = ChoiceDialog.Ask(FindForm(), "Ekranı temizle",
+                Session.Card.Label + " kartının ekranı temizlensin mi?",
+                "Kartın ekranındaki çıktı ve bu karttaki ekran geçmişi silinir; geri alınamaz. Karta hiçbir şey gönderilmez.\n" +
+                "Saklamak isterseniz önce \"Dosyaya kaydet\" ile kaydedin.",
+                new[] { "Vazgeç", "Temizle" }, 0, 1);
+            if (c == 1) ClearTerminal();
+            _input.Focus();
+        }
+
         /// <summary>Kartın terminal ekranını ve geçmişini temizler (kart silgisi ve genel silgi aynı işi yapar).</summary>
         public void ClearTerminal()
         {
@@ -869,15 +887,8 @@ namespace Vision
                 _title.ForeColor = connected ? Theme.Text : Theme.TextMuted;
                 BackColor = headBack;
 
-                // Konsol: bağlı değilken yazılamaz
-                _input.ReadOnly = !connected;
-                _input.TabStop = connected;
                 if (!connected) _input.Clear();
-                _input.BackColor = inBack;
-                _field.BackColor = inBack;
-                _inputBar.BackColor = connected ? Theme.SurfaceHigh : OffHeaderBack;
-                _input.Cursor = connected ? Cursors.IBeam : Cursors.No;
-                Theme.SetCueBanner(_input, connected ? "Komut yazıp Enter'a basın  (↑/↓ geçmiş · Ctrl+R ara)" : "Kart bağlı değil — komut yazılamaz");
+                ApplyInputLook(connected, _shownBootLock);
             }
 
             if (_shownDrop != drop)
@@ -948,11 +959,54 @@ namespace Vision
             _dropBanner.Location = new Point(Math.Max(4, (_outputHost.ClientSize.Width - _dropBanner.Width) / 2), 10);
         }
 
+        private bool _shownBootLock, _shownBootBusy;
+
+        /// <summary>
+        /// Konsol: bağlı değilken yazılamaz; genel komuttan açılan boot penceresi sürerken de kilitli ve gri (1.9) —
+        /// yazılan şey kartın o an sorduğu boot alanına gidip ayarı bozmasın. Tıklamak boot penceresini öne getirir.
+        /// </summary>
+        private void ApplyInputLook(bool connected, bool bootLocked)
+        {
+            bool writable = connected && !bootLocked;
+            Color inBack = writable ? Theme.Input : OffInputBack;
+            _input.ReadOnly = !writable;
+            _input.TabStop = writable;
+            _input.BackColor = inBack;
+            _field.BackColor = inBack;
+            _inputBar.BackColor = writable ? Theme.SurfaceHigh : OffHeaderBack;
+            _input.Cursor = writable ? Cursors.IBeam : bootLocked ? Cursors.Hand : Cursors.No;
+            _sendBtn.Enabled = writable;
+            Theme.SetCueBanner(_input, bootLocked ? "Boot ayarları sürüyor — pencereden devam edin"
+                                       : connected ? "Komut yazıp Enter'a basın  (↑/↓ geçmiş · Ctrl+R ara)" : "Kart bağlı değil — komut yazılamaz");
+            _tips.SetToolTip(_input, bootLocked ? "Bu kartın boot ayarları genel komut çubuğundan açılan pencerede sürüyor.\n" +
+                                                  "Yanlışlıkla yazılan şey boot alanına gitmesin diye komut satırı kilitli. Tıklayın: pencereye geçer." : null);
+        }
+
+        /// <summary>Tick'ten: boot penceresi kilidi değiştiyse komut satırını ve kartın komut düğmelerini günceller.</summary>
+        private void RefreshBootLock()
+        {
+            bool connected = Session.State == CardState.Connected;
+            bool locked = Session.BootInputLocked && connected;
+            if (locked != _shownBootLock)
+            {
+                _shownBootLock = locked;
+                ApplyInputLook(connected, locked);
+            }
+            bool busy = Session.InteractiveInputActive;
+            if (busy != _shownBootBusy)
+            {
+                _shownBootBusy = busy;
+                RefreshActionButtons();
+                RefreshSentinelButton(true);
+            }
+        }
+
         // ---------- Komut gönderme ----------
 
         private async Task SendCurrentAsync()
         {
             if (Session.State != CardState.Connected) return;
+            if (Session.BootInputLocked) { BootChangeMultiDialog.Reveal(Session); return; }
             if (Session.TransferActive)
             {
                 // Komut satırda kalır; aktarım bitince Enter ile gönderilebilir (G42.10)
@@ -996,6 +1050,13 @@ namespace Vision
             {
                 // Bağlı olmayan kartın konsoluna yazılamaz (ReadOnly); geçmiş/gönderim tuşları da çalışmaz
                 if (e.KeyCode == Keys.Enter || e.KeyCode == Keys.Up || e.KeyCode == Keys.Down) e.SuppressKeyPress = true;
+                return;
+            }
+            if (Session.BootInputLocked)
+            {
+                // Genel boot penceresi sürüyor: hiçbir tuş karta gitmez (Ctrl+C dahil); Enter pencereyi öne getirir
+                if (e.KeyCode == Keys.Enter) BootChangeMultiDialog.Reveal(Session);
+                if (e.KeyCode == Keys.Enter || e.KeyCode == Keys.Up || e.KeyCode == Keys.Down || e.Control) e.SuppressKeyPress = true;
                 return;
             }
             // Önce otomatik tamamlama (Tab / ↓ / → / Esc); Enter'a dokunmaz

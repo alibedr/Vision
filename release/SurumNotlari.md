@@ -1,6 +1,6 @@
-# Vision 1.8 — Sürüm notları
+# Vision 1.9 — Sürüm notları
 
-**Yayın tarihi:** 18.11.2026
+**Yayın tarihi:** 19.11.2026
 
 Bu klasörde Vision'ın yalnız **güncel sürümü** bulunur. Eski sürümler kullanılmamalıdır: her sürüm, öncekilerin hatalarını
 düzeltip iyileştirmelerini içerir.
@@ -23,36 +23,37 @@ günlükleri ise `Vision.exe`'nin yanındaki `logs` klasöründedir; bunları sa
 
 ## Bu sürümde yeni
 
-- **Seri sekmesi: kartlara COM portundan bağlantı.** TeraTerm açmadan, USB-seri çeviriciyle kartlara seri porttan
-  bağlanılır. Telnet'ten bağımsızdır; kartın ağı yokken, açılışta ya da bootrom'dayken de çalışır.
-  - Bilgisayardaki portlar Windows'taki adlarıyla listelenir; porta kartın adı verilebilir (ör. "Kart 3").
-  - En fazla 12 port aynı anda, Telnet'teki gibi ızgarada; her pencere büyütülebilir.
-  - Port başına ayarlar: baud rate, data, parity, stop, akış denetimi ve gönderme gecikmesi (varsayılan 115200 8N1).
-  - TeraTerm gibi terminale tıklayıp doğrudan yazılır; seçilen metin kendiliğinden kopyalanır, Shift+Insert yapıştırır.
-  - Seride yazılan komutlar Telnet'ten ayrı bir geçmişte saklanır (tek tık yazar, çift tık gönderir); çıktı dosyaya
-    kaydedilebilir.
-- **Sekmeye göre değişen sol menü.** Telnet ve Kart Dosya Gezgini'nde Kart Gezgini, Seri'de seri portlar, Sentinel'de kart
-  listesi, Komut Kütüphanesi'nde arama ve komut listesi. Genişlik bütün sekmelerde aynı olduğu için sekme değiştirince ekran
-  kaymaz; her sekmenin menüsü ayrı gizlenir ve açık / kapalı durumu ayrı hatırlanır.
-- **Klasör yükleme daha dayanıklı.** Bir dosya FTP'ye gönderilemez ya da kartta kopyalanamazsa yükleme durmaz: o dosya
-  atlanır, kalanlar yüklenir. Sonunda kartta her dosyanın boyutu bilgisayardakiyle karşılaştırılır. Yüklenemeyenler sonda
-  listelenir: ekranda ilk 5'i, kartın olay günlüğünde hepsi nedenleriyle.
-- **Yeni sekme sırası ve kısayollar:** Telnet (Ctrl+1), Kart Dosya Gezgini (Ctrl+2), Seri (Ctrl+3), Sentinel (Ctrl+4),
-  Komut Kütüphanesi (Ctrl+5).
-- Uygulama turu ve Kullanım Kılavuzu yeni özelliklere göre güncellendi.
+Bu sürümdeki değişiklikler beta kullanıcılarının geri bildirimlerinden geliyor.
+
+- **Bütün kartlara bspBootChange: tek pencere.** Genel komut çubuğundan gönderilince her kart için ayrı pencere açılmaz.
+  Solda kartlar grup ve IP sırasıyla, durumlarıyla (giriş bekliyor, tamamlandı, çıkıldı …) listelenir; sağda seçilen
+  kartın boot ekranı görünür. Bir kart bitince sıradakine geçilir. Pencere yarıda kapatılırsa kalan alanlar değiştirilmeden
+  geçilir; hiçbir kart boot ekranında bırakılmaz.
+- **Boot ayarı sürerken kilitler.** Genel pencere açıkken kartların komut satırı kilitlenir (yanlışlıkla yazılan şey boot
+  alanına gitmesin); tıklayınca pencere öne gelir. Boot ayarı bitmemiş kartta hızlı komut, reboot ve Sentinel düğmeleri
+  basılamaz; genel komut çubuğu da o kartı atlar.
+- **Çık (Ctrl+D) düğmesi her zaman görünür;** Ctrl+D ile çıkılınca "Tamamlandı" değil "Çıkıldı" yazar.
+- **Temizle onay ister:** kart penceresinde, tüm kartları temizlerken ve seri pencerede (varsayılan Vazgeç).
+- **Fare tekerleğiyle komut geçmişi:** komut satırının üzerinde tekerlek, ↑ / ↓ gibi önceki ve sonraki komutları getirir
+  (kart komut satırı ve genel komut çubuğu).
+- **Kartlar her zaman grup ve IP sırasında:** kapatılıp yeniden gösterilen kart en sona değil, kendi yerine gelir.
+- **Yardım menüsünde** "Log klasörünü aç" ve "Olay günlükleri klasörünü aç".
+- **Düzeltmeler:** ad / metin pencerelerinde Enter artık her yoldan "Tamam" yerine geçer; Kart Ekle'de kart sayısı
+  yazılınca IP listesi hemen güncellenir.
 
 ## Önemli notlar
 
+- Tema kısayolu **Ctrl+Shift+L kaldırıldı**; tema Temalar menüsünden seçilir.
 - Seri port aynı anda yalnız bir programda açılabilir: port TeraTerm'de açıksa Vision açamaz ve bunu söyler.
-- Komut Kütüphanesi'nin kısayolu Ctrl+3'ten Ctrl+5'e geçti (Ctrl+3 artık Seri sekmesi).
 - Boot ayarı kayıtları, FTP parolası dahil kartın tüm boot alanlarını `config.xml` içinde düz metin olarak saklar.
-- Sorun bildirirken `logs\hatalar.log` dosyasını eklemeniz sorunun bulunmasını kolaylaştırır. Kartla ilgili olayların
-  zaman çizelgesi için terminalde sağ tık → **Olay günlüğü…**
+- Sorun bildirirken `logs\hatalar.log` dosyasını eklemeniz sorunun bulunmasını kolaylaştırır (Yardım → Log klasörünü aç).
+  Kartla ilgili olayların zaman çizelgesi için terminalde sağ tık → **Olay günlüğü…**
 
 ## Önceki sürümlerde gelenler
 
 | Sürüm | Değişiklikler |
 |---|---|
+| 1.8 | Seri sekmesi: COM portundan karta bağlantı (en fazla 12 port ızgarada, port başına ayarlar ve ad, doğrudan yazma, ayrı seri komut geçmişi). Sekmeye göre değişen ve her sekmede ayrı hatırlanan sol menü; yeni sekme sırası (Ctrl+3 Seri, Ctrl+4 Sentinel, Ctrl+5 Komut Kütüphanesi). Klasör yüklemede gidemeyen dosyalar atlanır, boyutlar doğrulanır, yüklenemeyenler olay günlüğünde tam listelenir. |
 | 1.7 | Kart açılınca loglar reboot'u atana gelir: reboot'u gönderen Vision 2 sn'de bir, habersiz kopan diğerleri 30 sn bekleyip 15 sn'de bir dener. Düzeltmeler: Bağlan / Kes art arda basılınca arka planda bağlantı açık kalması; Boot ayarı kayıtları penceresi genişletilince satırların kayması. |
 | 1.6 | Boot ayarı kayıtları: kartın boot ayarlarını adıyla kaydetme (kart başına en fazla 5), şu anki ayarlarla karşılaştırma, önizleme + onayla aynı ya da başka karta geri yükleme (başka kartta IP alanları atlanır), doğrulama ve yeniden başlatma önerisi; Boot ayarları penceresinden "Bu ayarları kaydet…" ve "Boot ayarı kayıtları…". Kendi gönderdiğimiz reboot'ta kırmızı uyarı yerine sarı "yeniden başlatılıyor"; kesinti ekrana ve olay günlüğüne yalnız bir kez, bağlantı gelince toplam süreyle yazılır. |
 | 1.5 | Otomatik testler (her derlemede çalışır); kart başına olay günlüğü (bağlantı, reboot, boot ayarı değişiklikleri, Sentinel, dosya işlemleri, aktarımlar — süzme, arama, CSV); reboot onayında "Temizleyip yeniden başlat". |

@@ -362,6 +362,8 @@ namespace Vision
 
             _grid.ViewsChanged += (s, e) => { UpdateWorkspaceTitle(); _globalBar.UpdateTargets(); _statesDirty = true; };
             _grid.ZoomWheel += step => ChangeZoom(step);
+            // Izgara sırası: Kart Gezgini'ndeki grup sırası, grup içinde IP (kapatılıp yeniden açılan kart en sona düşmez)
+            _grid.Order = (a, b) => SelectionLogic.CompareDisplayOrder(GroupOrder(a.Card), a.Card.Ip, GroupOrder(b.Card), b.Card.Ip);
             _grid.CardConfigChanged += card => SaveConfig();
             _grid.SentinelRequested += card => { ShowTab(MainTab.Sentinel); _sentinelView.SelectCard(card); };
             _zoomOut.Click += (s, e) => ChangeZoom(-1);
@@ -369,6 +371,7 @@ namespace Vision
             _zoomReset.Click += (s, e) => SetZoom(AppSettings.DefaultTerminalZoom);
             _globalBar.SaveSnapshotsRequested += async () => await SaveAllSnapshotsAsync();
             _globalBar.ClearAllRequested += ClearAllTerminals;
+            _globalBar.ClearAllClicked += AskClearAllTerminals;
             _closeAllBtn.Click += (s, e) => _grid.CloseAll();
 
             _lineEnd.SelectedIndexChanged += (s, e) => SaveSettingsFromUi();
@@ -409,18 +412,12 @@ namespace Vision
         private void OnFormKeyDown(object sender, KeyEventArgs e)
         {
             // Seri terminalde Ctrl+harf (Ctrl+C, Ctrl+X, Ctrl+N …) karta gider: uygulama kısayolları devreye girmez
-            if (_activeTab == MainTab.Serial && e.Control && !e.Alt && e.KeyCode >= Keys.A && e.KeyCode <= Keys.Z &&
-                !(e.Shift && e.KeyCode == Keys.L))
+            if (_activeTab == MainTab.Serial && e.Control && !e.Alt && e.KeyCode >= Keys.A && e.KeyCode <= Keys.Z)
                 return;
             if (e.KeyCode == Keys.F1)
             {
                 e.SuppressKeyPress = true;
                 ShowHelp(HelpPage.Guide);
-            }
-            else if (e.Control && e.Shift && e.KeyCode == Keys.L)   // sonraki tema
-            {
-                e.SuppressKeyPress = true;
-                ToggleTheme();
             }
             else if (e.Control && !e.Shift && e.KeyCode == Keys.N)   // Ctrl+Shift+N: gezgin / kütüphane "yeni"
             {
@@ -661,6 +658,19 @@ namespace Vision
         // ---------- Genel temizleme ----------
 
         /// <summary>Ekrandaki tüm kartların terminal ekranını temizler (her kartın silgi düğmesiyle aynı iş).</summary>
+        /// <summary>Tümünü temizle düğmesi: kaç kartın temizleneceğini söyleyerek onay sorar (varsayılan Vazgeç).</summary>
+        private void AskClearAllTerminals()
+        {
+            int n = _grid.Views.Count;
+            if (n == 0) { ClearAllTerminals(); return; }
+            int c = ChoiceDialog.Ask(this, "Tüm kartları temizle",
+                (n == 1 ? "Ekrandaki kartın" : "Ekrandaki " + n + " kartın") + " ekranı temizlensin mi?",
+                "Her kartın ekranındaki çıktı ve ekran geçmişi silinir; geri alınamaz. Kartlara hiçbir şey gönderilmez.\n" +
+                "Saklamak isterseniz önce genel \"Dosyaya kaydet\" ile kaydedin.",
+                new[] { "Vazgeç", n == 1 ? "Temizle" : n + " kartı temizle" }, 0, 1);
+            if (c == 1) ClearAllTerminals();
+        }
+
         private void ClearAllTerminals()
         {
             List<CardView> views = _grid.Views.ToList();
@@ -851,6 +861,12 @@ namespace Vision
         private readonly ToolTip _sidebarTips = new DarkToolTip();
 
         /// <summary>Kartın görünen adını verir / değiştirir / kaldırır (bağlantı her zaman IP ile yapılır).</summary>
+        private int GroupOrder(CardConfig card)
+        {
+            int i = card.Group != null ? _config.Groups.IndexOf(card.Group) : -1;
+            return i < 0 ? int.MaxValue : i;
+        }
+
         private void RenameCard(CardConfig card)
         {
             string name = InputDialog.Ask(this, "Kart adı",
@@ -899,7 +915,7 @@ namespace Vision
         private readonly List<Image> _themeMenuImages = new List<Image>();
         private readonly DarkToolTip _headerTips = new DarkToolTip();
 
-        /// <summary>Yardım ve tema düğmelerini sekme şeridinin sağına yerleştirir (F1 ve Ctrl+Shift+L formda işlenir).</summary>
+        /// <summary>Yardım ve tema düğmelerini sekme şeridinin sağına yerleştirir (F1 formda işlenir; tema kısayolu 1.9'da kaldırıldı, tema yalnız menüden seçilir).</summary>
         private void BuildHeaderButtons(Panel tabStrip)
         {
             _helpMenu.Renderer = new DarkMenuRenderer();
@@ -913,6 +929,11 @@ namespace Vision
             item("Kullanım Kılavuzu", "F1", () => ShowHelp(HelpPage.Guide));
             item("Uygulama turu", null, StartTour);
             _helpMenu.Items.Add(new ToolStripSeparator());
+            // Kullanıcının bakabileceği klasörler (ayar klasörü bilerek yok: ayarlar uygulamadan değiştirilir, elle düzenlenen
+            // config.xml bozulabilir)
+            item("Log klasörünü aç", null, () => OpenFolder(TerminalSnapshot.DefaultFolder, "log klasörü"));
+            item("Olay günlükleri klasörünü aç", null, () => OpenFolder(CardEventLog.Folder, "olay günlükleri klasörü"));
+            _helpMenu.Items.Add(new ToolStripSeparator());
             item("Hakkında", null, () => ShowHelp(HelpPage.About));
 
             _helpBtn.Dock = DockStyle.Right;
@@ -924,11 +945,26 @@ namespace Vision
                 BuildThemeMenu();
                 _themeMenu.Show(_themeBtn, new Point(0, _themeBtn.Height));
             };
-            _headerTips.SetToolTip(_helpBtn, "Kullanım kılavuzu, gereksinimler, hakkında  (F1: kılavuz)");
+            _headerTips.SetToolTip(_helpBtn, "Kullanım kılavuzu, uygulama turu, log ve olay günlüğü klasörleri, hakkında  (F1: kılavuz)");
             tabStrip.Controls.Add(_helpBtn);    // Dock=Right: son eklenen en sağda → [Yardım] [Temalar]
             tabStrip.Controls.Add(_themeBtn);
             RefreshThemeItem();
             Theme.Changed += RefreshThemeItem;   // düzenleyicideki anlık önizlemede de simge rengi güncel kalsın
+        }
+
+        /// <summary>Klasörü Windows Gezgini'nde açar (yoksa oluşturur).</summary>
+        private void OpenFolder(string folder, string what)
+        {
+            try
+            {
+                Directory.CreateDirectory(folder);
+                System.Diagnostics.Process.Start("explorer.exe", "\"" + folder + "\"");
+            }
+            catch (Exception ex)
+            {
+                ErrorText.LogTechnical(what, ex);
+                ChoiceDialog.Ask(this, "Klasör açılamadı", folder, ErrorText.Describe(ex), new[] { "Tamam" }, 0, -1);
+            }
         }
 
         /// <summary>Temalar düğmesi: simge rengi geçerli temanın vurgusu.</summary>
@@ -937,7 +973,7 @@ namespace Vision
             ThemeDefinition def = ThemeCatalog.FindOrDefault(Theme.CurrentThemeId);
             _themeBtn.IconColor = Theme.Accent;
             _themeBtn.FitToText();
-            string tip = "Tema: " + def.Name + "  ·  hazır temalar ve özelleştirme  (Ctrl+Shift+L: sonraki tema)";
+            string tip = "Tema: " + def.Name + "  ·  hazır temalar ve özelleştirme";
             _themeBtn.AccessibleName = tip;
             _headerTips.SetToolTip(_themeBtn, tip);
         }
@@ -1007,16 +1043,6 @@ namespace Vision
             _config.Settings.UiTheme = Theme.Mode;   // eski sürümlerle uyum
             RefreshThemeItem();
             SaveConfig();
-        }
-
-        /// <summary>Ctrl+Shift+L: listedeki sonraki hazır temaya geçer.</summary>
-        private void ToggleTheme()
-        {
-            IList<ThemeDefinition> all = ThemeCatalog.All;
-            int i = 0;
-            for (int k = 0; k < all.Count; k++)
-                if (string.Equals(all[k].Id, Theme.CurrentThemeId, StringComparison.OrdinalIgnoreCase)) i = k;
-            SelectTheme(all[(i + 1) % all.Count].Id);
         }
 
         private void OnUiTick()
@@ -1397,7 +1423,7 @@ namespace Vision
                  "Terminalde şu an görünen içeriği bu karta ait ayrı bir dosyaya kaydeder. Her tıklama yeni bir dosya; sürekli kayıt başlatmaz.",
                  v => new[] { v.TourSnapshot });
             card("Temizle",
-                 "Kartın ekranını ve ekran geçmişini temizler. Karta hiçbir şey göndermez.",
+                 "Kartın ekranını ve ekran geçmişini temizler; yanlışlıkla basılmasın diye önce onay sorar. Karta hiçbir şey göndermez.",
                  v => new[] { v.TourClear });
             card("Büyüt",
                  "Kartı tüm alana büyütür; tekrar basınca ızgaraya döner. Başlığa çift tık da aynı işi yapar.",
@@ -1416,7 +1442,7 @@ namespace Vision
                  "silgi listeyi temizler (terminale dokunmaz).",
                  v => v.TourResponses);
             card("Komut satırı",
-                 "Komutu yazıp Enter. ↑ / ↓ önceki komutlar; yazarken otomatik tamamlama önerir. Ctrl+R komut geçmişinde geriye arar.",
+                 "Komutu yazıp Enter. ↑ / ↓ ya da komut satırının üzerinde fare tekerleği önceki komutlar; yazarken otomatik tamamlama önerir. Ctrl+R komut geçmişinde geriye arar.",
                  v => new[] { v.TourInput });
             card("Komut geçmişi",
                  "Bu kartta yazılan tüm komutlar (uygulama kapansa da saklanır). Arayıp seçtiğiniz komut komut satırına yazılır, gönderilmez.",
@@ -1567,7 +1593,9 @@ namespace Vision
                 Title = "Genel komut çubuğu",
                 Body = () => "Buraya yazılan komut ekrandaki TÜM kartlara aynı anda gönderilir; her kartın cevabı kendi penceresinde görünür. " +
                              "Hızlı komut (en fazla 5 komut, ▾ ile seçilir) ve reboot (onay ister; isterseniz önce tüm ekranları temizler) da buradan tüm kartlara uygulanabilir. " +
-                             "Dosya aktarımı süren kart atlanır.",
+                             "Dosya aktarımı süren kart atlanır.\n\n" +
+                             "bspBootChange buradan gönderilirse tek pencere açılır: solda kartlar (grup ve IP sırasıyla, durumlarıyla), sağda " +
+                             "seçilen kartın boot ekranı. Silgi tüm kartların ekranını temizler (önce sorar).",
                 Target = () => TourRect(_globalBar),
                 Enter = telnet,
             });
@@ -1793,7 +1821,7 @@ namespace Vision
                 Id = "themes",
                 Title = "Temalar",
                 Body = () => "21 hazır tema: Vision temaları ve popüler editör temaları (Dark Modern, Dracula, Nord…). Temayı özelleştir ile " +
-                             "renkleri değiştirip anlık görebilirsiniz. Ctrl+Shift+L sonraki temaya geçer.",
+                             "renkleri değiştirip anlık görebilirsiniz. Seçili tema menüde işaretli görünür.",
                 Target = () => TourRect(_themeBtn),
                 Enter = telnet,
             });
@@ -1868,7 +1896,7 @@ namespace Vision
                 new[] { "Ctrl+N", "Kart ekle" }, new[] { "Ctrl+1 … 5", "Sekmeler" },
                 new[] { "Ctrl+R", "Komut geçmişinde ara" }, new[] { "F1", "Kullanım Kılavuzu" },
                 new[] { "F2", "Ad değiştir" }, new[] { "F5", "Yenile" },
-                new[] { "Ctrl + tekerlek", "Yazı boyutu" }, new[] { "Ctrl+Shift+L", "Sonraki tema" },
+                new[] { "Ctrl + tekerlek", "Yazı boyutu" }, new[] { "Ctrl+B", "Sol menü" },
             };
             int colW = (r.Width - 12) / 2;
             for (int i = 0; i < rows.Length; i++)

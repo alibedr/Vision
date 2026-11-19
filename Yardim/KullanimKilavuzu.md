@@ -13,7 +13,7 @@ Vision ilk açıldığında **uygulama turu** başlar: ekran kararır, anlatıla
 3. **Kart penceresi:** ad / grup, bağlı kalma süresi, RX / TX ışıkları, durum şeridi, Bağlan / Kes, Dosyaya kaydet, Temizle, Büyüt, Kapat, çıktı alanı, dönüş değerleri, komut satırı, komut geçmişi, Gönder, hızlı komut, reboot ve Sentinel düğmeleri tek tek gösterilir; durum renkleri (reboot sonrası sarı "yeniden başlatılıyor" dahil) ve kopmanın bir kez yazılıp toplam sürenin verildiği anlatılır.
 4. **Boot ayarları:** kartınıza uygun olarak `bspBootChange` ya da `bootChange` yazmanız istenir; açılan Boot ayarları penceresinin bölümleri (durum, sorulan alan, yeni değer, alan düğmeleri, alan listesi, araya giren loglar) anlatılır; alt banttaki **Bu ayarları kaydet…** ve **Boot ayarı kayıtları…** düğmeleri gösterilir, pencereyi kapatınca tur sürer.
 5. **Renklendirme ve sağ tık menüsü:** terminalde bir kelime seçip sağ tık → Renklendir ile bir renk seçmeniz istenir; ardından aynı menüdeki **Boot ayarı kayıtları…** (kaydet, karşılaştır, geri yükle) ve **Olay günlüğü…** (kartın zaman çizelgesi) ayrı adımlarda anlatılır; ikisinin Kart Gezgini'nde karta sağ tıklayınca da açıldığı söylenir.
-6. Terminal ayarları ve genel komut çubuğu.
+6. Terminal ayarları ve genel komut çubuğu (genel bspBootChange penceresi dahil).
 7. **Kart Dosya Gezgini** bağlandığınız kartla açılır: kart seçimi, adres çubuğu / Geri / Yenile, cihaz listesi ve disk alanı, Yeni klasör, Yükle, FTP ayarları, Ham cevap; bir öğeye sağ tıklamanız istenir ve **Yeniden adlandır / Sil / Bilgisayara kaydet** anlatılır; karta ve bilgisayara sürükle-bırak, klasör yüklemede yüklenemeyen dosyaların atlanıp sonda listelenmesi açıklanır.
 8. **Seri:** soldaki seri port listesi, Aç / Ayarlar… ve seri pencereleri (doğrudan yazma, kopyala / yapıştır, seri komut geçmişi) anlatılır.
 9. **Sentinel:** kartınızdaki güncel imajın **Voltran** olup olmadığı sorulur. **Evet** derseniz nabız düğmesiyle Sentinel web sunucusunu başlatmanız istenir ve Sentinel sekmesi (kartlar, sayfa çubuğu, sayfa) kendi kartınızın sayfasıyla anlatılır; **Hayır** derseniz Sentinel genel hatlarıyla anlatılır.
@@ -32,7 +32,7 @@ Vision ilk açıldığında **uygulama turu** başlar: ekran kararır, anlatıla
 | Bölüm | Konum | Ne işe yarar |
 |---|---|---|
 | Sol menü | Sol kenar | **Sekmeye göre değişir:** Telnet ve Kart Dosya Gezgini'nde **Kart Gezgini** (grupları ve kartları listeler; kart ekleme, seçme, bağlanma ve gösterme buradan yapılır), Seri'de **seri portlar**, Sentinel'de **bağlı kartlar** listesi, Komut Kütüphanesi'nde **arama ve modül / komut listesi**. Sekme şeridinin en solundaki kenar çubuğu düğmesi (Ctrl+B) o sekmenin menüsünü gizler / gösterir; açık / kapalı durumu **her sekme için ayrı** hatırlanır (Vision kapanıp açılınca da). Genişlik bütün sekmelerde aynıdır. |
-| Sekmeler | Sağ alanın üstü | **Telnet** (kart terminalleri), **Kart Dosya Gezgini**, **Seri** (COM portundan bağlantı), **Sentinel** ve **Komut Kütüphanesi** arasında geçiş (Ctrl+1 / 2 / 3 / 4 / 5). Aynı şeridin en sağında **Yardım** (Kullanım Kılavuzu, Uygulama turu, Hakkında) ve **Temalar** menüsü (hazır temalar ve özelleştirme; aşağıya bakın) bulunur. |
+| Sekmeler | Sağ alanın üstü | **Telnet** (kart terminalleri), **Kart Dosya Gezgini**, **Seri** (COM portundan bağlantı), **Sentinel** ve **Komut Kütüphanesi** arasında geçiş (Ctrl+1 / 2 / 3 / 4 / 5). Aynı şeridin en sağında **Yardım** (Kullanım Kılavuzu, Uygulama turu, Log klasörünü aç, Olay günlükleri klasörünü aç, Hakkında) ve **Temalar** menüsü (hazır temalar ve özelleştirme; aşağıya bakın) bulunur. |
 | Telnet sekmesi | Sağ alan | Seçilen kartların terminal pencereleri ızgara düzeninde görünür (en fazla 24 kart). |
 | Terminal ayarları | Telnet sekmesinin üst çubuğu | Satır sonu, yerel eko, zaman damgası, dosyaya kaydet, satır sınırı ve "Tümünü kapat". |
 | Genel komut çubuğu | Telnet sekmesinin altı | Bir komutu ekrandaki tüm kartlara aynı anda gönderir. |
@@ -76,7 +76,7 @@ Temalar menüde iki başlık altında listelenir.
 | Ayu Dark | Turuncu vurgulu, çok koyu sade tema |
 
 - Geçiş anında olur: açık tüm pencereler (kart terminalleri, Dosya Gezgini, Komut Kütüphanesi, başlık ve kaydırma çubukları) yeni temaya geçer. Bağlantılar kesilmez, terminal içerikleri silinmez.
-- **Ctrl+Shift+L** listedeki sonraki temaya geçer.
+- Tema yalnız **Temalar** menüsünden seçilir; seçili tema menüde işaretli görünür. (Eski **Ctrl+Shift+L** kısayolu 1.9'da kaldırıldı: yanlışlıkla basılınca bütün görünüm değişiyor, hangi temaya geçildiği anlaşılmıyordu.)
 - Seçim ayarlarla birlikte kaydedilir; uygulama bir sonraki açılışta aynı temayla açılır. Her kullanıcının seçimi kendi bilgisayarındadır.
 - Yardım sayfası da açıldığında o anki temanın renkleriyle gösterilir.
 
@@ -128,7 +128,7 @@ Arayüz renkleri WCAG 2.1 AA kontrast ölçütüne göre ölçülüp ayarlanmı�
 
 1. Kart Gezgini'nde **+ Kart Ekle** düğmesine basın (ya da **Ctrl+N**).
 2. **Grup adı**, **Port** (varsayılan 23), **Başlangıç IP adresi** ve **Kart sayısı** alanlarını doldurun.
-3. Kart sayısı kadar IP alanı otomatik oluşur ve başlangıç IP'sinden sırayla doldurulur (ör. 192.168.1.10, .11, .12). Başlangıç IP'sini değiştirdikçe **Kart 1 dahil** tüm alanlar kendiliğinden güncellenir; düğmeye basmak gerekmez. Bir alanı elle değiştirirseniz o alan artık kendiliğinden değişmez; **Sıralı doldur** elle değiştirilenler dahil tüm alanları yeniden sıralar.
+3. Kart sayısı kadar IP alanı otomatik oluşur (sayıyı yazdığınız anda; kutudan çıkmak gerekmez) ve başlangıç IP'sinden sırayla doldurulur (ör. 192.168.1.10, .11, .12). Başlangıç IP'sini değiştirdikçe **Kart 1 dahil** tüm alanlar kendiliğinden güncellenir; düğmeye basmak gerekmez. Bir alanı elle değiştirirseniz o alan artık kendiliğinden değişmez; **Sıralı doldur** elle değiştirilenler dahil tüm alanları yeniden sıralar.
 4. **Grubu Oluştur** ile kaydedin.
 
 Doğrulama kuralları: grup adı boş ya da var olan bir grupla aynı olamaz; IP'ler dört bölümlü geçerli IPv4 olmalı ve listede tekrar etmemelidir. Hatalı alanlar kırmızıyla işaretlenir.
@@ -143,7 +143,7 @@ Kartın ne için kullanıldığını göstermek için isteğe bağlı bir ad ver
 
 - Ad yalnız gösterim içindir; bağlantı ve tüm komutlar her zaman **IP adresiyle** yapılır.
 - Ad Kart Gezgini'nde, kart penceresinin başlığında, Kart Dosya Gezgini'nin kart seçiminde ve uyarılarda görünür; Kart Gezgini aramasında da aranır.
-- Değiştirmek için yine **Adı değiştir…**; kaldırmak için alanı boş bırakın.
+- Değiştirmek için yine **Adı değiştir…**; kaldırmak için alanı boş bırakın. Adı yazıp **Enter** (ya da **Tamam**) kaydeder, **Esc** vazgeçer; bu, ad / metin isteyen bütün pencerelerde (grup adı, yeni klasör, yeniden adlandırma, kayıt adı) aynıdır.
 - Ad `config.xml` dosyasında saklanır; bağlantı kopsa da, yeniden bağlansa da kartla birlikte kalır.
 
 ### Gruplar nerede saklanır?
@@ -222,6 +222,8 @@ Telnet sekmesinde **tam olarak** seçili kartları bırakır: seçimden çıkan 
 
 Açık kartlar pencere boyutuna göre dinamik bir ızgaraya dizilir (2 kart → 2×1, 4 → 2×2, 6 → 3×2 …). Kartlar çok küçülecekse alan kaydırılabilir olur.
 
+**Kartların sırası** her zaman aynıdır: önce gruplar (Kart Gezgini'ndeki sırayla), grup içinde kartlar **IP adresine göre** (sayısal: `.2`, `.10`, `.100`). Kart nasıl açılırsa açılsın (çift tık, **Seçilenleri Göster**, sağ tık menüsü) ve bir kartı kapatıp yeniden gösterseniz de kart en sona değil, bu sıradaki yerine gelir. Kart pencereleri elle taşınmaz ya da boyutlandırılmaz; bir karta odaklanmak için **Büyüt**'ü kullanın.
+
 ### En fazla 24 kart
 
 Aynı anda en fazla **24 kart** gösterilebilir (uygulama sınırı; değiştirilemez). Daha fazlası açılmak istendiğinde:
@@ -244,7 +246,7 @@ Aynı anda en fazla **24 kart** gösterilebilir (uygulama sınırı; değiştiri
 | ⏱ 00:12:34 | Bağlantı süresi. Bağlantının kurulduğu andan başlar, kopunca sıfırlanır. |
 | RX / TX | Veri alınırken (yeşil) ve gönderilirken (mavi) yanar. |
 | Fiş simgesi | **Bağlantı Kur** (yeşil fiş) / **Bağlantıyı Kes** (kırmızı, üstü çizili fiş): yalnız bu kartın bağlantısını kurar / keser. |
-| Silgi simgesi | **Temizle**: kartın ekranını ve geçmişini temizler. |
+| Silgi simgesi | **Temizle**: kartın ekranını ve geçmişini temizler. Yanlışlıkla basılmasın diye önce sorar (varsayılan **Vazgeç**); silinen ekran geri gelmez, saklamak için önce **Dosyaya kaydet**. |
 | Kare / ✕ | Büyüt (büyütülmüşken iki kare: eski boyut) / ekrandan kaldır. |
 | Disket simgesi | **Dosyaya kaydet**: terminalde o an görünen içeriği bu kart için ayrı bir dosyaya kaydeder (aşağıya bakın). |
 | Kâğıt uçak (komut satırının sağı) | **Gönder** (Enter ile aynı). |
@@ -307,7 +309,7 @@ Hızlı komutun yanındaki düğme iki bölmelidir:
 ### Komut satırı
 
 - **Enter** komutu gönderir. Boş Enter yalnız satır sonu gönderir.
-- **↑ / ↓** komut geçmişinde gezinir. En yeni komutun da ötesine inince, geçmişe girmeden önce yazdığınız metin geri gelir. Boş komut saklanmaz; aynı komut tekrar kullanılırsa yinelenmez, en yeniye taşınır.
+- **↑ / ↓** ya da komut satırının üzerinde **fare tekerleği** (yukarı: önceki, aşağı: sonraki) komut geçmişinde gezinir. En yeni komutun da ötesine inince, geçmişe girmeden önce yazdığınız metin geri gelir. Boş komut saklanmaz; aynı komut tekrar kullanılırsa yinelenmez, en yeniye taşınır.
 - **Geçmiş kalıcıdır ve ortaktır:** Yazdığınız her komut `%APPDATA%\TelnetCards\KomutGecmisi.txt` dosyasına hemen kaydedilir; uygulamayı kapatıp açtığınızda geçmiş ve otomatik tamamlama önerileri geri gelir. Tüm kartlar ve genel komut çubuğu aynı geçmişi kullanır: bir kartta yazdığınız komut diğer kartlarda da ↑ ile ve otomatik tamamlamada bulunur. En fazla 5.000 komut tutulur; dolunca en uzun süredir kullanılmayan silinir.
 - **Otomatik tamamlama:** Daha önce yazılmış bir komutun başını yazdığınızda (ör. `mod`), geçmişteki en son eşleşen komutun eksik kısmı imlecin sağında soluk renkte görünür (`moduleShow`). **Tab**, **↓** ya da imleç sondayken **→** öneriyi kabul eder. Kabul etmek komutu **çalıştırmaz**; ardından Enter ile gönderirsiniz. Yazmaya devam edebilir ya da **Esc** ile öneriyi gizleyebilirsiniz. Enter yalnız sizin yazdığınızı gönderir. Büyük / küçük harf duyarsızdır; genel komut çubuğunda da çalışır.
 - **Ctrl+R** ya da komut alanının içindeki **saat simgesi** komut geçmişi penceresini açar (aşağıya bakın).
@@ -366,13 +368,24 @@ Kart terminalinden (komut satırı, hızlı komut ya da genel komut çubuğu) `b
 - **Değeri düzenle** (F2): kartın değerini kutuya kopyalar; küçük bir değişiklik yapıp Enter'a basın.
 - **Temizle (.)**: alanı boşaltır. **◀ Önceki alan**: bir önceki alana döner (karta `-` gönderilir).
 - Listede bir alana **çift tıklayın**: kart o alana gelene kadar alanlar değiştirilmeden geçilir (geri gitmek için `-` gönderilir).
-- **Kalanları geçip bitir**: kalan alanların hepsi değiştirilmeden geçilir; girdiğiniz değerler kaydedilir. **Çık (Ctrl+D)**: komuttan hemen çıkar (kartın imajına göre değişiklikler kaydedilmeyebilir).
+- **Kalanları geçip bitir**: kalan alanların hepsi değiştirilmeden geçilir; girdiğiniz değerler kaydedilir. **Çık (Ctrl+D)** (kırmızı, her zaman görünür; pencere darsa düğmeler iki satıra dizilir): komuttan hemen çıkar. Kartın imajına göre girdiğiniz değerler kaydedilmeyebilir; bu yüzden sonrasında yeşil "Bitti" değil turuncu **"Çıkıldı (Ctrl+D)"** yazar ve **Bu ayarları kaydet…** kullanılamaz. Değişiklik yaptıysanız **Kalanları geçip bitir** daha güvenlidir.
 - Kart bir alanı sorarken aynı anda log gelirse ve alanın değeri logdan güvenle ayrılamazsa, değer yerine sarı **"okunamadı (araya log girdi) — terminale bakın"** yazar. Bu yalnız görüntüdür; karta bir şey yazılmaz. Kartın gerçek değerini terminalde görebilirsiniz.
 - Değiştirdiğiniz alanlar listede `eski → yeni` olarak görünür. Komut bitince kaç alanın değiştiği yazar; yeni boot ayarları genellikle kart yeniden başlatılınca geçerli olur.
 - **Araya giren kart logları** (alt şerit, tıklayınca açılır): bu sırada gelen loglar kaybolmaz, burada toplanır. Kartın tüm çıktısı terminalde de görünmeye devam eder.
 - Pencere kart bitirmeden kapatılırsa sorulur: **Kalanları geçip bitir**, **Yalnız pencereyi kapat** (terminalden devam edersiniz) ya da **Vazgeç**.
 - Pencere açıkken o kartta Dosya Gezgini gibi arka plan komutları gönderilmez (gönderilseler alan değeri olarak yazılırdı); pencere bitince yeniden çalışır.
-- Genel komut çubuğundan gönderildiyse bağlı her kart için ayrı pencere açılır.
+- Komut bitene kadar kart penceresinde karta komut gönderen düğmeler (**hızlı komut**, **reboot**, **Sentinel**) kilitlidir; genel komut çubuğundan gönderilen komut, hızlı komut ve reboot da bu kartı atlar ("boot ayarları sürüyor" olarak bildirilir). Hepsinin değeri, kartın o an sorduğu boot alanına yazılırdı. Komut bitince ya da pencereden çıkınca düğmeler yeniden kullanılabilir.
+- Tek kart penceresinde kartın komut satırı açık kalır (istenirse terminalden de devam edilebilir).
+- **Genel komut çubuğundan gönderildiyse** her kart için ayrı pencere açılmaz; **tek pencere** açılır (birden çok bağlı kart varsa):
+  - **Solda kartlar**, ızgaradaki sırayla (grup, sonra IP), her birinin durumuyla: *Kartın cevabı bekleniyor*, *Giriş bekliyor: (alan)*, *Sürüyor*, *✓ Tamamlandı — N alan değişti*, *✕ Tamamlanamadı (neden)*. Altta özet: "8 kart · 3 tamamlandı · 1 giriş bekliyor · 4 sürüyor".
+  - **Sağda seçilen kartın boot ekranı**: tek kart penceresiyle aynı (alanlar, düğmeler, araya giren loglar, **Bu ayarları kaydet…**, **Boot ayarı kayıtları…**).
+  - Bu pencere açıkken kartların **komut satırı kilitlidir**: gri görünür ve "Boot ayarları sürüyor — pencereden devam edin" yazar; yanlışlıkla yazılan bir şey boot alanına gitmez. Komut satırına tıklamak bu pencereyi öne getirir ve o kartı seçer. Kartın komutu bitince (ya da çıkılınca) kilit kalkar.
+  - Komut **bütün kartlara aynı anda** gider; listeden istediğiniz karta tıklayıp geçebilirsiniz. Gösterilen kart bitince sıradaki bitmemiş karta kendiliğinden geçilir.
+  - Bir karttan değişiklik yapmadan çıkmak için o kartta **Kalanları geçip bitir** (girilenler kaydedilir) ya da **Çık (Ctrl+D)**; listede "Çıkıldı (Ctrl+D)" yazar.
+  - **Bu ayarları kaydet…** yalnız seçili kartın ayarlarını o kartın kayıtlarına ekler (toplu kayıt yoktur).
+  - Pencere bütün kartlar bitmeden kapatılırsa sorulur: **Kalanları değiştirmeden bitir ve kapat** bitmemiş kartların kalan alanlarını değiştirmeden geçer (girilen değerler kaydedilir) ve bitince pencereyi kapatır; hiçbir kart boot ekranında beklemez. **Vazgeç** pencereyi açık bırakır.
+  - Bu sırada bir karta kendi terminalinden yeniden `bspBootChange` yazılırsa komut bu pencerede, o kartın ekranında yeniden başlar. Kendi Boot ayarları penceresi zaten açık olan kart o pencerede yeniden başlar.
+  - Bütün kartlara **aynı** ayarları vermek için: bir kartın ayarlarını **Bu ayarları kaydet…** ile kaydedip **Boot ayarı kayıtları** penceresinden diğer kartlara uygulayın (aşağıya bakın).
 - **Bu ayarları kaydet…** (alt bant): komut bitince kartın boot ayarlarını, bu pencerenin okuduğu değerlerle (gönderdiğiniz yeni değerler dahil) adıyla kaydeder; kart yeniden okunmaz. Değeri güvenle okunamayan alan varsa kaydetmez. Kayıt **Boot ayarı kayıtları** penceresinde görünür.
 - **Boot ayarı kayıtları…** (alt bant): bu kartın kayıt penceresini açar (aşağıya bakın). Boot ayarları penceresi komut sürerken açıksa kayıt penceresi kartı okuyamaz; komut bitince okur.
 
@@ -428,7 +441,7 @@ Telnet sekmesinin altındaki **TÜM AÇIK KARTLARA** çubuğu, yazılan komutu e
 - Her kart komutu **tam bir kez** alır.
 - Bağlı olmayan açık kartlar atlanır ve sonuçta raporlanır: `⚠ 3/4 karta gönderildi · gönderilemedi: 192.168.1.12 (bağlı değil)`.
 - Bir kartın hatası diğer kartlara gönderimi durdurmaz.
-- Komut geçmişi kartlarla ortaktır ve kalıcıdır (↑ / ↓, otomatik tamamlama, saat simgesi ya da Ctrl+R ile geçmiş penceresi). Bu çubuk Kart Dosya Gezgini sekmesinde görünmez.
+- Komut geçmişi kartlarla ortaktır ve kalıcıdır (↑ / ↓ ya da fare tekerleği, otomatik tamamlama, saat simgesi ya da Ctrl+R ile geçmiş penceresi). Bu çubuk Kart Dosya Gezgini sekmesinde görünmez.
 
 Gönder düğmesinin yanında, kart penceresindekilerin genel karşılıkları vardır:
 
@@ -437,7 +450,7 @@ Gönder düğmesinin yanında, kart penceresindekilerin genel karşılıkları v
 | **Hızlı komut** (şimşek ▾) | Seçili genel hızlı komutu ekrandaki tüm bağlı kartlara birer kez gönderir. Kartlardaki gibi en fazla **5** komut: ▾ ya da sağ tık listeyi açar (komuta tıklamak seçer, göndermez; ekle / düzenle / sırala / kaldır). Kaydedilir. |
 | **reboot ⇄** | Sol: seçili `reboot` / `reboot 2` komutunu (onay alarak; isterseniz önce tüm ekranları temizleyerek) ekrandaki tüm bağlı kartlara birer kez gönderir. Sağ ⇄: yalnız seçimi değiştirir (göndermez). Gönderdikten sonra 4 sn pasif. |
 | **Dosyaya kaydet** (disket) | Ekrandaki **her** kartın terminal içeriğini o anda alır ve **her kartı kendi dosyasına** kaydeder (aşağıya bakın). |
-| **Tümünü temizle** (silgi) | Ekrandaki **her** kartın terminal ekranını ve geçmişini bir kerede temizler (kart başlığındaki silgiyle aynı iş; karta komut gönderilmez). |
+| **Tümünü temizle** (silgi) | Ekrandaki **her** kartın terminal ekranını ve geçmişini bir kerede temizler (kart başlığındaki silgiyle aynı iş; karta komut gönderilmez). Önce kaç kartın temizleneceğini yazarak sorar (varsayılan **Vazgeç**). |
 
 Sonuç her zaman çubuğun sağında yazar; kaydetmede ayrıntı (hangi kart hangi dosyaya) ipucundadır.
 
@@ -705,11 +718,11 @@ Bağlantı başarılı olsa da yazma izni yoksa ya da kartın gördüğü yol FT
 
 ### Seri pencere
 
-- **Doğrudan yazma (TeraTerm gibi):** terminale tıklayıp yazın; her tuş anında karta gider ve ekrana kartın yankısı gelir. Enter (CR), Backspace, Tab, Esc, oklar, Delete ve **Ctrl+harf** (Ctrl+C = kesme, Ctrl+X …) karta gönderilir. Bu yüzden Seri sekmesinde Ctrl+harf kısayolları (Ctrl+N, Ctrl+G, Ctrl+B …) çalışmaz; sekme geçişi (Ctrl+1…5) ve Ctrl+Shift+L çalışır. Sol menüyü bu sekmede ◀ düğmesiyle gizleyin.
+- **Doğrudan yazma (TeraTerm gibi):** terminale tıklayıp yazın; her tuş anında karta gider ve ekrana kartın yankısı gelir. Enter (CR), Backspace, Tab, Esc, oklar, Delete ve **Ctrl+harf** (Ctrl+C = kesme, Ctrl+X …) karta gönderilir. Bu yüzden Seri sekmesinde Ctrl+harf kısayolları (Ctrl+N, Ctrl+G, Ctrl+B …) çalışmaz; yalnız sekme geçişi (Ctrl+1…5) çalışır. Sol menüyü bu sekmede ◀ düğmesiyle gizleyin.
 - **Kopyalama:** fareyle seçtiğiniz metin kendiliğinden panoya kopyalanır; ayrıca sağ tık → Kopyala.
 - **Yapıştırma:** sağ tık → Yapıştır ya da **Shift+Insert**; satır sonları CR olarak gönderilir.
 - **Seri komut geçmişi** (saat düğmesi): Enter ile gönderdiğiniz satırlar Telnet geçmişinden **ayrı** bir dosyada saklanır. Pencerede **tek tık** komutu terminale yazar (Enter'sız; düzenleyip Enter'a basarsınız), **çift tık** hemen gönderir.
-- **Dosyaya kaydet:** ekrandaki çıktıyı metin dosyasına kaydeder. **Temizle** ekranı temizler. Seri çıktı için ayrıca log dosyası tutulmaz.
+- **Dosyaya kaydet:** ekrandaki çıktıyı metin dosyasına kaydeder. **Temizle** ekranı temizler; seri çıktı için ayrıca log dosyası tutulmadığından silinen ekran geri gelmez, bu yüzden önce sorar.
 - Ekranda en fazla 20.000 satır tutulur; yazdıkça en alta inilir. Yukarı kaydırıp okurken gelen çıktı sizi aşağı çekmez.
 - Alttaki şerit portun durumunu yazar. USB çevirici çıkarılırsa port kapanır ve şeritte nedeni görünür; pencereyi kapatmak portu da kapatır.
 
@@ -844,12 +857,11 @@ Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındak
 | F2 | Kart Gezgini'nde kartın ya da grubun adını değiştir |
 | Ctrl+W | Seçili kart penceresini kapat |
 | F1 | Kullanım Kılavuzu (ayrıca sekme şeridinin sağındaki **Yardım** düğmesi) |
-| Ctrl+Shift+L | Sonraki tema |
 | Enter / F2 / Ctrl+D / Esc | Boot ayarları penceresinde: gönder (boşsa değiştirmeden geç) / kartın değerini düzenle / çık / kapat |
 | Ctrl+S / Esc | Komut Kütüphanesi'nde kaydet / iptal |
 | Ctrl+F | Komut Kütüphanesi'nde ara |
 | Enter | Komut gönder · Kart Gezgini'nde seçili kartı göster · Dosya Gezgini'nde aç |
-| ↑ / ↓ | Komut geçmişi |
+| ↑ / ↓ · fare tekerleği (komut satırının üzerinde) | Komut geçmişi |
 | Ctrl+R | Komut satırında: komut geçmişi penceresi ve geriye doğru arama · pencerede: sonraki eşleşme |
 | Ctrl+C | Karta kesme (ETX) gönder (metin seçili değilken) |
 | Delete | Kart Gezgini'nde seçili kartı / grubu sil |
@@ -864,6 +876,8 @@ Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındak
 | Esc | Açık pencereyi (Kart Ekle, Yardım) kapat |
 
 ## Dosyalar ve klasörler
+
+**Yardım** menüsündeki **Log klasörünü aç** (`logs`) ve **Olay günlükleri klasörünü aç** (`logs\olaylar`) bu klasörleri Windows Gezgini'nde açar; sorun bildirirken dosyaları buradan alabilirsiniz. Ayar klasörü (`%APPDATA%\TelnetCards`) bilerek menüde yoktur: bütün ayarlar uygulamanın içinden değiştirilir, `config.xml`'in elle düzenlenmesi dosyayı bozup kart listesinin boş açılmasına yol açabilir.
 
 | Konum | İçerik |
 |---|---|

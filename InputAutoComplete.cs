@@ -166,4 +166,27 @@ namespace Vision
             }
         }
     }
+
+    /// <summary>
+    /// Komut satırının üzerinde fare tekerleği: yukarı = önceki komut, aşağı = sonraki komut (↑ / ↓ ile aynı).
+    /// Ctrl + tekerlek dokunulmadan bırakılır. Hassas tekerleklerde küçük adımlar biriktirilir (120 = bir çentik).
+    /// Olay işlendi sayılır; komut satırının üstündeyken kart penceresi / ızgara kaymaz.
+    /// </summary>
+    public static class HistoryWheel
+    {
+        public static void Attach(TextBox box, Func<bool> enabled, Action older, Action newer)
+        {
+            int pending = 0;
+            box.MouseWheel += (s, e) =>
+            {
+                if ((Control.ModifierKeys & Keys.Control) != 0) return;
+                var he = e as HandledMouseEventArgs;
+                if (he != null) he.Handled = true;
+                if (enabled != null && !enabled()) return;
+                pending += e.Delta;
+                while (pending >= 120) { pending -= 120; older(); }
+                while (pending <= -120) { pending += 120; newer(); }
+            };
+        }
+    }
 }

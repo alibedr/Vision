@@ -116,7 +116,7 @@ namespace Vision
             foreach (var b in buttons) { b.Height = 26; b.Width = 28; b.Anchor = AnchorStyles.Top | AnchorStyles.Right; }
             _historyBtn.SetTip(_tips, "Seri komut geçmişi — tek tık: komutu yazar (Enter'sız), çift tık: hemen gönderir");
             _saveBtn.SetTip(_tips, "Dosyaya kaydet — ekrandaki çıktıyı metin dosyasına kaydeder");
-            _clearBtn.SetTip(_tips, "Temizle — ekranı temizler");
+            _clearBtn.SetTip(_tips, "Temizle — ekranı temizler (onay sorar)");
             _settingsBtn.SetTip(_tips, "Port ayarları (baud rate, data, parity, stop, akış denetimi, gecikme)");
             _closeBtn.SetTip(_tips, "Kapat — pencereyi ve portu kapatır");
             IsMaximized = false;
@@ -133,7 +133,7 @@ namespace Vision
             };
             _historyBtn.Click += (s, e) => ShowHistory();
             _saveBtn.Click += (s, e) => SaveToFile();
-            _clearBtn.Click += (s, e) => { _output.Clear(); _output.Focus(); };
+            _clearBtn.Click += (s, e) => { AskClear(); _output.Focus(); };
             _settingsBtn.Click += (s, e) => { var h = SettingsRequested; if (h != null) h(this); };
             _maxBtn.Click += (s, e) => { var h = MaximizeToggled; if (h != null) h(this); };
             _closeBtn.Click += (s, e) => { var h = CloseRequested; if (h != null) h(this); };
@@ -164,7 +164,7 @@ namespace Vision
             var copy = new ToolStripMenuItem("Kopyala", null, (s, e) => CopySelection());
             var paste = new ToolStripMenuItem("Yapıştır  (Shift+Insert)", null, (s, e) => Paste());
             var all = new ToolStripMenuItem("Tümünü seç", null, (s, e) => _output.SelectAll());
-            var clear = new ToolStripMenuItem("Temizle", null, (s, e) => _output.Clear());
+            var clear = new ToolStripMenuItem("Temizle", null, (s, e) => BeginInvoke(new Action(AskClear)));
             _menu.Items.AddRange(new ToolStripItem[] { copy, paste, new ToolStripSeparator(), all, clear });
             _menu.Opening += (s, e) =>
             {
@@ -355,6 +355,16 @@ namespace Vision
         }
 
         // ---------- Kopyala / yapıştır / geçmiş / kaydet ----------
+
+        /// <summary>Temizle: onay sorar — seri çıktının log dosyası yok, silinen ekran geri gelmez (varsayılan Vazgeç).</summary>
+        private void AskClear()
+        {
+            int c = ChoiceDialog.Ask(FindForm(), "Ekranı temizle", Session.Profile.Label + " ekranı temizlensin mi?",
+                "Ekrandaki çıktı silinir; seri çıktı ayrıca bir dosyaya yazılmadığı için geri alınamaz. Karta hiçbir şey gönderilmez.\n" +
+                "Saklamak isterseniz önce \"Dosyaya kaydet\" ile kaydedin.",
+                new[] { "Vazgeç", "Temizle" }, 0, 1);
+            if (c == 1) _output.Clear();
+        }
 
         private void CopySelection()
         {

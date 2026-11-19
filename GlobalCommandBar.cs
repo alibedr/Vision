@@ -51,6 +51,9 @@ namespace Vision
         /// <summary>"Tümünü temizle": ekrandaki tüm kartların terminal ekranı temizlenmeli.</summary>
         public event Action ClearAllRequested;
 
+        /// <summary>Tümünü temizle düğmesine basıldı (onay ana pencerede; reboot'taki "Temizleyip yeniden başlat" ClearAllRequested'ı onaysız kullanır).</summary>
+        public event Action ClearAllClicked;
+
         public GlobalCommandBar(Func<IList<CardSession>> openSessions, AppSettings settings, Action saveSettings)
         {
             _targets = openSessions;
@@ -86,7 +89,7 @@ namespace Vision
             _quickMenu.Renderer = new DarkMenuRenderer();
             _quickMenu.ShowImageMargin = false;
             _saveBtn.SetTip(_tips, "Dosyaya kaydet — ekrandaki HER kartın terminalinde şu an görünen içeriği\nkartın kendi dosyasına kaydeder (kart başına ayrı dosya; sürekli kayıt başlatmaz)");
-            _clearAllBtn.SetTip(_tips, "Tümünü temizle — ekrandaki HER kartın terminal ekranını ve geçmişini temizler\n(kartlardaki silgi düğmesiyle aynı işi tüm kartlara bir kerede yapar; karta komut gönderilmez)");
+            _clearAllBtn.SetTip(_tips, "Tümünü temizle — ekrandaki HER kartın terminal ekranını ve geçmişini temizler\n(kartlardaki silgi düğmesiyle aynı işi tüm kartlara bir kerede yapar; onay sorar, karta komut gönderilmez)");
             _clearAllBtn.AccessibleName = "Tüm kartların ekranını temizle";
             Controls.AddRange(new Control[] { _title, _targetInfo, _fieldBorder, _sendBtn, _quickBtn, _rebootBtn, _saveBtn, _clearAllBtn, _result });
             _quickBtn.MainClick += async (s, e) => await RunQuickAsync();
@@ -96,7 +99,7 @@ namespace Vision
             _rebootBtn.ToggleClick += (s, e) => ToggleReboot();
             _rebootCooldown.Tick += (s, e) => { _rebootCooldown.Stop(); UpdateTargets(); };
             _saveBtn.Click += (s, e) => { var h = SaveSnapshotsRequested; if (h != null) h(); };
-            _clearAllBtn.Click += (s, e) => { var h = ClearAllRequested; if (h != null) h(); };
+            _clearAllBtn.Click += (s, e) => { var h = ClearAllClicked; if (h != null) h(); };   // ana pencere onay sorar
             RefreshQuickButton();
             RefreshRebootButton();
 
@@ -104,6 +107,9 @@ namespace Vision
             _sendBtn.SetTip(_tips, "Hepsine Gönder (Enter)\nYalnızca Telnet sekmesinde açık olan kartlara gönderilir.\nBağlı olmayan açık kartlar atlanır ve raporlanır.");
             _sendBtn.AccessibleName = "Hepsine Gönder";
             _input.KeyDown += Input_KeyDown;
+            HistoryWheel.Attach(_input, () => _input.Enabled,
+                () => { string prev = _history.Previous(_input.Text); if (prev != null) _autoComplete.SetTextQuiet(prev); },
+                () => { string next = _history.Next(); if (next != null) _autoComplete.SetTextQuiet(next); });
             _autoComplete = new InputAutoComplete(_input, () => _history);   // ortak, kalıcı geçmişten tamamlama
             _sendBtn.Click += async (s, e) => await SendAsync();
             _field.Click += (s, e) => _input.Focus();
@@ -259,7 +265,7 @@ namespace Vision
             _rebootCooldown.Start();
             UpdateTargets();
             if (clear) { var h = ClearAllRequested; if (h != null) h(); }
-            foreach (CardSession s in _targets().Where(t => t.State == CardState.Connected))
+            foreach (CardSession s in _targets().Where(t => t.State == CardState.Connected && !t.InteractiveInputActive))
                 s.LogEvent(CardEventLog.Reboot, "\"" + cmd + "\" gönderildi (genel komut çubuğundan" + (clear ? ", ekranlar temizlenerek" : "") + ").");
             await BroadcastAsync(cmd, "genel reboot", false);
         }
@@ -272,24 +278,29 @@ namespace Vision
             if (targets.Count == 0) { ShowResult("Ekranda açık kart yok — komut gönderilmedi.", Theme.Warning, null); return; }
             _sending = true;
             UpdateTargets();
+            // Boot ayarları süren kartlar atlanır (1.9): genel komut, hızlı komut ya da reboot kartın sorduğu boot alanına
+            // değer olarak gidip ayarı bozardı. Pencereler açılmadan önce belirlenir (yeni açılanlar komutu almalı).
+            List<CardSession> busy = targets.Where(t => t != null && t.InteractiveInputActive).Distinct().ToList();
             OpenBootChangeWindows(targets, cmd);
             BroadcastResult r;
-            try { r = await CommandBroadcaster.SendToAllAsync(targets, cmd, source); }
+            try { r = await CommandBroadcaster.SendToAllAsync(targets.Where(t => !busy.Contains(t)).ToList(), cmd, source); }
             finally { _sending = false; UpdateTargets(); }
+            foreach (CardSession s in busy) r.Failed.Add(new KeyValuePair<CardSession, string>(s, "boot ayarları sürüyor"));
             ReportBroadcast(cmd, r, fromInput);
         }
 
-        /// <summary>bspBootChange / bootChange: bağlı her hedef kart için ayrı Boot ayarları penceresi açılır (G27).</summary>
+        /// <summary>
+        /// bspBootChange / bootChange: bağlı hedef kartlar için tek pencere açılır — solda kartlar ızgaradaki sırayla (grup,
+        /// IP), sağda seçilen kartın boot ekranı (1.9; önceden her karta ayrı pencere açılıyordu). Tek kart: Boot ayarları penceresi.
+        /// </summary>
         private void OpenBootChangeWindows(IList<CardSession> targets, string cmd)
         {
             if (!BootChangeParser.IsBootChangeCommand(cmd)) return;
-            int i = 0;
-            foreach (CardSession s in targets.Where(t => t != null).Distinct())
-            {
-                if (s.State != CardState.Connected || s.InteractiveInputActive || s.TransferActive) continue;
-                try { BootChangeDialog.Begin(s, FindForm(), cmd, i++); }
-                catch (Exception ex) { ErrorText.LogTechnical(s.Card.DisplayName + " boot ayarları penceresi", ex); }
-            }
+            List<CardSession> cards = targets.Where(t => t != null).Distinct()
+                .Where(s => s.State == CardState.Connected && !s.InteractiveInputActive && !s.TransferActive).ToList();
+            if (cards.Count == 0) return;
+            try { BootChangeMultiDialog.Begin(cards, FindForm(), cmd); }
+            catch (Exception ex) { ErrorText.LogTechnical("boot ayarları penceresi (genel)", ex); }
         }
 
         private async void Input_KeyDown(object sender, KeyEventArgs e)

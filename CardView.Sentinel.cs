@@ -76,7 +76,7 @@ namespace Vision
             }
             _sentinelBtn.AccessibleName = st == SentinelStatus.Running ? "Sentinel'i durdur" : "Sentinel'i başlat";
             bool busy = st == SentinelStatus.Starting || st == SentinelStatus.Stopping;
-            bool enabled = connected && !busy;
+            bool enabled = connected && !busy && !Session.InteractiveInputActive;   // boot ayarları sürerken kilitli (1.9)
             if (_sentinelBtn.Enabled != enabled) _sentinelBtn.Enabled = enabled;
             _sentinelBtn.Invalidate();
 
@@ -94,6 +94,7 @@ namespace Vision
         private async Task ToggleSentinelAsync()
         {
             if (Session.State != CardState.Connected) { ShowToast("⚠  Kart bağlı değil — Sentinel komutu gönderilmedi.", false, null); return; }
+            if (Session.InteractiveInputActive) { ShowToast("⚠  " + CardSession.BootBusyMessage, false, null); return; }
             SentinelTracker t = Session.Sentinel;
             SentinelStatus st = t.Status;
             if (st == SentinelStatus.Starting || st == SentinelStatus.Stopping) return;

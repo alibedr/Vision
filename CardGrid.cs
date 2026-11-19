@@ -47,6 +47,32 @@ namespace Vision
 
         public event EventHandler ViewsChanged;
 
+        /// <summary>Kartların ızgaradaki sırası (grup, sonra IP; ana pencere verir). Yoksa açılış sırası kalır.</summary>
+        public Comparison<CardSession> Order;
+
+        /// <summary>Görünümleri <see cref="Order"/>'a göre dizer (kararlı: eşitler yer değiştirmez).</summary>
+        private void SortViews()
+        {
+            if (Order == null || _views.Count < 2) return;
+            var sorted = new List<CardView>(_views);
+            var original = new Dictionary<CardView, int>();
+            for (int i = 0; i < sorted.Count; i++) original[sorted[i]] = i;
+            sorted.Sort((x, y) =>
+            {
+                int c = Order(x.Session, y.Session);
+                return c != 0 ? c : original[x].CompareTo(original[y]);
+            });
+            _views.Clear();
+            _views.AddRange(sorted);
+        }
+
+        /// <summary>Grup sırası ya da bir kartın IP'si değişince ızgarayı yeniden dizer.</summary>
+        public void Resort()
+        {
+            SortViews();
+            PerformLayout();
+        }
+
         public CardView FindView(CardSession session)
         {
             foreach (var v in _views) if (v.Session == session) return v;
@@ -72,6 +98,7 @@ namespace Vision
             if (_views.Count >= MaxViews) return null;   // en fazla 24 kart; açık kartlara dokunulmaz
 
             var view = CreateView(session);
+            SortViews();                                  // en sona değil, grup / IP sırasındaki yerine
             if (_maximized != null) SetMaximized(null);
             _empty.Visible = false;
 
@@ -109,7 +136,7 @@ namespace Vision
             }
             foreach (CardSession s in toShow) CreateView(s);
 
-            // Izgara sırası seçim sırasını izlesin
+            // Izgara sırası seçim sırasını izler; Order verildiyse grup / IP sırasına dizilir
             var ordered = new List<CardView>();
             foreach (CardSession s in sessions)
             {
@@ -118,6 +145,7 @@ namespace Vision
             }
             _views.Clear();
             _views.AddRange(ordered);
+            SortViews();
 
             _maximized = null;
             foreach (var v in _views) { v.IsMaximized = false; v.Visible = true; }
