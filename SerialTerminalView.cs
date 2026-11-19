@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 
@@ -508,7 +509,19 @@ namespace Vision
             if (Session.State != SerialState.Open) return;
             string t = null;
             try { if (Clipboard.ContainsText()) t = Clipboard.GetText(); } catch { }
-            if (!string.IsNullOrEmpty(t)) Session.Paste(t);
+            if (string.IsNullOrEmpty(t)) { _output.Focus(); return; }
+            // Birden çok satır: her satır bir komut olarak çalışır — önce sorulur (TeraTerm'deki "Confirm change paste" gibi)
+            string[] lines = t.Replace("\r\n", "\n").Replace('\r', '\n').TrimEnd('\n').Split('\n');
+            if (lines.Length > 1)
+            {
+                string preview = string.Join("\n", lines.Take(6).Select(l => l.Length > 90 ? l.Substring(0, 90) + "…" : l)) +
+                                 (lines.Length > 6 ? "\n… (+" + (lines.Length - 6) + " satır)" : "");
+                int c = ChoiceDialog.Ask(FindForm(), "Çok satırlı yapıştırma",
+                    lines.Length + " satır karta gönderilecek; her satır Enter'la gider ve komut olarak çalışır.",
+                    preview, new[] { "Vazgeç", "Gönder" }, 0, -1);
+                if (c != 1) { _output.Focus(); return; }
+            }
+            Session.Paste(t);
             _output.Focus();
         }
 

@@ -39,9 +39,11 @@ namespace VisionTests
                 }
             }
 
-            public void CardSends(string s) { var h = Received; if (h != null) h(Encoding.GetEncoding(28591).GetBytes(s)); }
+            public void CardSends(string s) { CardSendsBytes(Encoding.UTF8.GetBytes(s)); }
+            public void CardSendsBytes(byte[] b) { var h = Received; if (h != null) h(b); }
             public void Unplug(string why) { var h = Lost; if (h != null) h(why); }
-            public string Sent { get { lock (Written) return Encoding.GetEncoding(28591).GetString(Written.ToArray()); } }
+            public string Sent { get { lock (Written) return Encoding.UTF8.GetString(Written.ToArray()); } }
+            public int SentBytes { get { lock (Written) return Written.Count; } }
             public bool StillPresent() { return Present; }
             public void Close() { IsOpen = false; }
             public void Dispose() { Close(); }
@@ -155,6 +157,24 @@ namespace VisionTests
             await WaitSent(io, 4);
             double ms = (io.WriteTimes[3] - t0).TotalMilliseconds;
             Check.True(ms >= 140, "3 × 20 ms karakter + 100 ms satır gecikmesi uygulanmalı (" + ms + " ms)");
+            s.Dispose();
+        }
+
+        [Test]
+        public async Task Seri_Utf8ParcaliGelsedeDogruBirlesir()
+        {
+            var io = new FakeSerialIo();
+            var s = new SerialSession(new SerialPortProfile { PortName = "COM5" }, () => io);
+            s.Open();
+            s.TakePending();
+            byte[] b = Encoding.UTF8.GetBytes("ağ: çalışıyor ─");
+            io.CardSendsBytes(b.Take(2).ToArray());          // "a" + "ğ"nin ilk baytı
+            io.CardSendsBytes(b.Skip(2).ToArray());
+            Check.Equal("ağ: çalışıyor ─", s.TakePending(), "bölünmüş UTF-8 karakter birleşir");
+            s.SendKeys("şİ");
+            await WaitSent(io, 2);
+            Check.Equal(4, io.SentBytes, "gönderilen UTF-8 (2 karakter = 4 bayt)");
+            Check.Equal("şİ", io.Sent, "gönderilen metin");
             s.Dispose();
         }
 

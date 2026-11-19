@@ -318,6 +318,7 @@ namespace Vision
                 AppendSystem("✕ " + m);
                 return;
             }
+            lock (_lock) _decoder = new UTF8Encoding(false, false).GetDecoder();
             io.Received += OnReceived;
             io.Lost += OnLost;
             var cts = new CancellationTokenSource();
@@ -388,11 +389,19 @@ namespace Vision
 
         // ---------- Gelen veri ----------
 
+        // Gelen veri UTF-8 (TeraTerm'deki "Kanji In: UTF-8" gibi, 1.10). Durumlu çözücü: bir karakterin baytları iki parçada
+        // gelse de doğru birleşir; UTF-8 olmayan bayt "�" olur.
+        private Decoder _decoder = new UTF8Encoding(false, false).GetDecoder();
+
         private void OnReceived(byte[] data)
         {
             LastRxUtc = DateTime.UtcNow;
-            string text = Encoding.GetEncoding(28591).GetString(data);
-            lock (_lock) _pending.Append(text);
+            lock (_lock)
+            {
+                var chars = new char[_decoder.GetCharCount(data, 0, data.Length, false)];
+                int n = _decoder.GetChars(data, 0, data.Length, chars, 0, false);
+                _pending.Append(chars, 0, n);
+            }
         }
 
         /// <summary>Kendi yazdığı sistem satırı ("● COM7 açıldı" gibi); ekranda ayrı satırda görünür.</summary>
@@ -448,7 +457,7 @@ namespace Vision
         private void Enqueue(string text)
         {
             if (State != SerialState.Open) return;
-            _sendQueue.Enqueue(Encoding.GetEncoding(28591).GetBytes(text));
+            _sendQueue.Enqueue(new UTF8Encoding(false).GetBytes(text));   // gönderilen de UTF-8 (TeraTerm "Kanji Out: UTF-8")
             _sendSignal.Release();
         }
 
