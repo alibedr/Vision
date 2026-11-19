@@ -60,7 +60,7 @@ namespace Vision
         // Görünüm kararı
         private int _positioning;                // son konumlama komutlarından bu yana sayaç (kısa süreli)
         private DateTime _positioningSince;
-        private int _plainScrolls;               // Screen modunda konumlamasız kayan satır sayısı
+        private int _plainScrolls;               // Screen modunda son konumlamadan beri gelen satır sonu sayısı
         private readonly StringBuilder _sinceDraw = new StringBuilder();   // Screen modunda son çizimden beri gelen ham akış
         private const int SinceDrawLimit = 64 * 1024;
         private readonly Func<DateTime> _now;
@@ -209,13 +209,10 @@ namespace Vision
         private void LineFeed()
         {
             _wrapPending = false;
-            if (CursorRow == _bottom)
-            {
-                ScrollUp(_top, _bottom, 1);
-                // Ekranın altından akan yazı: kart tam ekran çizmeyi bıraktı mı?
-                if (Mode == SerialViewMode.Screen && ++_plainScrolls >= Rows) Mode = SerialViewMode.Log;
-            }
+            if (CursorRow == _bottom) ScrollUp(_top, _bottom, 1);
             else if (CursorRow < Rows - 1) CursorRow++;
+            // Konumlamasız ekranın bir boyu kadar satır geldiyse kart tam ekran çizmeyi bırakmış, akan yazıya dönmüştür
+            if (Mode == SerialViewMode.Screen && ++_plainScrolls >= Rows) Mode = SerialViewMode.Log;
             Touch();
         }
 
