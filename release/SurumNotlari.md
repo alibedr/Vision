@@ -1,4 +1,4 @@
-# Vision 1.9 — Sürüm notları
+# Vision 1.10 — Sürüm notları
 
 **Yayın tarihi:** 19.11.2026
 
@@ -23,28 +23,27 @@ günlükleri ise `Vision.exe`'nin yanındaki `logs` klasöründedir; bunları sa
 
 ## Bu sürümde yeni
 
-Bu sürümdeki değişiklikler beta kullanıcılarının geri bildirimlerinden geliyor.
+Bu sürüm Seri sekmesini gerçek kartlarla yapılan denemelere göre TeraTerm'e yaklaştırıyor.
 
-- **Bütün kartlara bspBootChange: tek pencere.** Genel komut çubuğundan gönderilince her kart için ayrı pencere açılmaz.
-  Solda kartlar grup ve IP sırasıyla, durumlarıyla (giriş bekliyor, tamamlandı, çıkıldı …) listelenir; sağda seçilen
-  kartın boot ekranı görünür. Bir kart bitince sıradakine geçilir. Pencere yarıda kapatılırsa kalan alanlar değiştirilmeden
-  geçilir; hiçbir kart boot ekranında bırakılmaz.
-- **Boot ayarı sürerken kilitler.** Genel pencere açıkken kartların komut satırı kilitlenir (yanlışlıkla yazılan şey boot
-  alanına gitmesin); tıklayınca pencere öne gelir. Boot ayarı bitmemiş kartta hızlı komut, reboot ve Sentinel düğmeleri
-  basılamaz; genel komut çubuğu da o kartı atlar.
-- **Çık (Ctrl+D) düğmesi her zaman görünür;** Ctrl+D ile çıkılınca "Tamamlandı" değil "Çıkıldı" yazar.
-- **Temizle onay ister:** kart penceresinde, tüm kartları temizlerken ve seri pencerede (varsayılan Vazgeç).
-- **Fare tekerleğiyle komut geçmişi:** komut satırının üzerinde tekerlek, ↑ / ↓ gibi önceki ve sonraki komutları getirir
-  (kart komut satırı ve genel komut çubuğu).
-- **Kartlar her zaman grup ve IP sırasında:** kapatılıp yeniden gösterilen kart en sona değil, kendi yerine gelir.
-- **Yardım menüsünde** "Log klasörünü aç" ve "Olay günlükleri klasörünü aç".
-- **Düzeltmeler:** ad / metin pencerelerinde Enter artık her yoldan "Tamam" yerine geçer; Kart Ekle'de kart sayısı
-  yazılınca IP listesi hemen güncellenir.
+- **BIOS / boot manager artık görünüyor.** Kart açılırken Del, F2 ya da F10 ile girilen kurulum ve boot menüleri
+  TeraTerm'deki gibi tam ekran gösterilir (Ekran görünümü): seçili satır, renkler ve çerçeveler yerinde, oklar / Enter /
+  Esc çalışır. Kart tam ekran çizmeye başlayınca pencere kendiliğinden bu görünüme geçer, açılış devam edince günlüğe
+  döner; menünün son hâli günlükte kalır. Renkler temaya uyarlanır.
+- **Telnet'teki gibi alt komut satırı.** Komut yazılıp düzeltilir, Enter ile gönderilir; ↑ / ↓, fare tekerleği ve Ctrl+R
+  ile seri komut geçmişi. Terminale tıklayıp doğrudan (TeraTerm gibi) yazmak da sürüyor.
+- **Tuşlar TeraTerm'deki gibi:** F1–F12, Home / End / PgUp / PgDn karta gider; Delete = DEL, Backspace = BS. Ctrl+C seçili
+  metni kopyalar (seçim yoksa karta kesme gönderir), Ctrl+V yapıştırır. Tuş kodları gönderme gecikmesiyle bölünmez.
+- **Yukarıdayken ekran kaymaz:** eski çıktıyı okurken gelen yeni satırlar sizi aşağı çekmez; "↓ Yeni Satırlar" göstergesi
+  çıkar.
+- **UTF-8** (TeraTerm'deki gibi) ve **çok satırlı yapıştırmada onay**.
+- **Ekran kayıtları ayrı klasörlerde:** Telnet kayıtları `logs\TelnetLoglari`, seri kayıtları `logs\SeriKanalLoglari`.
+- **Düzeltme:** Tamam / Vazgeç düğmeli pencerelerde Enter ve Esc artık çalışır (ör. Seri port ayarları).
 
 ## Önemli notlar
 
-- Tema kısayolu **Ctrl+Shift+L kaldırıldı**; tema Temalar menüsünden seçilir.
 - Seri port aynı anda yalnız bir programda açılabilir: port TeraTerm'de açıksa Vision açamaz ve bunu söyler.
+- "Dosyaya kaydet" kayıtları artık `logs\TelnetLoglari` ve `logs\SeriKanalLoglari` altına gider; eski kayıtlar `logs`
+  içinde kalır.
 - Boot ayarı kayıtları, FTP parolası dahil kartın tüm boot alanlarını `config.xml` içinde düz metin olarak saklar.
 - Sorun bildirirken `logs\hatalar.log` dosyasını eklemeniz sorunun bulunmasını kolaylaştırır (Yardım → Log klasörünü aç).
   Kartla ilgili olayların zaman çizelgesi için terminalde sağ tık → **Olay günlüğü…**
@@ -53,6 +52,7 @@ Bu sürümdeki değişiklikler beta kullanıcılarının geri bildirimlerinden g
 
 | Sürüm | Değişiklikler |
 |---|---|
+| 1.9 | Beta geri bildirimi: bütün kartlara bspBootChange tek pencerede (kart listesi + seçilen kartın boot ekranı), boot ayarı sürerken kilitler, Çık (Ctrl+D) her zaman görünür, Temizle onayı, komut satırında tekerlekle geçmiş, ızgarada grup ve IP sırası, Yardım'da log klasörleri, ad pencerelerinde Enter, Ctrl+Shift+L kaldırıldı. |
 | 1.8 | Seri sekmesi: COM portundan karta bağlantı (en fazla 12 port ızgarada, port başına ayarlar ve ad, doğrudan yazma, ayrı seri komut geçmişi). Sekmeye göre değişen ve her sekmede ayrı hatırlanan sol menü; yeni sekme sırası (Ctrl+3 Seri, Ctrl+4 Sentinel, Ctrl+5 Komut Kütüphanesi). Klasör yüklemede gidemeyen dosyalar atlanır, boyutlar doğrulanır, yüklenemeyenler olay günlüğünde tam listelenir. |
 | 1.7 | Kart açılınca loglar reboot'u atana gelir: reboot'u gönderen Vision 2 sn'de bir, habersiz kopan diğerleri 30 sn bekleyip 15 sn'de bir dener. Düzeltmeler: Bağlan / Kes art arda basılınca arka planda bağlantı açık kalması; Boot ayarı kayıtları penceresi genişletilince satırların kayması. |
 | 1.6 | Boot ayarı kayıtları: kartın boot ayarlarını adıyla kaydetme (kart başına en fazla 5), şu anki ayarlarla karşılaştırma, önizleme + onayla aynı ya da başka karta geri yükleme (başka kartta IP alanları atlanır), doğrulama ve yeniden başlatma önerisi; Boot ayarları penceresinden "Bu ayarları kaydet…" ve "Boot ayarı kayıtları…". Kendi gönderdiğimiz reboot'ta kırmızı uyarı yerine sarı "yeniden başlatılıyor"; kesinti ekrana ve olay günlüğüne yalnız bir kez, bağlantı gelince toplam süreyle yazılır. |
