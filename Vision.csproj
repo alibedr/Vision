@@ -162,6 +162,10 @@
     <Compile Include="ExplorerDialogs.cs" />
     <Compile Include="EventLog.cs" />
     <Compile Include="SerialCore.cs" />
+    <Compile Include="SerialVt.cs" />
+    <Compile Include="SerialScreenView.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="SerialTerminalView.cs" />
     <Compile Include="SerialSettingsDialog.cs" />
     <Compile Include="SerialView.cs" />

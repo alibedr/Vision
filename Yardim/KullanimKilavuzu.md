@@ -143,7 +143,7 @@ Kartın ne için kullanıldığını göstermek için isteğe bağlı bir ad ver
 
 - Ad yalnız gösterim içindir; bağlantı ve tüm komutlar her zaman **IP adresiyle** yapılır.
 - Ad Kart Gezgini'nde, kart penceresinin başlığında, Kart Dosya Gezgini'nin kart seçiminde ve uyarılarda görünür; Kart Gezgini aramasında da aranır.
-- Değiştirmek için yine **Adı değiştir…**; kaldırmak için alanı boş bırakın. Adı yazıp **Enter** (ya da **Tamam**) kaydeder, **Esc** vazgeçer; bu, ad / metin isteyen bütün pencerelerde (grup adı, yeni klasör, yeniden adlandırma, kayıt adı) aynıdır.
+- Değiştirmek için yine **Adı değiştir…**; kaldırmak için alanı boş bırakın. Adı yazıp **Enter** (ya da **Tamam**) kaydeder, **Esc** vazgeçer; bu, ad / metin isteyen bütün pencerelerde (grup adı, yeni klasör, yeniden adlandırma, kayıt adı) aynıdır. Tamam / Vazgeç düğmesi olan diğer pencerelerde de (Seri port ayarları, Kart ekle, tema düzenleme …) **Enter** Tamam'a / Kaydet'e, **Esc** Vazgeç'e basar.
 - Ad `config.xml` dosyasında saklanır; bağlantı kopsa da, yeniden bağlansa da kartla birlikte kalır.
 
 ### Gruplar nerede saklanır?
@@ -505,7 +505,7 @@ Ayar çubuğundaki **− %100 +** tüm kart terminallerinin yazı boyutunu **bir
 
 - **Kart başlığındaki disket**: o kartın terminalinde **tıklandığı anda** görünen içeriğin tamamını (satır sınırında tutulan tüm satırlar) bir dosyaya yazar.
 - **Genel komut çubuğundaki disket**: ekrandaki **her kartın** içeriğini aynı anda alır ve **her kartı kendi dosyasına** kaydeder (çıktılar tek dosyada birleştirilmez). Ekranda olmayan kartlar kaydedilmez. Bir kartın kaydı başarısız olsa da diğerleri kaydedilir; sonuç kart kart raporlanır. Boş terminali olan kart "içerik yok" olarak raporlanır.
-- Dosya: exe'nin yanındaki `logs` klasörü, ad: `GrupAdı_IP[_KartAdı]_anlik_yyyyMMdd_HHmmss_fff.log` (UTF-8). Her tıklama **yeni dosya** oluşturur; var olan dosyanın üzerine yazılmaz.
+- Dosya: exe'nin yanındaki `logs\TelnetLoglari` klasörü (yoksa ilk kayıtta oluşur; seri pencerelerin kayıtları ayrı `logs\SeriKanalLoglari` klasörüne gider), ad: `GrupAdı_IP[_KartAdı]_anlik_yyyyMMdd_HHmmss_fff.log` (UTF-8). Her tıklama **yeni dosya** oluşturur; var olan dosyanın üzerine yazılmaz.
 - Kaydetme arka planda yapılır: canlı çıktı, komut gönderme ve kaydırma kesilmez. Kartın üstünde yeşil (başarılı) ya da kırmızı (hata) bildirim çıkar; bildirime tıklamak dosyanın klasörünü açar.
 - Dönüş değerleri ayrı paneldedir; kayıt **terminalde görüneni** içerir.
 
@@ -718,12 +718,20 @@ Bağlantı başarılı olsa da yazma izni yoksa ya da kartın gördüğü yol FT
 
 ### Seri pencere
 
-- **Doğrudan yazma (TeraTerm gibi):** terminale tıklayıp yazın; her tuş anında karta gider ve ekrana kartın yankısı gelir. Enter (CR), Backspace, Tab, Esc, oklar, Delete ve **Ctrl+harf** (Ctrl+C = kesme, Ctrl+X …) karta gönderilir. Bu yüzden Seri sekmesinde Ctrl+harf kısayolları (Ctrl+N, Ctrl+G, Ctrl+B …) çalışmaz; yalnız sekme geçişi (Ctrl+1…5) çalışır. Sol menüyü bu sekmede ◀ düğmesiyle gizleyin.
-- **Kopyalama:** fareyle seçtiğiniz metin kendiliğinden panoya kopyalanır; ayrıca sağ tık → Kopyala.
-- **Yapıştırma:** sağ tık → Yapıştır ya da **Shift+Insert**; satır sonları CR olarak gönderilir.
-- **Seri komut geçmişi** (saat düğmesi): Enter ile gönderdiğiniz satırlar Telnet geçmişinden **ayrı** bir dosyada saklanır. Pencerede **tek tık** komutu terminale yazar (Enter'sız; düzenleyip Enter'a basarsınız), **çift tık** hemen gönderir.
-- **Dosyaya kaydet:** ekrandaki çıktıyı metin dosyasına kaydeder. **Temizle** ekranı temizler; seri çıktı için ayrıca log dosyası tutulmadığından silinen ekran geri gelmez, bu yüzden önce sorar.
-- Ekranda en fazla 20.000 satır tutulur; yazdıkça en alta inilir. Yukarı kaydırıp okurken gelen çıktı sizi aşağı çekmez.
+Seri pencereye **iki yoldan** yazılır:
+
+- **Alttaki komut satırı (Telnet'teki gibi):** komutu yazın, gerekirse düzeltin, **Enter** (ya da Gönder) satırı karta gönderir (sonunda Enter). Kart yazılanı geri yansıttığı için komut ekranda da görünür. Komut satırı boşken Enter yalnız Enter gönderir (ör. "Press [Enter] to directly boot"). **↑ / ↓** ya da komut satırının üzerinde **fare tekerleği** geçmişte gezinir; yazarken geçmişten öneri çıkar (Tab / → ile kabul); **Ctrl+R** ya da komut satırının sağındaki saat düğmesi seri komut geçmişini açar: seçilen komut komut satırına yazılır, çift tık hemen gönderir. Seçim yokken **Ctrl+C** karta kesme gönderir.
+- **Doğrudan yazma (TeraTerm gibi):** terminale tıklayıp yazın; her tuş anında karta gider ve ekrana kartın yankısı gelir. Enter (CR), **Backspace** (BS), **Delete** (DEL), Tab, Esc, oklar, **F1–F12**, Home / End / PgUp / PgDn / Insert ve **Ctrl+harf** karta gönderilir; kodlar TeraTerm'in varsayılan ayarlarıyla aynıdır. Bir tuşun kodu ("Transmit delay" açık olsa da) tek seferde gider. Böylece kart açılırken çıkan "Press [F2/Del] to enter setup", "Press [F10] to show boot menu" menülerine girilebilir. Terminal odaktayken F1 yardımı değil karta gider (yardım Yardım menüsünden açılır). Ekranı klavyeyle kaydırmak için **Shift + PgUp / PgDn / Home / End**.
+- Seri sekmesinde Ctrl+harf uygulama kısayolları (Ctrl+N, Ctrl+G, Ctrl+B …) çalışmaz; yalnız sekme geçişi (Ctrl+1…5) çalışır. Sol menüyü bu sekmede ◀ düğmesiyle gizleyin.
+- **Kopyalama:** fareyle seçtiğiniz metin kendiliğinden panoya kopyalanır; **Ctrl+C** de seçili metni kopyalar (seçim varken karta kesme gitmez; seçim yoksa Ctrl+C karta kesme gönderir). Sağ tık → Kopyala.
+- **Yapıştırma:** **Ctrl+V**, **Shift+Insert** ya da sağ tık → Yapıştır; satır sonları CR olarak gönderilir.
+- **Seri komut geçmişi:** iki yoldan Enter ile gönderdiğiniz satırlar Telnet geçmişinden **ayrı** bir dosyada saklanır.
+- **Dosyaya kaydet:** ekrandaki çıktıyı sormadan `logs\SeriKanalLoglari` klasörüne kaydeder (klasör yoksa oluşur; ad: `Port[_Ad]_anlik_yyyyMMdd_HHmmss_fff.log`, ör. `COM7_Kart_3_anlik_…`). Kayıttan sonra çıkan bildirime tıklayınca dosya Windows Gezgini'nde seçili açılır. **Temizle** ekranı temizler; seri çıktı sürekli kaydedilmediğinden silinen ekran geri gelmez, bu yüzden önce sorar.
+- **Ekran görünümü (BIOS / boot menüsü):** Kartın BIOS'u, kurulum ekranı ya da boot manager'ı gibi **tam ekran** çizen gösterimler, TeraTerm'deki gibi terminal olarak gösterilir (seçili satır, renkler, çerçeveler, imleç). Ekran görünümü günlükle **tek sayfa** gibidir: aynı yazı tipi ve boyutu, sol üstten başlar, pencerenin tamamını kaplar (BIOS kendi 80×25 alanına çizer); yazı yalnız pencere 80×25'e yetmeyecek kadar küçükse küçülür. Renkler **temaya** çevrilir: kartın siyah zemini temanın terminal zemini, gri / beyaz yazı temanın yazısı, seçili satır temanın seçim rengi; mavi, kırmızı, sarı gibi renkler temanın vurgu, hata ve uyarı tonlarıyla görünür. Kart ekranı temizleyip tam ekran çizmeye başlayınca pencere **kendiliğinden** Ekran görünümüne geçer; günlüğe yalnız bir bilgi satırı düşer ("Kart tam ekran çizmeye başladı"). Kart yeniden akan yazıya dönünce (ör. işletim sistemi açılırken, 25 satır gelince) kendiliğinden günlüğe döner: **ekranın son hâli** (menüden çıkarken BIOS ekranı temizlediyse temizlenmeden önceki ekran da) metin olarak günlüğe eklenir, altına akan satırlar gelir; böylece sayfa değişmiş gibi olmaz ve yukarı kaydırınca BIOS'ta ne seçildiği görünür. Başlıktaki **ekran / kitap** düğmesiyle iki görünüm arasında elle de geçilir. Ekran görünümünde de tuşlar (oklar, Enter, Esc, F tuşları, Del) karta gider; **Dosyaya kaydet** o anki ekranı kaydeder; sağ tık → Ekranı kopyala.
+- Günlükte, kartın satır başına dönüp (CR) aynı satırı yeniden yazdığı çıktılar (ilerleme göstergeleri, kabuğun satırı yeniden çizmesi) TeraTerm'deki gibi aynı satırı günceller.
+- **Karakter kodlaması:** gelen ve giden yazı UTF-8'dir (TeraTerm'deki "Kanji In / Out: UTF-8" gibi); Türkçe karakterler doğru görünür ve gider.
+- **Çok satırlı yapıştırma:** birden çok satır içeren metin yapıştırılırken önce sorulur (kaç satır gideceği ve metnin başı gösterilir; varsayılan **Vazgeç**), çünkü her satır Enter'la gidip komut olarak çalışır. Tek satır sorulmadan gider.
+- Ekranda en fazla 20.000 satır tutulur. En alttayken yeni çıktı izlenir; **yukarı kaydırıp okurken gelen çıktı ekranı kaydırmaz**, ortada **"↓ Yeni Satırlar (N)"** göstergesi çıkar (tıklayınca en alta iner). En alta kaydırınca ya da yazınca izleme yeniden başlar.
 - Alttaki şerit portun durumunu yazar. USB çevirici çıkarılırsa port kapanır ve şeritte nedeni görünür; pencereyi kapatmak portu da kapatır.
 
 ## Sentinel
@@ -850,8 +858,11 @@ Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındak
 | Ctrl+1 / 2 / 3 / 4 / 5 | Telnet / Kart Dosya Gezgini / Seri / Sentinel / Komut Kütüphanesi sekmesi |
 | F5 | Sentinel sekmesinde sayfayı yenile |
 | Ctrl+B | O sekmenin sol menüsünü (Kart Gezgini, Sentinel kart listesi, Komut Kütüphanesi listesi) gizle / göster; Seri sekmesinde Ctrl+B karta gider, menü ◀ düğmesiyle gizlenir |
-| Seri pencerede: tuşlar, Ctrl+harf | Doğrudan karta gönderilir (Ctrl+C = kesme) |
-| Seri pencerede: Shift+Insert | Panodaki metni karta yapıştır |
+| Seri terminalde: tuşlar, F1–F12, Ctrl+harf | Doğrudan karta gönderilir (Backspace = BS, Delete = DEL — TeraTerm gibi; seçim yokken Ctrl+C = kesme) |
+| Seri terminalde: Ctrl+C (seçim varken) | Seçili metni kopyala (karta gitmez) |
+| Seri terminalde: Ctrl+V · Shift+Insert | Panodaki metni karta yapıştır |
+| Seri terminalde: Shift + PgUp / PgDn / Home / End | Ekranı kaydır |
+| Seri komut satırında: Enter · ↑ / ↓ · tekerlek · Ctrl+R | Satırı gönder · geçmiş · geçmişte ara |
 | Tab / ↓ / → | Komut satırında otomatik tamamlama önerisini kabul et (çalıştırmaz) |
 | Esc | Komut satırında öneriyi gizle |
 | F2 | Kart Gezgini'nde kartın ya da grubun adını değiştir |
@@ -884,7 +895,8 @@ Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındak
 | `%APPDATA%\TelnetCards\config.xml` | Gruplar, kartlar (adları, hızlı komutları, reboot seçimleri, boot ayarı kayıtları), seri port ayarları ve adları, sol menülerin açık / kapalı durumu, terminal, yakınlaştırma, izleme ve ortak FTP ayarları (otomatik kaydedilir; Dosya Gezgini'nin FTP parolası dosyada tutulmaz — yalnız kullanıcının kaydettiği boot ayarı kayıtlarında kartın `pw` alanı da bulunur). |
 | `%APPDATA%\TelnetCards\SeriKomutGecmisi.txt` | Seri sekmesinin komut geçmişi: Telnet geçmişinden ayrı, aynı biçimde (satır başına bir komut, en fazla 5.000). |
 | `%APPDATA%\TelnetCards\KomutGecmisi.txt` | Komut geçmişi: yazılan tüm komutlar, satır başına bir komut, eskiden yeniye (en fazla 5.000; tüm kartlar ve genel çubuk ortak; otomatik kaydedilir). Silinirse geçmiş boş başlar. |
-| `logs\GrupAdı_IP_anlik_tarih_saat.log` | "Dosyaya kaydet" ile alınan anlık terminal görüntüleri (her tıklama ayrı dosya). |
+| `logs\TelnetLoglari\GrupAdı_IP_anlik_tarih_saat.log` | Telnet kart pencerelerinin "Dosyaya kaydet" ile alınan anlık görüntüleri (her tıklama ayrı dosya). 1.10'dan önceki kayıtlar doğrudan `logs` içinde kalır. |
+| `logs\SeriKanalLoglari\Port_anlik_tarih_saat.log` | Seri pencerelerin "Dosyaya kaydet" kayıtları. |
 | `logs\olaylar\IP.log` | Kartın olay günlüğü (port 23 değilse `IP_port.log`): satır başına zaman, tür ve olay. Kart başına en fazla 5 MB; dolunca en eski olaylar silinir. |
 | `logs\hatalar.log` | Bağlantı ve işlem hatalarının teknik ayrıntıları (hata kodu, özgün İngilizce mesaj) ve beklenmeyen hataların yığın izi. Her zaman açıktır. 5 MB'ı geçince `hatalar.log.1` olarak saklanıp yenisine başlanır (en fazla iki dosya). |
 | `%TEMP%\TelnetCards\SaltOkunur\` | "Birlikte aç" ile açılan salt okunur kopyalar (kapanışta silinir). |

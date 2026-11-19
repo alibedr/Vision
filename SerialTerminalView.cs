@@ -2,15 +2,20 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 
 namespace Vision
 {
     /// <summary>
-    /// Seri sekmesindeki bir COM portu penceresi. TeraTerm'deki gibi terminale tıklayıp yazılır: her tuş anında
-    /// porta gider (Enter = CR, Backspace, Tab, Esc, oklar, Ctrl+harf). Kopyalama: fareyle seçilen metin kendiliğinden
-    /// panoya alınır, sağ tık → Kopyala; yapıştırma: sağ tık → Yapıştır ya da Shift+Insert.
+    /// Seri sekmesindeki bir COM portu penceresi. İki yoldan yazılır (1.10):
+    ///  • Alttaki komut satırı (Telnet'teki gibi): komut yazılıp düzenlenir, Enter ile satır karta gider; ↑ / ↓,
+    ///    fare tekerleği, Ctrl+R ile seri komut geçmişi, yazarken öneri.
+    ///  • Terminale tıklayıp doğrudan (TeraTerm gibi): her tuş anında porta gider (Enter = CR, Backspace, Tab, Esc, oklar,
+    ///    F1–F12, Home / End / PgUp / PgDn / Insert / Delete, Ctrl+harf).
+    /// Kopyalama: fareyle seçilen metin kendiliğinden panoya alınır, sağ tık → Kopyala; yapıştırma: sağ tık → Yapıştır
+    /// ya da Shift+Insert. Yukarıdaki bir yere bakarken gelen çıktı ekranı kaydırmaz ("↓ Yeni Satırlar" göstergesi).
     /// Kapatmak portu da kapatır.
     /// </summary>
     public sealed class SerialTerminalView : UserControl
@@ -25,9 +30,31 @@ namespace Vision
         private readonly IconButton _settingsBtn = new IconButton(IconKind.Settings, IconTone.Ghost);
         private readonly IconButton _maxBtn = new IconButton(IconKind.Maximize, IconTone.Ghost);
         private readonly IconButton _closeBtn = new IconButton(IconKind.Close, IconTone.Ghost);
+        // Günlük / Ekran (1.10): tam ekran çizen gösterimler (BIOS, boot manager) TeraTerm'deki gibi 80×25 terminalde
+        private readonly IconButton _viewBtn = new IconButton(IconKind.Terminal, IconTone.Ghost);
+        private readonly VtScreen _vt = new VtScreen();
+        private readonly SerialScreenView _screenView;
+        private readonly ContextMenuStrip _screenMenu = new ContextMenuStrip();
+        private SerialViewMode _shownMode = SerialViewMode.Log;
         private readonly Panel _outputHost = new Panel { Dock = DockStyle.Fill, BackColor = Theme.Input, Padding = new Padding(8, 6, 4, 4) };
         private readonly SerialTerminalBox _output = new SerialTerminalBox();
         private readonly Label _strip = new Label { Dock = DockStyle.Bottom, Height = 22, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(10, 0, 0, 0), Font = Theme.UiSmall };
+        // Alttaki komut satırı (Telnet'teki gibi)
+        private readonly Panel _inputBar = new Panel { Dock = DockStyle.Bottom, Height = 36, Padding = new Padding(8, 6, 8, 6) };
+        private readonly Panel _field = new Panel { Dock = DockStyle.Fill, Padding = new Padding(8, 4, 6, 2) };
+        private readonly Label _prompt = Theme.MakeLabel("›", Theme.UiBold, Theme.Accent);
+        private readonly TextBox _input = new TextBox { BorderStyle = BorderStyle.None, Font = Theme.Mono };
+        private readonly IconButton _sendBtn = new IconButton(IconKind.Send, IconTone.Primary);
+        private InputAutoComplete _autoComplete;
+        // Yukarıdayken gelen çıktı: ekran yerinde kalır, gösterge çıkar (Telnet'teki gibi)
+        private readonly PillButton _newLinesPill = new PillButton { Visible = false };
+        private readonly NewLinesIndicator _indicator = new NewLinesIndicator();
+        private Size _pillSize;
+        private bool _programScroll;
+        // "Dosyaya kaydet" bildirimi
+        private readonly GlyphLabel _toast = new GlyphLabel { Visible = false, AutoSize = true, Padding = new Padding(10, 5, 12, 5), Font = Theme.UiSmall, Cursor = Cursors.Hand };
+        private readonly Timer _toastTimer = new Timer { Interval = 5000 };
+        private string _toastPath;
         private readonly ToolTip _tips = new DarkToolTip();
         private readonly ContextMenuStrip _menu = new ContextMenuStrip();
         private readonly SerialScreen _screen = new SerialScreen();
@@ -47,14 +74,24 @@ namespace Vision
             BuildHeader();
             _output.Dock = DockStyle.Fill;
             // Yazınca (TeraTerm gibi) en alta inilir; kartın yankısı da en altta görünür
-            _output.KeysTyped = s => { _typed = true; if (!IsScrolledToBottom()) ScrollToEnd(); Session.SendKeys(s); };
+            _output.KeysTyped = s => { _typed = true; if (!IsAtBottom()) ScrollToEnd(); Session.SendKeys(s); };
             _output.PasteRequested = Paste;
+            _output.AppCursor = () => _vt.AppCursorKeys;
             _output.ContextMenuStrip = _menu;
+            _screenView = new SerialScreenView(_vt) { Dock = DockStyle.Fill, Visible = false, ContextMenuStrip = _screenMenu };
+            _screenView.KeysTyped = s => Session.SendKeys(s);
+            _screenView.PasteRequested = Paste;
+            _outputHost.Controls.Add(_toast);          // önce eklenenler öne çizilir → çıktının üstünde yüzer
+            _outputHost.Controls.Add(_newLinesPill);
             _outputHost.Controls.Add(_output);
+            _outputHost.Controls.Add(_screenView);
             Theme.ApplyDarkScrollBars(_output);
             BuildMenu();
+            BuildInput();
+            BuildOverlays();
 
             Controls.Add(_outputHost);
+            Controls.Add(_inputBar);
             Controls.Add(_strip);
             Controls.Add(_header);
 
@@ -89,7 +126,10 @@ namespace Vision
             }
         }
 
-        public void FocusTerminal() { _output.Focus(); }
+        public void FocusTerminal() { if (_shownMode == SerialViewMode.Screen) _screenView.Focus(); else _output.Focus(); }
+
+        /// <summary>Terminalin kendisi odakta (doğrudan yazma): F tuşları uygulamaya değil karta gider.</summary>
+        public bool TerminalFocused { get { return _output.Focused || _screenView.Focused; } }
 
         // ---------- Oluşturma ----------
 
@@ -112,11 +152,17 @@ namespace Vision
             _subtitle.Height = 16;
             _subtitle.Location = new Point(27, 20);
 
-            var buttons = new IconButton[] { _connectBtn, _historyBtn, _saveBtn, _clearBtn, _settingsBtn, _maxBtn, _closeBtn };
+            var buttons = new IconButton[] { _connectBtn, _viewBtn, _saveBtn, _clearBtn, _settingsBtn, _maxBtn, _closeBtn };
             foreach (var b in buttons) { b.Height = 26; b.Width = 28; b.Anchor = AnchorStyles.Top | AnchorStyles.Right; }
-            _historyBtn.SetTip(_tips, "Seri komut geçmişi — tek tık: komutu yazar (Enter'sız), çift tık: hemen gönderir");
-            _saveBtn.SetTip(_tips, "Dosyaya kaydet — ekrandaki çıktıyı metin dosyasına kaydeder");
-            _clearBtn.SetTip(_tips, "Temizle — ekranı temizler (onay sorar)");
+            _saveBtn.SetTip(_tips, "Dosyaya kaydet — ekrandaki çıktıyı logs\\SeriKanalLoglari klasörüne kaydeder\n(her tıklama yeni dosya)");
+            _clearBtn.SetTip(_tips, "Temizle — günlük ekranını temizler (onay sorar)");
+            _viewBtn.Click += (s, e) =>
+            {
+                SerialViewMode next = _shownMode == SerialViewMode.Log ? SerialViewMode.Screen : SerialViewMode.Log;
+                _vt.SetMode(next);
+                ShowMode(next);
+                FocusTerminal();
+            };
             _settingsBtn.SetTip(_tips, "Port ayarları (baud rate, data, parity, stop, akış denetimi, gecikme)");
             _closeBtn.SetTip(_tips, "Kapat — pencereyi ve portu kapatır");
             IsMaximized = false;
@@ -129,11 +175,10 @@ namespace Vision
             _connectBtn.Click += (s, e) =>
             {
                 if (Session.State == SerialState.Open) Session.Close(); else Session.Open();
-                _output.Focus();
+                FocusTerminal();
             };
-            _historyBtn.Click += (s, e) => ShowHistory();
-            _saveBtn.Click += (s, e) => SaveToFile();
-            _clearBtn.Click += (s, e) => { AskClear(); _output.Focus(); };
+            _saveBtn.Click += async (s, e) => await SaveSnapshotAsync();
+            _clearBtn.Click += (s, e) => { AskClear(); FocusTerminal(); };
             _settingsBtn.Click += (s, e) => { var h = SettingsRequested; if (h != null) h(this); };
             _maxBtn.Click += (s, e) => { var h = MaximizeToggled; if (h != null) h(this); };
             _closeBtn.Click += (s, e) => { var h = CloseRequested; if (h != null) h(this); };
@@ -144,15 +189,14 @@ namespace Vision
         private void LayoutHeader()
         {
             int w = _header.Width;
-            _saveBtn.Visible = w >= 300;
-            _historyBtn.Visible = w >= 280;
+            _saveBtn.Visible = w >= 280;
             int x = w - 6;
             x -= _closeBtn.Width; _closeBtn.Location = new Point(x, 6);
             x -= _maxBtn.Width + 2; _maxBtn.Location = new Point(x, 6);
             x -= _settingsBtn.Width + 2; _settingsBtn.Location = new Point(x, 6);
             x -= _clearBtn.Width + 2; _clearBtn.Location = new Point(x, 6);
             if (_saveBtn.Visible) { x -= _saveBtn.Width + 2; _saveBtn.Location = new Point(x, 6); }
-            if (_historyBtn.Visible) { x -= _historyBtn.Width + 2; _historyBtn.Location = new Point(x, 6); }
+            x -= _viewBtn.Width + 2; _viewBtn.Location = new Point(x, 6);
             x -= _connectBtn.Width + 2; _connectBtn.Location = new Point(x, 6);
             _title.Width = Math.Max(40, x - _title.Left - 8);
             _subtitle.Width = Math.Max(40, x - _subtitle.Left - 8);
@@ -160,6 +204,14 @@ namespace Vision
 
         private void BuildMenu()
         {
+            // Ekran görünümünün menüsü
+            _screenMenu.Renderer = new DarkMenuRenderer();
+            var screenCopy = new ToolStripMenuItem("Ekranı kopyala", null, (s, e) => { try { Clipboard.SetText(_vt.Text().Replace("\n", "\r\n")); } catch { } });
+            var screenPaste = new ToolStripMenuItem("Yapıştır  (Ctrl+V)", null, (s, e) => Paste());
+            var toLog = new ToolStripMenuItem("Günlük görünümüne dön", null, (s, e) => { _vt.SetMode(SerialViewMode.Log); ShowMode(SerialViewMode.Log); FocusTerminal(); });
+            _screenMenu.Items.AddRange(new ToolStripItem[] { screenCopy, screenPaste, new ToolStripSeparator(), toLog });
+            _screenMenu.Opening += (s, e) => screenPaste.Enabled = Session.State == SerialState.Open && Clipboard.ContainsText();
+
             _menu.Renderer = new DarkMenuRenderer();
             var copy = new ToolStripMenuItem("Kopyala", null, (s, e) => CopySelection());
             var paste = new ToolStripMenuItem("Yapıştır  (Shift+Insert)", null, (s, e) => Paste());
@@ -193,9 +245,12 @@ namespace Vision
             _connectBtn.Tone = open ? IconTone.Danger : IconTone.Success;
             _connectBtn.SetTip(_tips, open ? "Portu kapat" : "Portu aç (bağlan)");
             _settingsBtn.Enabled = !open;
+            ApplyInputLook(open);
             if (open)
             {
-                _strip.Text = "●  Açık — yazmak için terminale tıklayın (her tuş anında karta gider)";
+                _strip.Text = _shownMode == SerialViewMode.Screen
+                    ? "●  Açık — Ekran görünümü: kartın tam ekran gösterimi (tuşlar karta gider). Günlüğe dönmek için başlıktaki kitap düğmesi"
+                    : "●  Açık — aşağıya komut yazın ya da terminale tıklayıp doğrudan yazın";
                 _strip.BackColor = Theme.Surface;
                 _strip.ForeColor = Theme.Success;
             }
@@ -217,11 +272,40 @@ namespace Vision
 
         // ---------- Ekran ----------
 
+        /// <summary>
+        /// Günlük ile Ekran arasında geçer (kart tam ekran çizmeye başlayınca / bitirince kendiliğinden, ya da başlıktaki
+        /// düğmeyle). Odak terminaldeyse yeni görünüme taşınır.
+        /// </summary>
+        private void ShowMode(SerialViewMode mode)
+        {
+            bool hadFocus = TerminalFocused;
+            _shownMode = mode;
+            bool screen = mode == SerialViewMode.Screen;
+            _screenView.Visible = screen;
+            _output.Visible = !screen;
+            if (screen) { _newLinesPill.Visible = false; _screenView.BringToFront(); _toast.BringToFront(); }
+            else SyncPill();
+            _viewBtn.Icon = screen ? IconKind.Book : IconKind.Terminal;
+            _viewBtn.SetTip(_tips, screen ? "Günlük görünümüne dön — akan çıktı ve geçmiş"
+                                          : "Ekran görünümü — kartın tam ekran gösterimi (BIOS / boot menüsü), TeraTerm'deki gibi");
+            if (hadFocus) FocusTerminal();
+            RefreshState();
+        }
+
         private void Pump()
         {
             if (IsDisposed) return;
             string raw = Session.TakePending();
-            if (raw != null) AppendRaw(raw);
+            if (raw != null)
+            {
+                // Aynı akış hem Ekran'a (terminal) hem günlüğe; tam ekran çizim sürerken günlüğe gitmez
+                var log = new StringBuilder();
+                _vt.Feed(raw, log);
+                while (_vt.Responses.Count > 0) Session.SendRaw(_vt.Responses.Dequeue());   // kartın imleç konumu sorusu vb.
+                if (log.Length > 0) AppendRaw(log.ToString());
+                if (_vt.Mode != _shownMode) ShowMode(_vt.Mode);
+            }
+            if (_screenView.Visible && _screenView.DrawnVersion != _vt.Version) _screenView.Invalidate();
             if (Session.State == SerialState.Open && ++_presentTick >= 40)   // ~2 sn'de bir: port kayboldu mu?
             {
                 _presentTick = 0;
@@ -229,51 +313,133 @@ namespace Vision
             }
         }
 
+        /// <summary>
+        /// Gelen çıktıyı ekrana işler. Kullanıcı en alttaysa (ya da az önce yazdıysa) akış izlenir: küçük eklemeleri denetim
+        /// kendisi çizer (titremez). Kullanıcı yukarıdaki bir yere bakıyorsa ekran YERİNDE kalır: çizim kapalıyken eklenir,
+        /// ilk görünen satır, yatay konum ve seçim geri alınır, "↓ Yeni Satırlar" göstergesi çıkar (1.10 — titreme
+        /// düzeltmesinden sonra metin imlecin olduğu sona eklenince kutu kendiliğinden en alta kayıyordu).
+        /// </summary>
         private void AppendRaw(string raw)
         {
             int lineLen = CurrentLineLength();
             List<SerialScreen.Op> ops = _screen.Process(raw, lineLen);
             if (ops.Count == 0) return;
-            bool follow = _typed || IsAtBottom();
+            bool follow = _typed || IsAtBottom();   // kullanıcının konumu EKLEMEDEN ÖNCE
             _typed = false;
+            int newLines = 0;
+            foreach (SerialScreen.Op o in ops) if (o.Text != null) foreach (char c in o.Text) if (c == '\n') newLines++;
             int selStart = _output.SelectionStart, selLen = _output.SelectionLength;
-            // Yazarken gelen yankı gibi küçük eklemeler: denetim yalnız değişen yeri kendisi çizer (titremez).
-            // Büyük log yığını, satır kırpma ya da korunacak bir seçim varsa: çizim kapatılır, sonda bir kez çizilir.
-            bool bulk = raw.Length > 512 || (selLen > 0 && !follow) || NeedsTrim();
-            if (bulk) _output.BeginUpdateNoRedraw();
+
+            _indicator.BeginAppend();
+            bool wasProgram = _programScroll;
+            _programScroll = true;
             try
             {
-                foreach (SerialScreen.Op o in ops)
+                if (follow)
                 {
-                    if (o.Erase > 0)
+                    // Büyük log yığını ya da satır kırpma: çizim kapatılır, sonda bir kez çizilir
+                    bool bulk = raw.Length > 512 || NeedsTrim();
+                    if (bulk) _output.BeginUpdateNoRedraw();
+                    try
                     {
-                        int n = Math.Min(o.Erase, CurrentLineLength());
-                        if (n > 0)
-                        {
-                            _output.Select(_output.TextLength - n, n);
-                            _output.SelectedText = "";
-                        }
-                    }
-                    if (!string.IsNullOrEmpty(o.Text))
-                    {
+                        ApplyOps(ops);
+                        if (NeedsTrim()) TrimLines();
                         _output.Select(_output.TextLength, 0);
-                        _output.SelectedText = o.Text;
+                        if (!IsScrolledToBottom()) ScrollToEnd();
                     }
-                }
-                if (NeedsTrim()) TrimLines();
-                if (follow || selLen == 0)
-                {
-                    _output.Select(_output.TextLength, 0);
-                    if (follow && !IsScrolledToBottom()) ScrollToEnd();
+                    finally
+                    {
+                        if (bulk) _output.EndUpdateNoRedraw();
+                    }
                 }
                 else
                 {
-                    _output.Select(Math.Min(selStart, _output.TextLength), Math.Min(selLen, Math.Max(0, _output.TextLength - selStart)));
+                    ViewState view = SaveView();
+                    _output.BeginUpdateNoRedraw();
+                    try
+                    {
+                        ApplyOps(ops);
+                        int removedChars = 0, removedLines = 0;
+                        if (NeedsTrim()) TrimLines(out removedChars, out removedLines);
+                        view.FirstLine = Math.Max(0, view.FirstLine - removedLines);
+                        int s = Math.Max(0, selStart - removedChars);
+                        if (removedChars > selStart) selLen = 0;
+                        _output.Select(Math.Min(s, _output.TextLength), Math.Min(selLen, Math.Max(0, _output.TextLength - s)));
+                        RestoreView(view);
+                    }
+                    finally
+                    {
+                        _output.EndUpdateNoRedraw();
+                    }
                 }
             }
             finally
             {
-                if (bulk) _output.EndUpdateNoRedraw();
+                _programScroll = wasProgram;
+                _indicator.EndAppend(newLines, follow);
+                SyncPill();
+            }
+        }
+
+        private void ApplyOps(List<SerialScreen.Op> ops)
+        {
+            foreach (SerialScreen.Op o in ops)
+            {
+                if (o.Erase > 0)
+                {
+                    int n = Math.Min(o.Erase, CurrentLineLength());
+                    if (n > 0)
+                    {
+                        _output.Select(_output.TextLength - n, n);
+                        _output.SelectedText = "";
+                    }
+                }
+                if (!string.IsNullOrEmpty(o.Text))
+                {
+                    _output.Select(_output.TextLength, 0);
+                    _output.SelectedText = o.Text;
+                }
+            }
+        }
+
+        // ---------- Görünüm konumu (Telnet penceresindeki gibi: satır numarası + yatay piksel) ----------
+
+        private const int EM_GETSCROLLPOS = 0x0400 + 221;
+        private const int EM_GETFIRSTVISIBLELINE = 0x00CE;
+        private const int EM_LINESCROLL = 0x00B6;
+        private const int WM_HSCROLL = 0x0114;
+        private const int SB_THUMBPOSITION = 4;
+
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        private struct POINT { public int X; public int Y; }
+
+        private struct ViewState { public int FirstLine; public int X; }
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, ref POINT lParam);
+
+        private ViewState SaveView()
+        {
+            if (!_output.IsHandleCreated) return new ViewState();
+            IntPtr h = _output.Handle;
+            var pos = new POINT();
+            SendMessage(h, EM_GETSCROLLPOS, IntPtr.Zero, ref pos);
+            return new ViewState { FirstLine = (int)SendMessage(h, EM_GETFIRSTVISIBLELINE, IntPtr.Zero, IntPtr.Zero), X = pos.X };
+        }
+
+        private void RestoreView(ViewState v)
+        {
+            if (!_output.IsHandleCreated) return;
+            IntPtr h = _output.Handle;
+            int current = (int)SendMessage(h, EM_GETFIRSTVISIBLELINE, IntPtr.Zero, IntPtr.Zero);
+            int target = Math.Max(0, v.FirstLine);
+            if (current != target) SendMessage(h, EM_LINESCROLL, IntPtr.Zero, (IntPtr)(target - current));
+            var pos = new POINT();
+            SendMessage(h, EM_GETSCROLLPOS, IntPtr.Zero, ref pos);
+            if (pos.X != v.X)
+            {
+                int px = Math.Max(0, Math.Min(0xFFFF, v.X));
+                SendMessage(h, WM_HSCROLL, (IntPtr)((px << 16) | SB_THUMBPOSITION), IntPtr.Zero);
             }
         }
 
@@ -310,6 +476,8 @@ namespace Vision
         /// </summary>
         private void ScrollToEnd()
         {
+            bool wasProgram = _programScroll;
+            _programScroll = true;
             _output.BeginUpdateNoRedraw();
             try
             {
@@ -317,7 +485,13 @@ namespace Vision
                 _output.ScrollToCaret();
                 if (_output.IsHandleCreated) SendMessage(_output.Handle, WM_VSCROLL, (IntPtr)SB_BOTTOM, IntPtr.Zero);
             }
-            finally { _output.EndUpdateNoRedraw(); }
+            finally
+            {
+                _output.EndUpdateNoRedraw();
+                _programScroll = wasProgram;
+            }
+            _indicator.Reset();
+            SyncPill();
         }
 
         // Metnin tamamı kopyalanmadan (hızlı log akışında her 50 ms'de çağrılır) son satırın uzunluğu
@@ -329,11 +503,17 @@ namespace Vision
             return start < 0 ? 0 : len - start;
         }
 
+        /// <summary>
+        /// Son satır görünüyor mu ("en altta")? Telnet penceresindeki gibi satır numarasıyla ölçülür (kaydırma çubuğu
+        /// değerleri uzun çıktıda sıkıştırıldığı için piksel ölçüsü birkaç satır yukarıdayken de "altta" diyebiliyordu).
+        /// </summary>
         private bool IsAtBottom()
         {
-            if (_output.TextLength == 0) return true;
-            Point last = _output.GetPositionFromCharIndex(_output.TextLength - 1);
-            return last.Y < _output.ClientSize.Height + _output.Font.Height;
+            if (!_output.IsHandleCreated || _output.TextLength == 0) return true;
+            int lastLine = _output.GetLineFromCharIndex(_output.TextLength);
+            int bottomChar = _output.GetCharIndexFromPosition(new Point(0, Math.Max(0, _output.ClientSize.Height - 1)));
+            int lastVisibleLine = _output.GetLineFromCharIndex(bottomChar);
+            return lastVisibleLine >= lastLine - 1;
         }
 
         // Sınır biraz aşılınca bir kerede kırpılır (her yeni satırda kırpıp ekranı yeniden çizmemek için)
@@ -346,10 +526,20 @@ namespace Vision
 
         private void TrimLines()
         {
+            int chars, lines;
+            TrimLines(out chars, out lines);
+        }
+
+        /// <summary>En eski satırları siler; silinen karakter ve satır sayısını verir (yukarıdayken konum düzeltmesi için).</summary>
+        private void TrimLines(out int removedChars, out int removedLines)
+        {
+            removedChars = removedLines = 0;
             int lines = _output.GetLineFromCharIndex(_output.TextLength) + 1;
             if (lines <= SerialSession.MaxLines) return;
             int cut = _output.GetFirstCharIndexFromLine(lines - SerialSession.MaxLines);
             if (cut <= 0) return;
+            removedLines = lines - SerialSession.MaxLines;
+            removedChars = cut;
             _output.Select(0, cut);
             _output.SelectedText = "";
         }
@@ -377,34 +567,261 @@ namespace Vision
             if (Session.State != SerialState.Open) return;
             string t = null;
             try { if (Clipboard.ContainsText()) t = Clipboard.GetText(); } catch { }
-            if (!string.IsNullOrEmpty(t)) Session.Paste(t);
+            if (string.IsNullOrEmpty(t)) { _output.Focus(); return; }
+            // Birden çok satır: her satır bir komut olarak çalışır — önce sorulur (TeraTerm'deki "Confirm change paste" gibi)
+            string[] lines = t.Replace("\r\n", "\n").Replace('\r', '\n').TrimEnd('\n').Split('\n');
+            if (lines.Length > 1)
+            {
+                string preview = string.Join("\n", lines.Take(6).Select(l => l.Length > 90 ? l.Substring(0, 90) + "…" : l)) +
+                                 (lines.Length > 6 ? "\n… (+" + (lines.Length - 6) + " satır)" : "");
+                int c = ChoiceDialog.Ask(FindForm(), "Çok satırlı yapıştırma",
+                    lines.Length + " satır karta gönderilecek; her satır Enter'la gider ve komut olarak çalışır.",
+                    preview, new[] { "Vazgeç", "Gönder" }, 0, -1);
+                if (c != 1) { _output.Focus(); return; }
+            }
+            Session.Paste(t);
             _output.Focus();
         }
 
+        /// <summary>
+        /// Seri komut geçmişi (komut satırındaki düğme ya da Ctrl+R): seçilen komut komut satırına yazılır (gönderilmez,
+        /// Telnet'teki gibi); çift tık hemen gönderir.
+        /// </summary>
         private void ShowHistory()
         {
-            bool withEnter;
-            string cmd = CommandHistoryDialog.Pick(FindForm(), SerialHistoryStore.History, "", "Seri — " + Session.Profile.Label,
-                                                   "Karta yaz", out withEnter);
-            if (cmd != null && Session.State == SerialState.Open) Session.TypeCommand(cmd, withEnter);
-            _output.Focus();
+            bool sendNow;
+            string query = _input.SelectionLength > 0 ? _input.SelectedText : _input.Text;
+            string cmd = CommandHistoryDialog.Pick(FindForm(), SerialHistoryStore.History, query, "Seri — " + Session.Profile.Label,
+                                                   "Komut satırına yaz", out sendNow);
+            if (cmd == null || Session.State != SerialState.Open) { _input.Focus(); return; }
+            SerialHistoryStore.History.ResetNavigation();
+            if (sendNow) SendLine(cmd);
+            else SetInput(cmd);
+            _input.Focus();
         }
 
-        private void SaveToFile()
+        // ---------- Komut satırı ----------
+
+        private void BuildInput()
         {
-            using (var d = new SaveFileDialog())
+            _inputBar.BackColor = Theme.SurfaceHigh;
+            _field.BackColor = Theme.Input;
+            _prompt.Dock = DockStyle.Left;
+            _prompt.AutoSize = false;
+            _prompt.Width = 14;
+            _prompt.TextAlign = ContentAlignment.MiddleLeft;
+            _input.Dock = DockStyle.Fill;
+            _input.BackColor = Theme.Input;
+            _input.ForeColor = Theme.Text;
+            // Komut alanının sağında geçmiş düğmesi (Telnet'teki gibi; üst başlıktaki düğmenin yerine)
+            _historyBtn.Dock = DockStyle.Right;
+            _historyBtn.Width = 24;
+            _historyBtn.IconSize = 14;
+            _historyBtn.TabStop = false;
+            _historyBtn.SetTip(_tips, "Seri komut geçmişi (Ctrl+R) — seçilen komut komut satırına yazılır; çift tık hemen gönderir");
+            _historyBtn.Click += (s, e) => ShowHistory();
+            _field.Controls.Add(_input);
+            _field.Controls.Add(_prompt);
+            _field.Controls.Add(_historyBtn);
+
+            _sendBtn.Dock = DockStyle.Right;
+            _sendBtn.Width = 36;
+            _sendBtn.SetTip(_tips, "Gönder (Enter) — satır karta gider (sonunda Enter)");
+            var gap = new Panel { Dock = DockStyle.Right, Width = 6, BackColor = Color.Transparent };
+            _inputBar.Controls.Add(_field);
+            _inputBar.Controls.Add(gap);
+            _inputBar.Controls.Add(_sendBtn);
+
+            _input.KeyDown += Input_KeyDown;
+            HistoryWheel.Attach(_input, () => Session.State == SerialState.Open,
+                () => { string prev = SerialHistoryStore.History.Previous(_input.Text); if (prev != null) SetInput(prev); },
+                () => { string next = SerialHistoryStore.History.Next(); if (next != null) SetInput(next); });
+            _autoComplete = new InputAutoComplete(_input, () => SerialHistoryStore.History);
+            _sendBtn.Click += (s, e) => { SendInput(); _input.Focus(); };
+            _field.Click += (s, e) => _input.Focus();
+        }
+
+        private void ApplyInputLook(bool open)
+        {
+            Color back = open ? Theme.Input : Theme.OffInputBack;
+            _input.ReadOnly = !open;
+            _input.BackColor = back;
+            _field.BackColor = back;
+            _inputBar.BackColor = open ? Theme.SurfaceHigh : Theme.OffHeaderBack;
+            _input.Cursor = open ? Cursors.IBeam : Cursors.No;
+            _sendBtn.Enabled = open;
+            Theme.SetCueBanner(_input, open ? "Komut yazıp Enter'a basın  (↑/↓ geçmiş · Ctrl+R ara)  — ya da terminale tıklayıp doğrudan yazın"
+                                            : "Port kapalı — komut yazılamaz");
+        }
+
+        private void Input_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (Session.State != SerialState.Open)
             {
-                d.Title = "Seri çıktıyı kaydet";
-                d.Filter = "Metin dosyası (*.txt)|*.txt|Tüm dosyalar (*.*)|*.*";
-                string safe = Session.Profile.Label;
-                foreach (char c in Path.GetInvalidFileNameChars()) safe = safe.Replace(c, '_');
-                d.FileName = safe + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".txt";
-                if (d.ShowDialog(FindForm()) != DialogResult.OK) return;
-                try { File.WriteAllText(d.FileName, _output.Text.Replace("\n", "\r\n"), new UTF8Encoding(false)); }
-                catch (Exception ex)
+                if (e.KeyCode == Keys.Enter || e.KeyCode == Keys.Up || e.KeyCode == Keys.Down) e.SuppressKeyPress = true;
+                return;
+            }
+            if (_autoComplete != null && _autoComplete.HandleKeyDown(e)) return;   // Tab / ↓ / → / Esc (öneri)
+            if (e.KeyCode == Keys.Enter)
+            {
+                e.SuppressKeyPress = e.Handled = true;
+                SendInput();
+            }
+            else if (e.KeyCode == Keys.Up && !e.Control && !e.Alt)
+            {
+                e.SuppressKeyPress = true;
+                string prev = SerialHistoryStore.History.Previous(_input.Text);
+                if (prev != null) SetInput(prev);
+            }
+            else if (e.KeyCode == Keys.Down && !e.Control && !e.Alt)
+            {
+                e.SuppressKeyPress = true;
+                string next = SerialHistoryStore.History.Next();
+                if (next != null) SetInput(next);
+            }
+            else if (e.KeyCode == Keys.R && e.Control && !e.Alt)
+            {
+                e.SuppressKeyPress = e.Handled = true;
+                ShowHistory();
+            }
+            else if (e.KeyCode == Keys.C && e.Control && !e.Alt && _input.SelectionLength == 0)
+            {
+                e.SuppressKeyPress = true;
+                Session.SendKeys("\u0003");   // seçim yoksa: karta kesme (Ctrl+C), Telnet'teki gibi
+            }
+        }
+
+        /// <summary>Komut satırındaki metni gönderir (boşsa yalnız Enter — ör. "Press [Enter] to directly boot").</summary>
+        private void SendInput()
+        {
+            if (Session.State != SerialState.Open) return;
+            string cmd = _input.Text;
+            SetInput("");
+            SerialHistoryStore.History.ResetNavigation();
+            SendLine(cmd);
+        }
+
+        private void SendLine(string cmd)
+        {
+            _typed = true;
+            if (!IsAtBottom()) ScrollToEnd();
+            Session.TypeCommand(cmd ?? "", true);   // geçmişe Enter'lı satır olarak girer
+        }
+
+        private void SetInput(string text)
+        {
+            if (_autoComplete != null) _autoComplete.SetTextQuiet(text);
+            else { _input.Text = text; _input.SelectionStart = _input.TextLength; }
+        }
+
+        // ---------- Gösterge ve bildirim ----------
+
+        private const string PillWidest = "↓  Yeni Satırlar (999+)";
+
+        private void BuildOverlays()
+        {
+            _newLinesPill.Click += (s, e) => { ScrollToEnd(); _indicator.OnClick(); SyncPill(); _output.Focus(); };
+            // Yalnız kullanıcının kaydırması göstergeyi kapatır (program eklerken gelen kaymalar sayılmaz)
+            _output.VScroll += (s, e) => CheckReachedBottom();
+            _output.MouseUp += (s, e) => CheckReachedBottom();
+            _outputHost.Resize += (s, e) => { if (_newLinesPill.Visible) PlacePill(); PlaceToast(); };
+            _toast.Click += (s, e) =>
+            {
+                string path = _toastPath;
+                HideToast();
+                if (path != null)
                 {
-                    ChoiceDialog.Ask(FindForm(), "Kaydedilemedi", "Dosya yazılamadı.", ErrorText.Describe(ex), new[] { "Tamam" }, 0, -1);
+                    try { System.Diagnostics.Process.Start("explorer.exe", "/select,\"" + path + "\""); }
+                    catch (Exception ex) { ErrorText.LogTechnical("klasör aç", ex); }
                 }
+            };
+            _toastTimer.Tick += (s, e) => HideToast();
+        }
+
+        private void CheckReachedBottom()
+        {
+            if (_programScroll || !_indicator.Visible) return;
+            _indicator.OnScroll(IsAtBottom());
+            SyncPill();
+        }
+
+        private void SyncPill()
+        {
+            if (!_indicator.Visible)
+            {
+                if (_newLinesPill.Visible) _newLinesPill.Visible = false;
+                return;
+            }
+            string text = _indicator.Text;
+            if (_newLinesPill.Text != text) _newLinesPill.Text = text;
+            if (!_newLinesPill.Visible)
+            {
+                PlacePill();
+                _newLinesPill.Visible = true;
+                _newLinesPill.BringToFront();
+            }
+        }
+
+        private void PlacePill()
+        {
+            if (_pillSize.IsEmpty)
+            {
+                string t = _newLinesPill.Text;
+                _newLinesPill.Text = PillWidest;
+                _pillSize = _newLinesPill.GetPreferredSize(Size.Empty);
+                _newLinesPill.Text = t;
+                _newLinesPill.Size = _pillSize;
+            }
+            int x = Math.Max(4, (_outputHost.ClientSize.Width - _pillSize.Width) / 2);
+            int y = Math.Max(4, _outputHost.ClientSize.Height - _pillSize.Height - 12);
+            var loc = new Point(x, y);
+            if (_newLinesPill.Location != loc) _newLinesPill.Location = loc;
+        }
+
+        private void ShowToast(string text, bool ok, string path)
+        {
+            _toastPath = path;
+            _toast.Text = text;
+            _toast.BackColor = ok ? Theme.SuccessBanner : Theme.ErrorBanner;
+            _toast.ForeColor = ok ? Theme.SuccessBannerText : Color.White;
+            _toast.MaximumSize = new Size(Math.Max(120, _outputHost.ClientSize.Width - 24), 0);
+            _toast.Visible = true;
+            _toast.BringToFront();
+            PlaceToast();
+            _toastTimer.Stop();
+            _toastTimer.Start();
+        }
+
+        private void HideToast()
+        {
+            _toastTimer.Stop();
+            _toast.Visible = false;
+        }
+
+        private void PlaceToast()
+        {
+            if (!_toast.Visible) return;
+            _toast.Location = new Point(Math.Max(4, _outputHost.ClientSize.Width - _toast.Width - 12), 8);
+        }
+
+        /// <summary>
+        /// "Dosyaya kaydet": ekrandaki çıktı sormadan logs\SeriKanalLoglari altına kaydedilir (Telnet'teki gibi; klasör
+        /// yoksa oluşur). Bildirime tıklayınca dosya Windows Gezgini'nde seçili açılır.
+        /// </summary>
+        private async System.Threading.Tasks.Task SaveSnapshotAsync()
+        {
+            // Ekran görünümünde o anki ekran (BIOS / menü), günlükte akan çıktı kaydedilir
+            string text = _shownMode == SerialViewMode.Screen ? _vt.Text() : _output.Text;
+            _saveBtn.Enabled = false;
+            try
+            {
+                SnapshotResult r = await TerminalSnapshot.SaveSerialAsync(Session.Profile, text, DateTime.Now);
+                if (r.Ok) ShowToast("✓  Kaydedildi: " + Path.GetFileName(r.Path) + "  (klasörü açmak için tıklayın)", true, r.Path);
+                else ShowToast("✕  Kaydedilemedi: " + r.Error, false, null);
+            }
+            finally
+            {
+                _saveBtn.Enabled = true;
             }
         }
 
@@ -428,6 +845,7 @@ namespace Vision
             if (disposing)
             {
                 _timer.Dispose();
+                _toastTimer.Dispose();
                 Session.StateChanged -= OnSessionStateChanged;
                 _tips.Dispose();
                 _menu.Dispose();
@@ -446,9 +864,13 @@ namespace Vision
             private const int WM_CUT = 0x0300;
             private const int WM_CLEAR = 0x0303;
             private const int WM_UNDO = 0x0304;
+            private const int WM_SYSKEYDOWN = 0x0104;
+            private const int WM_SYSKEYUP = 0x0105;
 
             public Action<string> KeysTyped;
             public Action PasteRequested;
+            /// <summary>Kart "uygulama oku tuşları" istedi mi (oklar ESC O A…).</summary>
+            public Func<bool> AppCursor;
 
             public SerialTerminalBox()
             {
@@ -508,24 +930,42 @@ namespace Vision
                 Keys k = e.KeyCode;
                 string seq = null;
                 if (e.Shift && k == Keys.Insert) { e.Handled = e.SuppressKeyPress = true; var p = PasteRequested; if (p != null) p(); return; }
-                if (k == Keys.Enter) seq = "\r";
-                else if (k == Keys.Back) seq = "\b";
-                else if (k == Keys.Tab) seq = "\t";
-                else if (k == Keys.Escape) seq = "\u001b";
-                else if (k == Keys.Up) seq = "\u001b[A";
-                else if (k == Keys.Down) seq = "\u001b[B";
-                else if (k == Keys.Right) seq = "\u001b[C";
-                else if (k == Keys.Left) seq = "\u001b[D";
-                else if (k == Keys.Delete) seq = "\u001b[3~";
-                else if (e.Control && !e.Alt && k >= Keys.A && k <= Keys.Z) seq = ((char)(k - Keys.A + 1)).ToString();   // Ctrl+C = 0x03 …
+                // Ctrl+V: panodaki metin karta yazılır; Ctrl+C: seçili metin varsa yalnız kopyalanır (karta kesme gitmez),
+                // seçim yoksa karta kesme (Ctrl+C) gider — Telnet ekranındaki gibi (1.10)
+                if (e.Control && !e.Alt && !e.Shift && k == Keys.V) { e.Handled = e.SuppressKeyPress = true; var p = PasteRequested; if (p != null) p(); return; }
+                if (e.Control && !e.Alt && !e.Shift && k == Keys.C && SelectionLength > 0)
+                {
+                    e.Handled = e.SuppressKeyPress = true;
+                    try { Clipboard.SetText(SelectedText.Replace("\n", "\r\n")); } catch { }
+                    return;
+                }
+                if (e.Shift && !e.Control && !e.Alt && (k == Keys.PageUp || k == Keys.PageDown || k == Keys.Home || k == Keys.End))
+                {
+                    // Shift + sayfa tuşları: yalnız görünümü kaydırır (karta gitmez)
+                    e.Handled = e.SuppressKeyPress = true;
+                    ScrollView(k);
+                    return;
+                }
+                // TeraTerm varsayılanları: Backspace = BS, Delete = DEL, F tuşları ve oklar VT kodları (SerialKeys)
+                var app = AppCursor;
+                seq = SerialKeys.Sequence(k, e.Control, e.Alt, app != null && app());
                 if (seq != null)
                 {
                     e.Handled = e.SuppressKeyPress = true;
                     Send(seq);
                     return;
                 }
-                // Sayfa / Home / End: yalnız görünümü kaydırır (karta gitmez)
                 base.OnKeyDown(e);
+            }
+
+            private const int WM_VSCROLL_BOX = 0x0115;
+            private const int SB_PAGEUP = 2, SB_PAGEDOWN = 3, SB_TOP = 6, SB_BOTTOM_BOX = 7;
+
+            private void ScrollView(Keys k)
+            {
+                if (!IsHandleCreated) return;
+                int code = k == Keys.PageUp ? SB_PAGEUP : k == Keys.PageDown ? SB_PAGEDOWN : k == Keys.Home ? SB_TOP : SB_BOTTOM_BOX;
+                SendMessage(Handle, WM_VSCROLL_BOX, (IntPtr)code, IntPtr.Zero);
             }
 
             protected override void OnKeyPress(KeyPressEventArgs e)
@@ -547,6 +987,12 @@ namespace Vision
             {
                 // Kullanıcının metni değiştirmesine yol açabilecek iletiler yok sayılır (yapıştır karta gider)
                 if (m.Msg == WM_PASTE) { var p = PasteRequested; if (p != null) p(); return; }
+                // F10 Windows'ta menü tuşudur (WM_SYSKEYDOWN): pencere menüsü yerine karta gider
+                if ((m.Msg == WM_SYSKEYDOWN || m.Msg == WM_SYSKEYUP) && (int)m.WParam == (int)Keys.F10 && (ModifierKeys & Keys.Alt) == 0)
+                {
+                    if (m.Msg == WM_SYSKEYDOWN) Send(SerialKeys.FunctionKey(Keys.F10));
+                    return;
+                }
                 if (m.Msg == WM_CUT || m.Msg == WM_CLEAR || m.Msg == WM_UNDO) return;
                 base.WndProc(ref m);
             }

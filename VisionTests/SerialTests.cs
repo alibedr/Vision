@@ -39,9 +39,11 @@ namespace VisionTests
                 }
             }
 
-            public void CardSends(string s) { var h = Received; if (h != null) h(Encoding.GetEncoding(28591).GetBytes(s)); }
+            public void CardSends(string s) { CardSendsBytes(Encoding.UTF8.GetBytes(s)); }
+            public void CardSendsBytes(byte[] b) { var h = Received; if (h != null) h(b); }
             public void Unplug(string why) { var h = Lost; if (h != null) h(why); }
-            public string Sent { get { lock (Written) return Encoding.GetEncoding(28591).GetString(Written.ToArray()); } }
+            public string Sent { get { lock (Written) return Encoding.UTF8.GetString(Written.ToArray()); } }
+            public int SentBytes { get { lock (Written) return Written.Count; } }
             public bool StillPresent() { return Present; }
             public void Close() { IsOpen = false; }
             public void Dispose() { Close(); }
@@ -88,6 +90,141 @@ namespace VisionTests
             string scr = Screen(parted, "", "x\u001b[");
             scr = Screen(parted, scr, "31my");
             Check.Equal("xy", scr, "parçalara bölünmüş kaçış dizisi");
+        }
+
+        [Test]
+        public void Seri_SatirBasinaDonusUstuneYazar()
+        {
+            var s = new SerialScreen();
+            Check.Equal("yükleniyor 20%\n", Screen(s, "", "yükleniyor 10%\ryükleniyor 20%\r\n"), "CR sonrası satır baştan yazılır");
+            var s2 = new SerialScreen();
+            string scr = Screen(s2, "", "abc\r");
+            scr = Screen(s2, scr, "\nX");
+            Check.Equal("abc\nX", scr, "parçalar arasında CR LF yine satır sonu");
+            var s3 = new SerialScreen();
+            scr = Screen(s3, "", "-> abc\r");
+            scr = Screen(s3, scr, "-> xy");
+            Check.Equal("-> xy", scr, "önceki parçada ekrana yazılmış satır da silinir");
+            Check.Equal("a\n\nb", Screen(new SerialScreen(), "", "a\n\rb".Replace("b", "\nb")), "LF CR sırası da çalışır");
+        }
+
+        // ---------- Ekran görünümü (VT) ----------
+
+        private static string Feed(VtScreen vt, string text)
+        {
+            var log = new StringBuilder();
+            vt.Feed(text, log);
+            return log.ToString();
+        }
+
+        [Test]
+        public void Vt_BiosMenusuEkranaCizilirGunlugeGitmez()
+        {
+            var vt = new VtScreen();
+            string log = Feed(vt, "POST tamam\r\n");
+            Check.Equal("POST tamam\r\n", log, "akan yazı günlüğe");
+            log = Feed(vt, "\u001b[2J\u001b[1;1HBoot Manager\u001b[5;10H\u001b[7mUEFI: Disk 1\u001b[0m\u001b[6;10HSetup");
+            Check.Equal(SerialViewMode.Screen, vt.Mode, "ekran temizlenince Ekran görünümü");
+            Check.True(!log.Contains("Boot Manager") && log.Contains("tam ekran"), "günlüğe çizim değil bilgi satırı gider: " + log);
+            Check.Equal("Boot Manager", vt.RowText(0), "1. satır");
+            Check.Equal("         UEFI: Disk 1", vt.RowText(4), "5. satır 10. sütun");
+            Check.True(vt[4, 9].Reverse && !vt[5, 9].Reverse, "seçili satır ters renk");
+            Check.Equal("         Setup", vt.RowText(5), "6. satır");
+        }
+
+        [Test]
+        public void Vt_AkanYaziyaDonunceGunlugeDoner()
+        {
+            var vt = new VtScreen();
+            Feed(vt, "\u001b[2J\u001b[HMenu");
+            Check.Equal(SerialViewMode.Screen, vt.Mode, "ekran");
+            var sb = new StringBuilder();
+            for (int i = 0; i < 30; i++) sb.Append("Loading kernel " + i + "\r\n");
+            string log = Feed(vt, sb.ToString());
+            Check.Equal(SerialViewMode.Log, vt.Mode, "ekranın bir boyu kadar akan satırdan sonra günlük");
+            Check.True(log.Contains("gösterimden çıktı") && log.Contains("Loading kernel 0") && log.Contains("Loading kernel 29"),
+                       "akan kısım günlüğe aktarılır: " + log);
+        }
+
+        [Test]
+        public void Vt_DonunceEkraninSonHaliGunlugeEklenir()
+        {
+            var vt = new VtScreen();
+            Feed(vt, "\u001b[2J\u001b[1;1HBoot Manager\u001b[3;5HUEFI: Disk 1\u001b[25;1H");
+            var sb = new StringBuilder();
+            for (int i = 0; i < 26; i++) sb.Append("Loading " + i + "\r\n");
+            string log = Feed(vt, sb.ToString());
+            Check.Equal(SerialViewMode.Log, vt.Mode, "günlüğe dönüldü");
+            int menu = log.IndexOf("Boot Manager", StringComparison.Ordinal), disk = log.IndexOf("    UEFI: Disk 1", StringComparison.Ordinal);
+            int first = log.IndexOf("Loading 0", StringComparison.Ordinal);
+            Check.True(menu >= 0 && disk > menu && first > disk, "önce ekranın son hâli, sonra akan satırlar: " + log);
+            Check.Equal(1, CountOf(log, "Loading 0"), "akan satır iki kez yazılmaz");
+            Check.Equal(1, CountOf(log, "Loading 25"), "son satır da bir kez");
+
+            // Menüden çıkarken BIOS ekranı temizlerse: temizlenmeden önceki ekran aktarılır
+            var vt2 = new VtScreen();
+            Feed(vt2, "\u001b[2J\u001b[1;1HSetup Utility\u001b[2;1HExit\u001b[3;1H");
+            Feed(vt2, "\u001b[2J");
+            string log2 = Feed(vt2, sb.ToString());
+            Check.True(log2.Contains("Setup Utility") && log2.Contains("Loading 25"), "temizlenen menü de günlüğe: " + log2);
+        }
+
+        private static int CountOf(string s, string part)
+        {
+            int n = 0, i = 0;
+            while ((i = s.IndexOf(part, i, StringComparison.Ordinal)) >= 0) { n++; i += part.Length; }
+            return n;
+        }
+
+        [Test]
+        public void Vt_BoyutDegisinceIcerikKorunur()
+        {
+            var vt = new VtScreen();
+            Feed(vt, "\u001b[2J\u001b[1;1HBoot\u001b[25;80HX");
+            vt.Resize(120, 40);
+            Check.Equal(120, vt.Cols, "genişledi");
+            Check.Equal("Boot", vt.RowText(0), "sol üst korunur");
+            Check.Equal('X', vt[24, 79].Ch, "80×25 içindeki her şey yerinde");
+            vt.Resize(60, 10);
+            Check.True(vt.Cols == 80 && vt.Rows == 25, "en az 80×25 kalır");
+        }
+
+        [Test]
+        public void Vt_TekTukImlecKomutuGorunumuDegistirmez()
+        {
+            DateTime t = new DateTime(2026, 11, 19, 12, 0, 0);
+            var vt = new VtScreen(now: () => t);
+            Feed(vt, "-> \u001b[1;1H");
+            t = t.AddSeconds(5);
+            Feed(vt, "\u001b[3;1H");
+            t = t.AddSeconds(5);
+            Feed(vt, "\u001b[4;1H");
+            Check.Equal(SerialViewMode.Log, vt.Mode, "seyrek konumlama: günlükte kalınır");
+            Feed(vt, "\u001b[1;1Ha\u001b[2;1Hb\u001b[3;1Hc");
+            Check.Equal(SerialViewMode.Screen, vt.Mode, "kısa sürede art arda 3 konumlama: ekran çizimi");
+        }
+
+        [Test]
+        public void Vt_TemelTerminalDavranisi()
+        {
+            var vt = new VtScreen();
+            Feed(vt, "abc\rX");
+            Check.Equal("Xbc", vt.RowText(0), "CR satır başına döner, üstüne yazar");
+            Feed(vt, "\r\n\u001b(0lqk\u001b(B ok");
+            Check.Equal("┌─┐ ok", vt.RowText(1), "DEC çizgi karakterleri");
+            Feed(vt, "\u001b[?1h");
+            Check.True(vt.AppCursorKeys, "uygulama oku tuşları (DECCKM)");
+            Feed(vt, "\u001b[3;7H\u001b[6n");
+            Check.Equal("\u001b[3;7R", vt.Responses.Dequeue(), "imleç konumu sorusuna cevap");
+            Feed(vt, "\u001b[1;1H\u001b[2K");
+            Check.Equal("", vt.RowText(0), "satır silme");
+            Feed(vt, "\u001b[1;37;44mM\u001b[0m");
+            Check.True(vt[0, 0].Fg == 7 && vt[0, 0].Bg == 4 && vt[0, 0].Bold, "renk: beyaz / mavi, kalın");
+            var vt2 = new VtScreen(10, 3);
+            Feed(vt2, "1\r\n2\r\n3\r\n4");
+            Check.Equal("2|3|4", vt2.RowText(0) + "|" + vt2.RowText(1) + "|" + vt2.RowText(2), "alttan taşınca yukarı kayar");
+            Feed(vt2, "\r\n0123456789AB");
+            Check.Equal("0123456789|AB", vt2.RowText(1) + "|" + vt2.RowText(2), "satır sonunda alt satıra geçer");
         }
 
         [Test]
@@ -159,6 +296,41 @@ namespace VisionTests
         }
 
         [Test]
+        public async Task Seri_Utf8ParcaliGelsedeDogruBirlesir()
+        {
+            var io = new FakeSerialIo();
+            var s = new SerialSession(new SerialPortProfile { PortName = "COM5" }, () => io);
+            s.Open();
+            s.TakePending();
+            byte[] b = Encoding.UTF8.GetBytes("ağ: çalışıyor ─");
+            io.CardSendsBytes(b.Take(2).ToArray());          // "a" + "ğ"nin ilk baytı
+            io.CardSendsBytes(b.Skip(2).ToArray());
+            Check.Equal("ağ: çalışıyor ─", s.TakePending(), "bölünmüş UTF-8 karakter birleşir");
+            s.SendKeys("şİ");
+            await WaitSent(io, 2);
+            Check.Equal(4, io.SentBytes, "gönderilen UTF-8 (2 karakter = 4 bayt)");
+            Check.Equal("şİ", io.Sent, "gönderilen metin");
+            s.Dispose();
+        }
+
+        [Test]
+        public async Task Seri_TusKoduGecikmeyleBolunmez()
+        {
+            var io = new FakeSerialIo();
+            var s = new SerialSession(new SerialPortProfile { PortName = "COM3", CharDelayMs = 30 }, () => io);
+            s.Open();
+            s.SendKeys("\u001b[21~");   // F10
+            s.SendKeys("ab");
+            await WaitSent(io, 7);
+            Check.Equal("\u001b[21~ab", io.Sent, "sıra korunur");
+            double inside = (io.WriteTimes[4] - io.WriteTimes[0]).TotalMilliseconds;
+            Check.True(inside < 15, "tuş kodu tek seferde yazılır (" + inside + " ms)");
+            double between = (io.WriteTimes[6] - io.WriteTimes[5]).TotalMilliseconds;
+            Check.True(between >= 25, "düz yazıda karakter gecikmesi sürer (" + between + " ms)");
+            s.Dispose();
+        }
+
+        [Test]
         public void Seri_AcmaHatasiVeKaybolma()
         {
             var io = new FakeSerialIo { OpenError = "COM7 açılamadı: port başka bir programda açık (TeraTerm olabilir) ya da erişim izni yok." };
@@ -181,6 +353,36 @@ namespace VisionTests
             io3.Unplug("Port kayboldu (USB çevirici çıkarılmış olabilir)");
             Check.Equal(SerialState.Error, s3.State, "okuma sırasında kayboldu");
             Check.True(!io3.IsOpen, "port kapatıldı");
+        }
+
+        // ---------- Kayıt klasörleri ----------
+
+        [Test]
+        public async Task Kayit_TelnetVeSeriAyriKlasorlerde()
+        {
+            Check.Equal("TelnetLoglari", Path.GetFileName(TerminalSnapshot.TelnetFolder), "telnet klasörü");
+            Check.Equal("SeriKanalLoglari", Path.GetFileName(TerminalSnapshot.SerialFolder), "seri klasörü");
+            Check.Equal(TerminalSnapshot.DefaultFolder, Path.GetDirectoryName(TerminalSnapshot.SerialFolder), "ikisi de logs altında");
+            string name = TerminalSnapshot.SerialFileNameFor(new SerialPortProfile { PortName = "COM7", Name = "Kart 3" }, new DateTime(2026, 11, 19, 11, 40, 5, 123));
+            Check.Equal("COM7_Kart_3_anlik_20261119_114005_123.log", name, "seri dosya adı");
+
+            string root = Path.Combine(Path.GetTempPath(), "vision-test-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                string dir = Path.Combine(root, "SeriKanalLoglari");
+                SnapshotResult r = await TerminalSnapshot.SaveSerialAsync(new SerialPortProfile { PortName = "COM3" }, "satir1\nsatir2", DateTime.Now, dir);
+                Check.True(r.Ok, "kaydedildi: " + r.Error);
+                Check.Equal(dir, Path.GetDirectoryName(r.Path), "klasör yoksa oluşturulur, dosya içinde");
+                SnapshotResult r2 = await TerminalSnapshot.SaveSerialAsync(new SerialPortProfile { PortName = "COM3" }, "x", DateTime.Now, dir);
+                Check.True(r2.Ok && r2.Path != r.Path, "klasör varken ikinci kayıt ayrı dosya");
+                Check.Equal("satir1\r\nsatir2", File.ReadAllText(r.Path), "CRLF");
+                SnapshotResult empty = await TerminalSnapshot.SaveSerialAsync(new SerialPortProfile { PortName = "COM3" }, "", DateTime.Now, dir);
+                Check.True(!empty.Ok, "boş ekran kaydedilmez");
+            }
+            finally
+            {
+                try { Directory.Delete(root, true); } catch { }
+            }
         }
 
         // ---------- Ayarlar ----------

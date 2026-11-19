@@ -414,6 +414,9 @@ namespace Vision
             // Seri terminalde Ctrl+harf (Ctrl+C, Ctrl+X, Ctrl+N …) karta gider: uygulama kısayolları devreye girmez
             if (_activeTab == MainTab.Serial && e.Control && !e.Alt && e.KeyCode >= Keys.A && e.KeyCode <= Keys.Z)
                 return;
+            // Seri terminale doğrudan yazarken F1–F12 karta gider (kart açılışında F2 / F10 menüleri); yardım menüden açılır
+            if (_activeTab == MainTab.Serial && e.KeyCode >= Keys.F1 && e.KeyCode <= Keys.F12 && _serialView.TerminalFocused)
+                return;
             if (e.KeyCode == Keys.F1)
             {
                 e.SuppressKeyPress = true;
@@ -694,10 +697,10 @@ namespace Vision
             SnapshotResult[] results = await Task.WhenAll(captured.Select(c => TerminalSnapshot.SaveAsync(c.Card, c.Text, at)));
             int ok = results.Count(r => r.Ok);
             var failed = results.Where(r => !r.Ok).Select(r => r.Card.Label + " (" + r.Error + ")").ToList();
-            string folder = TerminalSnapshot.DefaultFolder;
+            string folder = TerminalSnapshot.TelnetFolder;
             string detail = string.Join("\n", results.Select(r => (r.Ok ? "✓ " + r.Card.Label + " → " + Path.GetFileName(r.Path) : "✕ " + r.Card.Label + ": " + r.Error)));
             if (failed.Count == 0)
-                _globalBar.ShowResult("✓  " + ok + " kartın terminali ayrı dosyalara kaydedildi (logs)", Theme.Success, detail + "\n\nKlasör: " + folder);
+                _globalBar.ShowResult("✓  " + ok + " kartın terminali ayrı dosyalara kaydedildi (logs\\TelnetLoglari)", Theme.Success, detail + "\n\nKlasör: " + folder);
             else if (ok == 0)
                 _globalBar.ShowResult("✕  Hiçbir kart kaydedilemedi: " + string.Join(", ", failed), Theme.Danger, detail);
             else
@@ -1709,10 +1712,12 @@ namespace Vision
             {
                 Title = "Seri pencereleri",
                 Body = () => "En fazla " + SerialView.MaxViews + " port aynı anda, Telnet'teki gibi ızgarada; her pencere büyütülebilir.\n\n" +
-                             "TeraTerm gibi terminale tıklayıp yazın: her tuş anında karta gider (Enter, Backspace, oklar, Ctrl+C…). " +
-                             "Fareyle seçilen metin kendiliğinden kopyalanır; yapıştırma sağ tık ya da Shift+Insert.\n\n" +
-                             "Yazdığınız komutlar Telnet'ten ayrı bir geçmişe kaydedilir: saat düğmesi, tek tık komutu yazar, çift tık gönderir. " +
-                             "Ekrandaki çıktı dosyaya kaydedilebilir.",
+                             "İki yoldan yazılır: alttaki komut satırına yazıp düzenleyin, Enter ile gönderin (↑ / ↓, tekerlek, Ctrl+R geçmiş) — " +
+                             "ya da TeraTerm gibi terminale tıklayıp doğrudan yazın: her tuş anında karta gider (Backspace, oklar, F2, F10, Del…).\n\n" +
+                             "Seçili metin Ctrl+C ile kopyalanır (seçim yoksa karta kesme gider), Ctrl+V yapıştırır. Yukarıdaki bir yere bakarken " +
+                             "gelen çıktı ekranı kaydırmaz. Ekran logs\\SeriKanalLoglari klasörüne kaydedilir.\n\n" +
+                             "BIOS / boot manager gibi tam ekran gösterimlerde pencere kendiliğinden TeraTerm'deki gibi Ekran görünümüne geçer; " +
+                             "başlıktaki ekran / kitap düğmesiyle elle de geçilir.",
                 Target = () => TourRect(_serialView.TourGrid),
                 Enter = serial,
             });
