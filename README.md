@@ -67,3 +67,4 @@ Gruplar, kartlar ve ayarlar kullanıcının bilgisayarında `%APPDATA%\TelnetCar
 
 - [Kullanım Kılavuzu](Yardim/KullanimKilavuzu.md)
 - [Gereksinimler ve sürüm notları](Yardim/Gereksinimler.md)
+- [Yapılacaklar](YAPILACAKLAR.md): kullanıcılardan gelen ve sırada bekleyen istekler
