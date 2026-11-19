@@ -16,7 +16,17 @@ durur.
 
 ## Hatalar
 
-Şu an bekleyen hata yok.
+- [ ] **Kart Dosya Gezgini'nde bazı .txt dosyaları çift tıklayınca açılmıyor**
+  - *Kaynak:* 1.3 kullanıcıları · 19.11.2026
+  - *Nasıl çalışıyor:* Çift tık → dosya kartta geçici bir adla (`_tkt_xxxxxxxx_<ad>`) FTP klasörüne kopyalanır → bilgisayara
+    indirilir → boyutu doğrulanır → salt okunur kopya Windows'un varsayılan uygulamasıyla açılır. Hangi adımda takıldığı
+    henüz bilinmiyor.
+  - *Muhtemel nedenler:* Dosya adı (uzun ad — geçici ad önüne 14 karakter ekliyor —, boşluk, Türkçe / özel karakter);
+    kartın `ll` çıktısında dosyanın boyutu ya da türü yanlış okunması (boyut doğrulaması başarısız olur ya da klasör
+    sanılır); 0 baytlık dosya; FTP bilgisi alınamayınca "Metin olarak aç" yoluna düşülmesi.
+  - *Gereken bilgi:* Açılmayan dosyanın adı, kartta bulunduğu klasör ve boyutu; çift tıklayınca ne olduğu (hiçbir şey mi,
+    şeritte bir hata mı — metni); `logs\hatalar.log`; mümkünse o klasörde kartta `ll` çıktısı.
+  - *Öncelik:* Hata — gruplanmayı beklemeden, bilgi gelince düzeltilir.
 
 ---
 
