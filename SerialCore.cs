@@ -452,6 +452,12 @@ namespace Vision
             _sendSignal.Release();
         }
 
+        /// <summary>Tek bir tuşun kaçış dizisi mi (ESC ile başlayan, en çok 8 bayt)?</summary>
+        internal static bool IsKeySequence(byte[] data)
+        {
+            return data != null && data.Length > 1 && data.Length <= 8 && data[0] == 0x1B;
+        }
+
         private async Task SendLoopAsync(ISerialIo io, CancellationToken token)
         {
             while (!token.IsCancellationRequested)
@@ -464,9 +470,12 @@ namespace Vision
                     try
                     {
                         int charDelay = Profile.CharDelayMs, lineDelay = Profile.LineDelayMs;
-                        if (charDelay <= 0 && lineDelay <= 0)
+                        if ((charDelay <= 0 && lineDelay <= 0) || IsKeySequence(data))
                         {
+                            // Tuş kodu (ESC ile başlayan: F2, F10, oklar …) tek seferde gider: BIOS ekranları ESC'den sonra
+                            // geleni zamana bakarak ayırır, araya gecikme girerse ESC'yi tek başına "Esc tuşu" sayar (1.10)
                             io.Write(data, 0, data.Length);
+                            if (charDelay > 0 && data.Length > 0 && data[0] == 0x1B) await Task.Delay(charDelay, token).ConfigureAwait(false);
                         }
                         else
                         {

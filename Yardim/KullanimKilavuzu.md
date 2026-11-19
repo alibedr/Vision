@@ -721,7 +721,7 @@ Bağlantı başarılı olsa da yazma izni yoksa ya da kartın gördüğü yol FT
 Seri pencereye **iki yoldan** yazılır:
 
 - **Alttaki komut satırı (Telnet'teki gibi):** komutu yazın, gerekirse düzeltin, **Enter** (ya da Gönder) satırı karta gönderir (sonunda Enter). Kart yazılanı geri yansıttığı için komut ekranda da görünür. Komut satırı boşken Enter yalnız Enter gönderir (ör. "Press [Enter] to directly boot"). **↑ / ↓** ya da komut satırının üzerinde **fare tekerleği** geçmişte gezinir; yazarken geçmişten öneri çıkar (Tab / → ile kabul); **Ctrl+R** ya da komut satırının sağındaki saat düğmesi seri komut geçmişini açar: seçilen komut komut satırına yazılır, çift tık hemen gönderir. Seçim yokken **Ctrl+C** karta kesme gönderir.
-- **Doğrudan yazma (TeraTerm gibi):** terminale tıklayıp yazın; her tuş anında karta gider ve ekrana kartın yankısı gelir. Enter (CR), **Backspace** (TeraTerm gibi DEL karakteri), Tab, Esc, oklar, Delete, **F1–F12**, Home / End / PgUp / PgDn / Insert (TeraTerm'in gönderdiği kodlarla) ve **Ctrl+harf** karta gönderilir. Böylece kart açılırken çıkan "Press [F2/Del] to enter setup", "Press [F10] to show boot menu" menülerine girilebilir. Terminal odaktayken F1 yardımı değil karta gider (yardım Yardım menüsünden açılır). Ekranı klavyeyle kaydırmak için **Shift + PgUp / PgDn / Home / End**.
+- **Doğrudan yazma (TeraTerm gibi):** terminale tıklayıp yazın; her tuş anında karta gider ve ekrana kartın yankısı gelir. Enter (CR), **Backspace** (BS), **Delete** (DEL), Tab, Esc, oklar, **F1–F12**, Home / End / PgUp / PgDn / Insert ve **Ctrl+harf** karta gönderilir; kodlar TeraTerm'in varsayılan ayarlarıyla aynıdır. Bir tuşun kodu ("Transmit delay" açık olsa da) tek seferde gider. Böylece kart açılırken çıkan "Press [F2/Del] to enter setup", "Press [F10] to show boot menu" menülerine girilebilir. Terminal odaktayken F1 yardımı değil karta gider (yardım Yardım menüsünden açılır). Ekranı klavyeyle kaydırmak için **Shift + PgUp / PgDn / Home / End**.
 - Seri sekmesinde Ctrl+harf uygulama kısayolları (Ctrl+N, Ctrl+G, Ctrl+B …) çalışmaz; yalnız sekme geçişi (Ctrl+1…5) çalışır. Sol menüyü bu sekmede ◀ düğmesiyle gizleyin.
 - **Kopyalama:** fareyle seçtiğiniz metin kendiliğinden panoya kopyalanır; **Ctrl+C** de seçili metni kopyalar (seçim varken karta kesme gitmez; seçim yoksa Ctrl+C karta kesme gönderir). Sağ tık → Kopyala.
 - **Yapıştırma:** **Ctrl+V**, **Shift+Insert** ya da sağ tık → Yapıştır; satır sonları CR olarak gönderilir.
@@ -854,7 +854,7 @@ Arayüzde ayar yoktur; değerler `%APPDATA%\TelnetCards\config.xml` dosyasındak
 | Ctrl+1 / 2 / 3 / 4 / 5 | Telnet / Kart Dosya Gezgini / Seri / Sentinel / Komut Kütüphanesi sekmesi |
 | F5 | Sentinel sekmesinde sayfayı yenile |
 | Ctrl+B | O sekmenin sol menüsünü (Kart Gezgini, Sentinel kart listesi, Komut Kütüphanesi listesi) gizle / göster; Seri sekmesinde Ctrl+B karta gider, menü ◀ düğmesiyle gizlenir |
-| Seri terminalde: tuşlar, F1–F12, Ctrl+harf | Doğrudan karta gönderilir (Backspace = DEL; seçim yokken Ctrl+C = kesme) |
+| Seri terminalde: tuşlar, F1–F12, Ctrl+harf | Doğrudan karta gönderilir (Backspace = BS, Delete = DEL — TeraTerm gibi; seçim yokken Ctrl+C = kesme) |
 | Seri terminalde: Ctrl+C (seçim varken) | Seçili metni kopyala (karta gitmez) |
 | Seri terminalde: Ctrl+V · Shift+Insert | Panodaki metni karta yapıştır |
 | Seri terminalde: Shift + PgUp / PgDn / Home / End | Ekranı kaydır |

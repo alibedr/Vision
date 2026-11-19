@@ -866,14 +866,14 @@ namespace Vision
                     return;
                 }
                 if (k == Keys.Enter) seq = "\r";
-                else if (k == Keys.Back) seq = "\u007f";   // TeraTerm'in varsayılanı gibi DEL (kartlar BS'yi silme saymıyordu)
+                else if (k == Keys.Back) seq = "\b";       // TeraTerm varsayılanı: Backspace = BS (Ctrl+H)
                 else if (k == Keys.Tab) seq = "\t";
                 else if (k == Keys.Escape) seq = "\u001b";
                 else if (k == Keys.Up) seq = "\u001b[A";
                 else if (k == Keys.Down) seq = "\u001b[B";
                 else if (k == Keys.Right) seq = "\u001b[C";
                 else if (k == Keys.Left) seq = "\u001b[D";
-                else if (k == Keys.Delete) seq = "\u001b[3~";
+                else if (k == Keys.Delete) seq = "\u007f";   // TeraTerm varsayılanı ("Transmit DEL by: Delete key"): DEL — BIOS'ta Del ile kurulum / boot menüsü
                 else if (e.Shift && !e.Control && !e.Alt && (k == Keys.PageUp || k == Keys.PageDown || k == Keys.Home || k == Keys.End))
                 {
                     // Shift + sayfa tuşları: yalnız görünümü kaydırır (karta gitmez)

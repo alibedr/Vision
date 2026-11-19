@@ -159,6 +159,23 @@ namespace VisionTests
         }
 
         [Test]
+        public async Task Seri_TusKoduGecikmeyleBolunmez()
+        {
+            var io = new FakeSerialIo();
+            var s = new SerialSession(new SerialPortProfile { PortName = "COM3", CharDelayMs = 30 }, () => io);
+            s.Open();
+            s.SendKeys("\u001b[21~");   // F10
+            s.SendKeys("ab");
+            await WaitSent(io, 7);
+            Check.Equal("\u001b[21~ab", io.Sent, "sıra korunur");
+            double inside = (io.WriteTimes[4] - io.WriteTimes[0]).TotalMilliseconds;
+            Check.True(inside < 15, "tuş kodu tek seferde yazılır (" + inside + " ms)");
+            double between = (io.WriteTimes[6] - io.WriteTimes[5]).TotalMilliseconds;
+            Check.True(between >= 25, "düz yazıda karakter gecikmesi sürer (" + between + " ms)");
+            s.Dispose();
+        }
+
+        [Test]
         public void Seri_AcmaHatasiVeKaybolma()
         {
             var io = new FakeSerialIo { OpenError = "COM7 açılamadı: port başka bir programda açık (TeraTerm olabilir) ya da erişim izni yok." };
