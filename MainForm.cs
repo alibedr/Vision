@@ -1712,10 +1712,10 @@ namespace Vision
             {
                 Title = "Seri pencereleri",
                 Body = () => "En fazla " + SerialView.MaxViews + " port aynı anda, Telnet'teki gibi ızgarada; her pencere büyütülebilir.\n\n" +
-                             "TeraTerm gibi terminale tıklayıp yazın: her tuş anında karta gider (Enter, Backspace, oklar, Ctrl+C…). " +
-                             "Fareyle seçilen metin kendiliğinden kopyalanır; yapıştırma sağ tık ya da Shift+Insert.\n\n" +
-                             "Yazdığınız komutlar Telnet'ten ayrı bir geçmişe kaydedilir: saat düğmesi, tek tık komutu yazar, çift tık gönderir. " +
-                             "Ekrandaki çıktı dosyaya kaydedilebilir.",
+                             "İki yoldan yazılır: alttaki komut satırına yazıp düzenleyin, Enter ile gönderin (↑ / ↓, tekerlek, Ctrl+R geçmiş) — " +
+                             "ya da TeraTerm gibi terminale tıklayıp doğrudan yazın: her tuş anında karta gider (Backspace, oklar, F2, F10, Del…).\n\n" +
+                             "Seçili metin Ctrl+C ile kopyalanır (seçim yoksa karta kesme gider), Ctrl+V yapıştırır. Yukarıdaki bir yere bakarken " +
+                             "gelen çıktı ekranı kaydırmaz. Ekran logs\\SeriKanalLoglari klasörüne kaydedilir.",
                 Target = () => TourRect(_serialView.TourGrid),
                 Enter = serial,
             });
