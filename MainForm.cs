@@ -414,6 +414,9 @@ namespace Vision
             // Seri terminalde Ctrl+harf (Ctrl+C, Ctrl+X, Ctrl+N …) karta gider: uygulama kısayolları devreye girmez
             if (_activeTab == MainTab.Serial && e.Control && !e.Alt && e.KeyCode >= Keys.A && e.KeyCode <= Keys.Z)
                 return;
+            // Seri terminale doğrudan yazarken F1–F12 karta gider (kart açılışında F2 / F10 menüleri); yardım menüden açılır
+            if (_activeTab == MainTab.Serial && e.KeyCode >= Keys.F1 && e.KeyCode <= Keys.F12 && _serialView.TerminalFocused)
+                return;
             if (e.KeyCode == Keys.F1)
             {
                 e.SuppressKeyPress = true;
@@ -694,10 +697,10 @@ namespace Vision
             SnapshotResult[] results = await Task.WhenAll(captured.Select(c => TerminalSnapshot.SaveAsync(c.Card, c.Text, at)));
             int ok = results.Count(r => r.Ok);
             var failed = results.Where(r => !r.Ok).Select(r => r.Card.Label + " (" + r.Error + ")").ToList();
-            string folder = TerminalSnapshot.DefaultFolder;
+            string folder = TerminalSnapshot.TelnetFolder;
             string detail = string.Join("\n", results.Select(r => (r.Ok ? "✓ " + r.Card.Label + " → " + Path.GetFileName(r.Path) : "✕ " + r.Card.Label + ": " + r.Error)));
             if (failed.Count == 0)
-                _globalBar.ShowResult("✓  " + ok + " kartın terminali ayrı dosyalara kaydedildi (logs)", Theme.Success, detail + "\n\nKlasör: " + folder);
+                _globalBar.ShowResult("✓  " + ok + " kartın terminali ayrı dosyalara kaydedildi (logs\\TelnetLoglari)", Theme.Success, detail + "\n\nKlasör: " + folder);
             else if (ok == 0)
                 _globalBar.ShowResult("✕  Hiçbir kart kaydedilemedi: " + string.Join(", ", failed), Theme.Danger, detail);
             else

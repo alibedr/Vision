@@ -125,6 +125,9 @@ namespace Vision
         internal Control[] TourButtons { get { return new Control[] { _openBtn, _settingsBtn }; } }
         internal Control TourGrid { get { return _grid; } }
 
+        /// <summary>Bir seri pencerenin terminali odakta (doğrudan yazma): F tuşları karta gider.</summary>
+        public bool TerminalFocused { get { return _views.Any(v => v.TerminalFocused); } }
+
         /// <summary>Açık port sayısı (durum çubuğu için).</summary>
         public int OpenCount { get { return _sessions.Values.Count(s => s.State == SerialState.Open); } }
 

@@ -183,6 +183,36 @@ namespace VisionTests
             Check.True(!io3.IsOpen, "port kapatıldı");
         }
 
+        // ---------- Kayıt klasörleri ----------
+
+        [Test]
+        public async Task Kayit_TelnetVeSeriAyriKlasorlerde()
+        {
+            Check.Equal("TelnetLoglari", Path.GetFileName(TerminalSnapshot.TelnetFolder), "telnet klasörü");
+            Check.Equal("SeriKanalLoglari", Path.GetFileName(TerminalSnapshot.SerialFolder), "seri klasörü");
+            Check.Equal(TerminalSnapshot.DefaultFolder, Path.GetDirectoryName(TerminalSnapshot.SerialFolder), "ikisi de logs altında");
+            string name = TerminalSnapshot.SerialFileNameFor(new SerialPortProfile { PortName = "COM7", Name = "Kart 3" }, new DateTime(2026, 11, 19, 11, 40, 5, 123));
+            Check.Equal("COM7_Kart_3_anlik_20261119_114005_123.log", name, "seri dosya adı");
+
+            string root = Path.Combine(Path.GetTempPath(), "vision-test-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                string dir = Path.Combine(root, "SeriKanalLoglari");
+                SnapshotResult r = await TerminalSnapshot.SaveSerialAsync(new SerialPortProfile { PortName = "COM3" }, "satir1\nsatir2", DateTime.Now, dir);
+                Check.True(r.Ok, "kaydedildi: " + r.Error);
+                Check.Equal(dir, Path.GetDirectoryName(r.Path), "klasör yoksa oluşturulur, dosya içinde");
+                SnapshotResult r2 = await TerminalSnapshot.SaveSerialAsync(new SerialPortProfile { PortName = "COM3" }, "x", DateTime.Now, dir);
+                Check.True(r2.Ok && r2.Path != r.Path, "klasör varken ikinci kayıt ayrı dosya");
+                Check.Equal("satir1\r\nsatir2", File.ReadAllText(r.Path), "CRLF");
+                SnapshotResult empty = await TerminalSnapshot.SaveSerialAsync(new SerialPortProfile { PortName = "COM3" }, "", DateTime.Now, dir);
+                Check.True(!empty.Ok, "boş ekran kaydedilmez");
+            }
+            finally
+            {
+                try { Directory.Delete(root, true); } catch { }
+            }
+        }
+
         // ---------- Ayarlar ----------
 
         [Test]

@@ -49,6 +49,9 @@ namespace Vision
             int top = ClientSize.Height - FooterHeight;
             List<Control> bottom = Controls.Cast<Control>().Where(c => c.Dock == DockStyle.None && c.Top >= top - 2).ToList();
             if (bottom.Count == 0) return;
+            // WinForms, pencereden çıkarılan düğme Kabul / İptal düğmesiyse AcceptButton / CancelButton'ı sessizce siler
+            // (Form.AfterControlRemoved). Düğmeler şeride taşınınca Enter ve Esc çalışmıyordu (1.10): taşımadan sonra geri konur.
+            IButtonControl accept = AcceptButton, cancel = CancelButton;
             var footer = new Panel { Dock = DockStyle.Bottom, Height = FooterHeight, BackColor = Theme.Sidebar };
             footer.Paint += (s, ev) => { using (var p = new Pen(Theme.Border)) ev.Graphics.DrawLine(p, 0, 0, footer.Width, 0); };
             foreach (Control c in bottom)
@@ -59,6 +62,8 @@ namespace Vision
                 footer.Controls.Add(c);
             }
             Controls.Add(footer);
+            if (accept != null && AcceptButton == null) AcceptButton = accept;
+            if (cancel != null && CancelButton == null) CancelButton = cancel;
         }
 
         protected static Label Caption(string text, int x, int y)
