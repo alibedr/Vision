@@ -1715,7 +1715,9 @@ namespace Vision
                              "İki yoldan yazılır: alttaki komut satırına yazıp düzenleyin, Enter ile gönderin (↑ / ↓, tekerlek, Ctrl+R geçmiş) — " +
                              "ya da TeraTerm gibi terminale tıklayıp doğrudan yazın: her tuş anında karta gider (Backspace, oklar, F2, F10, Del…).\n\n" +
                              "Seçili metin Ctrl+C ile kopyalanır (seçim yoksa karta kesme gider), Ctrl+V yapıştırır. Yukarıdaki bir yere bakarken " +
-                             "gelen çıktı ekranı kaydırmaz. Ekran logs\\SeriKanalLoglari klasörüne kaydedilir.",
+                             "gelen çıktı ekranı kaydırmaz. Ekran logs\\SeriKanalLoglari klasörüne kaydedilir.\n\n" +
+                             "BIOS / boot manager gibi tam ekran gösterimlerde pencere kendiliğinden TeraTerm'deki gibi Ekran görünümüne geçer; " +
+                             "başlıktaki ekran / kitap düğmesiyle elle de geçilir.",
                 Target = () => TourRect(_serialView.TourGrid),
                 Enter = serial,
             });
