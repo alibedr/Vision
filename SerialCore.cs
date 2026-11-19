@@ -440,6 +440,12 @@ namespace Vision
             Enqueue(text);
         }
 
+        /// <summary>Terminalin kendi cevabı (imleç konumu vb.): komut geçmişine / satır yakalamaya girmeden gönderilir.</summary>
+        public void SendRaw(string text)
+        {
+            if (!string.IsNullOrEmpty(text)) Enqueue(text);
+        }
+
         /// <summary>Yapıştırılan metin: satır sonları CR'ye çevrilir (Enter gibi), yakalanır ve gönderilir.</summary>
         public void Paste(string text)
         {
@@ -532,9 +538,11 @@ namespace Vision
             public string Text;
         }
 
-        private readonly LineNormalizer _normalizer = new LineNormalizer();
         private int _escape;              // 0: yok, 1: ESC görüldü, 2: CSI ("ESC [") içinde
         private bool _inSystem;
+        // Satır başına dönüş (CR): ardından LF gelirse satır sonu; başka bir şey gelirse satır baştan yazılır (TeraTerm'deki
+        // gibi üstüne yazma — ilerleme göstergeleri, kabuğun satırı yeniden çizmesi). 1.10'dan önce yeni satır sayılıyordu.
+        private bool _pendingCr;
 
         /// <summary>
         /// <paramref name="lineLength"/>: ekranda son satırın şu anki uzunluğu (Backspace satır başını geçmesin).
@@ -547,9 +555,17 @@ namespace Vision
             int line = lineLength;
             foreach (char c in raw)
             {
-                if (c == '\u0001') { _inSystem = true; if (line > 0 || EndsWithText(sb)) { sb.Append('\n'); line = 0; } continue; }
+                if (c == '\u0001') { _inSystem = true; _escape = 0; _pendingCr = false; if (line > 0 || EndsWithText(sb)) { sb.Append('\n'); line = 0; } continue; }
                 if (c == '\u0002') { _inSystem = false; sb.Append('\n'); line = 0; continue; }
                 if (_inSystem) { sb.Append(c); line++; continue; }
+                if (c == '\0') continue;
+
+                if (_escape == 0)
+                {
+                    if (c == '\r') { _pendingCr = true; continue; }
+                    if (c == '\n') { _pendingCr = false; sb.Append('\n'); line = 0; continue; }
+                    if (_pendingCr) { _pendingCr = false; EraseCurrentLine(ops, sb, ref line); }
+                }
 
                 if (_escape == 1)
                 {
@@ -569,23 +585,25 @@ namespace Vision
                     else if (sb.Length == 0 && line > 0) { Flush(ops, sb, 1); line--; }
                     continue;
                 }
-                if (c == '\r' || c == '\n')
-                {
-                    string n = _normalizer.Process(c.ToString());
-                    if (n.Length > 0) { sb.Append('\n'); line = 0; }
-                    continue;
-                }
-                string t = _normalizer.Process(c.ToString());   // satır sonu çifti durumunu sıfırlar
-                foreach (char ch in t)
-                {
-                    if (ch == '\t') { sb.Append(ch); line++; continue; }
-                    if (ch < ' ') continue;                      // zil vb. denetim karakterleri
-                    sb.Append(ch);
-                    line++;
-                }
+                if (c == '\t') { sb.Append(c); line++; continue; }
+                if (c < ' ') continue;                           // zil vb. denetim karakterleri
+                sb.Append(c);
+                line++;
             }
             Flush(ops, sb, 0);
             return ops;
+        }
+
+        /// <summary>Son satırı siler (hem bu parçada biriken hem ekranda duran kısmı): CR'den sonra satır baştan yazılır.</summary>
+        private static void EraseCurrentLine(List<Op> ops, StringBuilder sb, ref int line)
+        {
+            int nl = sb.Length - 1;
+            while (nl >= 0 && sb[nl] != '\n') nl--;
+            int inBuffer = sb.Length - (nl + 1);
+            sb.Length = nl + 1;
+            int onScreen = line - inBuffer;
+            if (nl < 0 && onScreen > 0) Flush(ops, sb, onScreen);
+            line = 0;
         }
 
         private static bool EndsWithText(StringBuilder sb) { return sb.Length > 0 && sb[sb.Length - 1] != '\n'; }

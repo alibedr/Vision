@@ -93,6 +93,98 @@ namespace VisionTests
         }
 
         [Test]
+        public void Seri_SatirBasinaDonusUstuneYazar()
+        {
+            var s = new SerialScreen();
+            Check.Equal("yükleniyor 20%\n", Screen(s, "", "yükleniyor 10%\ryükleniyor 20%\r\n"), "CR sonrası satır baştan yazılır");
+            var s2 = new SerialScreen();
+            string scr = Screen(s2, "", "abc\r");
+            scr = Screen(s2, scr, "\nX");
+            Check.Equal("abc\nX", scr, "parçalar arasında CR LF yine satır sonu");
+            var s3 = new SerialScreen();
+            scr = Screen(s3, "", "-> abc\r");
+            scr = Screen(s3, scr, "-> xy");
+            Check.Equal("-> xy", scr, "önceki parçada ekrana yazılmış satır da silinir");
+            Check.Equal("a\n\nb", Screen(new SerialScreen(), "", "a\n\rb".Replace("b", "\nb")), "LF CR sırası da çalışır");
+        }
+
+        // ---------- Ekran görünümü (VT) ----------
+
+        private static string Feed(VtScreen vt, string text)
+        {
+            var log = new StringBuilder();
+            vt.Feed(text, log);
+            return log.ToString();
+        }
+
+        [Test]
+        public void Vt_BiosMenusuEkranaCizilirGunlugeGitmez()
+        {
+            var vt = new VtScreen();
+            string log = Feed(vt, "POST tamam\r\n");
+            Check.Equal("POST tamam\r\n", log, "akan yazı günlüğe");
+            log = Feed(vt, "\u001b[2J\u001b[1;1HBoot Manager\u001b[5;10H\u001b[7mUEFI: Disk 1\u001b[0m\u001b[6;10HSetup");
+            Check.Equal(SerialViewMode.Screen, vt.Mode, "ekran temizlenince Ekran görünümü");
+            Check.True(!log.Contains("Boot Manager") && log.Contains("tam ekran"), "günlüğe çizim değil bilgi satırı gider: " + log);
+            Check.Equal("Boot Manager", vt.RowText(0), "1. satır");
+            Check.Equal("         UEFI: Disk 1", vt.RowText(4), "5. satır 10. sütun");
+            Check.True(vt[4, 9].Reverse && !vt[5, 9].Reverse, "seçili satır ters renk");
+            Check.Equal("         Setup", vt.RowText(5), "6. satır");
+        }
+
+        [Test]
+        public void Vt_AkanYaziyaDonunceGunlugeDoner()
+        {
+            var vt = new VtScreen();
+            Feed(vt, "\u001b[2J\u001b[HMenu");
+            Check.Equal(SerialViewMode.Screen, vt.Mode, "ekran");
+            var sb = new StringBuilder();
+            for (int i = 0; i < 30; i++) sb.Append("Loading kernel " + i + "\r\n");
+            string log = Feed(vt, sb.ToString());
+            Check.Equal(SerialViewMode.Log, vt.Mode, "ekranın bir boyu kadar akan satırdan sonra günlük");
+            Check.True(log.Contains("günlük görünümüne dönüldü") && log.Contains("Loading kernel 0") && log.Contains("Loading kernel 29"),
+                       "akan kısım günlüğe aktarılır: " + log);
+        }
+
+        [Test]
+        public void Vt_TekTukImlecKomutuGorunumuDegistirmez()
+        {
+            DateTime t = new DateTime(2026, 11, 19, 12, 0, 0);
+            var vt = new VtScreen(now: () => t);
+            Feed(vt, "-> \u001b[1;1H");
+            t = t.AddSeconds(5);
+            Feed(vt, "\u001b[3;1H");
+            t = t.AddSeconds(5);
+            Feed(vt, "\u001b[4;1H");
+            Check.Equal(SerialViewMode.Log, vt.Mode, "seyrek konumlama: günlükte kalınır");
+            Feed(vt, "\u001b[1;1Ha\u001b[2;1Hb\u001b[3;1Hc");
+            Check.Equal(SerialViewMode.Screen, vt.Mode, "kısa sürede art arda 3 konumlama: ekran çizimi");
+        }
+
+        [Test]
+        public void Vt_TemelTerminalDavranisi()
+        {
+            var vt = new VtScreen();
+            Feed(vt, "abc\rX");
+            Check.Equal("Xbc", vt.RowText(0), "CR satır başına döner, üstüne yazar");
+            Feed(vt, "\r\n\u001b(0lqk\u001b(B ok");
+            Check.Equal("┌─┐ ok", vt.RowText(1), "DEC çizgi karakterleri");
+            Feed(vt, "\u001b[?1h");
+            Check.True(vt.AppCursorKeys, "uygulama oku tuşları (DECCKM)");
+            Feed(vt, "\u001b[3;7H\u001b[6n");
+            Check.Equal("\u001b[3;7R", vt.Responses.Dequeue(), "imleç konumu sorusuna cevap");
+            Feed(vt, "\u001b[1;1H\u001b[2K");
+            Check.Equal("", vt.RowText(0), "satır silme");
+            Feed(vt, "\u001b[1;37;44mM\u001b[0m");
+            Check.True(vt[0, 0].Fg == 7 && vt[0, 0].Bg == 4 && vt[0, 0].Bold, "renk: beyaz / mavi, kalın");
+            var vt2 = new VtScreen(10, 3);
+            Feed(vt2, "1\r\n2\r\n3\r\n4");
+            Check.Equal("2|3|4", vt2.RowText(0) + "|" + vt2.RowText(1) + "|" + vt2.RowText(2), "alttan taşınca yukarı kayar");
+            Feed(vt2, "\r\n0123456789AB");
+            Check.Equal("0123456789|AB", vt2.RowText(1) + "|" + vt2.RowText(2), "satır sonunda alt satıra geçer");
+        }
+
+        [Test]
         public void Seri_SistemSatiriKendiSatirinda()
         {
             var s = new SerialScreen();

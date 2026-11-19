@@ -30,6 +30,12 @@ namespace Vision
         private readonly IconButton _settingsBtn = new IconButton(IconKind.Settings, IconTone.Ghost);
         private readonly IconButton _maxBtn = new IconButton(IconKind.Maximize, IconTone.Ghost);
         private readonly IconButton _closeBtn = new IconButton(IconKind.Close, IconTone.Ghost);
+        // Günlük / Ekran (1.10): tam ekran çizen gösterimler (BIOS, boot manager) TeraTerm'deki gibi 80×25 terminalde
+        private readonly IconButton _viewBtn = new IconButton(IconKind.Terminal, IconTone.Ghost);
+        private readonly VtScreen _vt = new VtScreen();
+        private readonly SerialScreenView _screenView;
+        private readonly ContextMenuStrip _screenMenu = new ContextMenuStrip();
+        private SerialViewMode _shownMode = SerialViewMode.Log;
         private readonly Panel _outputHost = new Panel { Dock = DockStyle.Fill, BackColor = Theme.Input, Padding = new Padding(8, 6, 4, 4) };
         private readonly SerialTerminalBox _output = new SerialTerminalBox();
         private readonly Label _strip = new Label { Dock = DockStyle.Bottom, Height = 22, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(10, 0, 0, 0), Font = Theme.UiSmall };
@@ -70,10 +76,15 @@ namespace Vision
             // Yazınca (TeraTerm gibi) en alta inilir; kartın yankısı da en altta görünür
             _output.KeysTyped = s => { _typed = true; if (!IsAtBottom()) ScrollToEnd(); Session.SendKeys(s); };
             _output.PasteRequested = Paste;
+            _output.AppCursor = () => _vt.AppCursorKeys;
             _output.ContextMenuStrip = _menu;
+            _screenView = new SerialScreenView(_vt) { Dock = DockStyle.Fill, Visible = false, ContextMenuStrip = _screenMenu };
+            _screenView.KeysTyped = s => Session.SendKeys(s);
+            _screenView.PasteRequested = Paste;
             _outputHost.Controls.Add(_toast);          // önce eklenenler öne çizilir → çıktının üstünde yüzer
             _outputHost.Controls.Add(_newLinesPill);
             _outputHost.Controls.Add(_output);
+            _outputHost.Controls.Add(_screenView);
             Theme.ApplyDarkScrollBars(_output);
             BuildMenu();
             BuildInput();
@@ -115,10 +126,10 @@ namespace Vision
             }
         }
 
-        public void FocusTerminal() { _output.Focus(); }
+        public void FocusTerminal() { if (_shownMode == SerialViewMode.Screen) _screenView.Focus(); else _output.Focus(); }
 
         /// <summary>Terminalin kendisi odakta (doğrudan yazma): F tuşları uygulamaya değil karta gider.</summary>
-        public bool TerminalFocused { get { return _output.Focused; } }
+        public bool TerminalFocused { get { return _output.Focused || _screenView.Focused; } }
 
         // ---------- Oluşturma ----------
 
@@ -141,10 +152,17 @@ namespace Vision
             _subtitle.Height = 16;
             _subtitle.Location = new Point(27, 20);
 
-            var buttons = new IconButton[] { _connectBtn, _saveBtn, _clearBtn, _settingsBtn, _maxBtn, _closeBtn };
+            var buttons = new IconButton[] { _connectBtn, _viewBtn, _saveBtn, _clearBtn, _settingsBtn, _maxBtn, _closeBtn };
             foreach (var b in buttons) { b.Height = 26; b.Width = 28; b.Anchor = AnchorStyles.Top | AnchorStyles.Right; }
             _saveBtn.SetTip(_tips, "Dosyaya kaydet — ekrandaki çıktıyı logs\\SeriKanalLoglari klasörüne kaydeder\n(her tıklama yeni dosya)");
-            _clearBtn.SetTip(_tips, "Temizle — ekranı temizler (onay sorar)");
+            _clearBtn.SetTip(_tips, "Temizle — günlük ekranını temizler (onay sorar)");
+            _viewBtn.Click += (s, e) =>
+            {
+                SerialViewMode next = _shownMode == SerialViewMode.Log ? SerialViewMode.Screen : SerialViewMode.Log;
+                _vt.SetMode(next);
+                ShowMode(next);
+                FocusTerminal();
+            };
             _settingsBtn.SetTip(_tips, "Port ayarları (baud rate, data, parity, stop, akış denetimi, gecikme)");
             _closeBtn.SetTip(_tips, "Kapat — pencereyi ve portu kapatır");
             IsMaximized = false;
@@ -157,10 +175,10 @@ namespace Vision
             _connectBtn.Click += (s, e) =>
             {
                 if (Session.State == SerialState.Open) Session.Close(); else Session.Open();
-                _output.Focus();
+                FocusTerminal();
             };
             _saveBtn.Click += async (s, e) => await SaveSnapshotAsync();
-            _clearBtn.Click += (s, e) => { AskClear(); _output.Focus(); };
+            _clearBtn.Click += (s, e) => { AskClear(); FocusTerminal(); };
             _settingsBtn.Click += (s, e) => { var h = SettingsRequested; if (h != null) h(this); };
             _maxBtn.Click += (s, e) => { var h = MaximizeToggled; if (h != null) h(this); };
             _closeBtn.Click += (s, e) => { var h = CloseRequested; if (h != null) h(this); };
@@ -178,6 +196,7 @@ namespace Vision
             x -= _settingsBtn.Width + 2; _settingsBtn.Location = new Point(x, 6);
             x -= _clearBtn.Width + 2; _clearBtn.Location = new Point(x, 6);
             if (_saveBtn.Visible) { x -= _saveBtn.Width + 2; _saveBtn.Location = new Point(x, 6); }
+            x -= _viewBtn.Width + 2; _viewBtn.Location = new Point(x, 6);
             x -= _connectBtn.Width + 2; _connectBtn.Location = new Point(x, 6);
             _title.Width = Math.Max(40, x - _title.Left - 8);
             _subtitle.Width = Math.Max(40, x - _subtitle.Left - 8);
@@ -185,6 +204,14 @@ namespace Vision
 
         private void BuildMenu()
         {
+            // Ekran görünümünün menüsü
+            _screenMenu.Renderer = new DarkMenuRenderer();
+            var screenCopy = new ToolStripMenuItem("Ekranı kopyala", null, (s, e) => { try { Clipboard.SetText(_vt.Text().Replace("\n", "\r\n")); } catch { } });
+            var screenPaste = new ToolStripMenuItem("Yapıştır  (Ctrl+V)", null, (s, e) => Paste());
+            var toLog = new ToolStripMenuItem("Günlük görünümüne dön", null, (s, e) => { _vt.SetMode(SerialViewMode.Log); ShowMode(SerialViewMode.Log); FocusTerminal(); });
+            _screenMenu.Items.AddRange(new ToolStripItem[] { screenCopy, screenPaste, new ToolStripSeparator(), toLog });
+            _screenMenu.Opening += (s, e) => screenPaste.Enabled = Session.State == SerialState.Open && Clipboard.ContainsText();
+
             _menu.Renderer = new DarkMenuRenderer();
             var copy = new ToolStripMenuItem("Kopyala", null, (s, e) => CopySelection());
             var paste = new ToolStripMenuItem("Yapıştır  (Shift+Insert)", null, (s, e) => Paste());
@@ -221,7 +248,9 @@ namespace Vision
             ApplyInputLook(open);
             if (open)
             {
-                _strip.Text = "●  Açık — aşağıya komut yazın ya da terminale tıklayıp doğrudan yazın";
+                _strip.Text = _shownMode == SerialViewMode.Screen
+                    ? "●  Açık — Ekran görünümü: kartın tam ekran gösterimi (tuşlar karta gider). Günlüğe dönmek için başlıktaki kitap düğmesi"
+                    : "●  Açık — aşağıya komut yazın ya da terminale tıklayıp doğrudan yazın";
                 _strip.BackColor = Theme.Surface;
                 _strip.ForeColor = Theme.Success;
             }
@@ -243,11 +272,40 @@ namespace Vision
 
         // ---------- Ekran ----------
 
+        /// <summary>
+        /// Günlük ile Ekran arasında geçer (kart tam ekran çizmeye başlayınca / bitirince kendiliğinden, ya da başlıktaki
+        /// düğmeyle). Odak terminaldeyse yeni görünüme taşınır.
+        /// </summary>
+        private void ShowMode(SerialViewMode mode)
+        {
+            bool hadFocus = TerminalFocused;
+            _shownMode = mode;
+            bool screen = mode == SerialViewMode.Screen;
+            _screenView.Visible = screen;
+            _output.Visible = !screen;
+            if (screen) { _newLinesPill.Visible = false; _screenView.BringToFront(); _toast.BringToFront(); }
+            else SyncPill();
+            _viewBtn.Icon = screen ? IconKind.Book : IconKind.Terminal;
+            _viewBtn.SetTip(_tips, screen ? "Günlük görünümüne dön — akan çıktı ve geçmiş"
+                                          : "Ekran görünümü — kartın tam ekran gösterimi (BIOS / boot menüsü), TeraTerm'deki gibi");
+            if (hadFocus) FocusTerminal();
+            RefreshState();
+        }
+
         private void Pump()
         {
             if (IsDisposed) return;
             string raw = Session.TakePending();
-            if (raw != null) AppendRaw(raw);
+            if (raw != null)
+            {
+                // Aynı akış hem Ekran'a (terminal) hem günlüğe; tam ekran çizim sürerken günlüğe gitmez
+                var log = new StringBuilder();
+                _vt.Feed(raw, log);
+                while (_vt.Responses.Count > 0) Session.SendRaw(_vt.Responses.Dequeue());   // kartın imleç konumu sorusu vb.
+                if (log.Length > 0) AppendRaw(log.ToString());
+                if (_vt.Mode != _shownMode) ShowMode(_vt.Mode);
+            }
+            if (_screenView.Visible && _screenView.DrawnVersion != _vt.Version) _screenView.Invalidate();
             if (Session.State == SerialState.Open && ++_presentTick >= 40)   // ~2 sn'de bir: port kayboldu mu?
             {
                 _presentTick = 0;
@@ -752,7 +810,8 @@ namespace Vision
         /// </summary>
         private async System.Threading.Tasks.Task SaveSnapshotAsync()
         {
-            string text = _output.Text;
+            // Ekran görünümünde o anki ekran (BIOS / menü), günlükte akan çıktı kaydedilir
+            string text = _shownMode == SerialViewMode.Screen ? _vt.Text() : _output.Text;
             _saveBtn.Enabled = false;
             try
             {
@@ -810,6 +869,8 @@ namespace Vision
 
             public Action<string> KeysTyped;
             public Action PasteRequested;
+            /// <summary>Kart "uygulama oku tuşları" istedi mi (oklar ESC O A…).</summary>
+            public Func<bool> AppCursor;
 
             public SerialTerminalBox()
             {
@@ -878,24 +939,16 @@ namespace Vision
                     try { Clipboard.SetText(SelectedText.Replace("\n", "\r\n")); } catch { }
                     return;
                 }
-                if (k == Keys.Enter) seq = "\r";
-                else if (k == Keys.Back) seq = "\b";       // TeraTerm varsayılanı: Backspace = BS (Ctrl+H)
-                else if (k == Keys.Tab) seq = "\t";
-                else if (k == Keys.Escape) seq = "\u001b";
-                else if (k == Keys.Up) seq = "\u001b[A";
-                else if (k == Keys.Down) seq = "\u001b[B";
-                else if (k == Keys.Right) seq = "\u001b[C";
-                else if (k == Keys.Left) seq = "\u001b[D";
-                else if (k == Keys.Delete) seq = "\u007f";   // TeraTerm varsayılanı ("Transmit DEL by: Delete key"): DEL — BIOS'ta Del ile kurulum / boot menüsü
-                else if (e.Shift && !e.Control && !e.Alt && (k == Keys.PageUp || k == Keys.PageDown || k == Keys.Home || k == Keys.End))
+                if (e.Shift && !e.Control && !e.Alt && (k == Keys.PageUp || k == Keys.PageDown || k == Keys.Home || k == Keys.End))
                 {
                     // Shift + sayfa tuşları: yalnız görünümü kaydırır (karta gitmez)
                     e.Handled = e.SuppressKeyPress = true;
                     ScrollView(k);
                     return;
                 }
-                else if (!e.Control && !e.Alt) seq = FunctionKeySequence(k);
-                if (seq == null && e.Control && !e.Alt && k >= Keys.A && k <= Keys.Z) seq = ((char)(k - Keys.A + 1)).ToString();   // Ctrl+C = 0x03 …
+                // TeraTerm varsayılanları: Backspace = BS, Delete = DEL, F tuşları ve oklar VT kodları (SerialKeys)
+                var app = AppCursor;
+                seq = SerialKeys.Sequence(k, e.Control, e.Alt, app != null && app());
                 if (seq != null)
                 {
                     e.Handled = e.SuppressKeyPress = true;
@@ -903,35 +956,6 @@ namespace Vision
                     return;
                 }
                 base.OnKeyDown(e);
-            }
-
-            /// <summary>
-            /// F1–F12, Home / End / PgUp / PgDn / Insert: TeraTerm'in varsayılan olarak gönderdiği VT dizileri (1.10). Kart
-            /// açılırken "Press [F2/Del] to enter setup", "Press [F10] to show boot menu" gibi menüler bunları bekler.
-            /// </summary>
-            internal static string FunctionKeySequence(Keys k)
-            {
-                switch (k)
-                {
-                    case Keys.F1: return "\u001bOP";
-                    case Keys.F2: return "\u001bOQ";
-                    case Keys.F3: return "\u001bOR";
-                    case Keys.F4: return "\u001bOS";
-                    case Keys.F5: return "\u001b[15~";
-                    case Keys.F6: return "\u001b[17~";
-                    case Keys.F7: return "\u001b[18~";
-                    case Keys.F8: return "\u001b[19~";
-                    case Keys.F9: return "\u001b[20~";
-                    case Keys.F10: return "\u001b[21~";
-                    case Keys.F11: return "\u001b[23~";
-                    case Keys.F12: return "\u001b[24~";
-                    case Keys.Home: return "\u001b[1~";
-                    case Keys.Insert: return "\u001b[2~";
-                    case Keys.End: return "\u001b[4~";
-                    case Keys.PageUp: return "\u001b[5~";
-                    case Keys.PageDown: return "\u001b[6~";
-                    default: return null;
-                }
             }
 
             private const int WM_VSCROLL_BOX = 0x0115;
@@ -966,7 +990,7 @@ namespace Vision
                 // F10 Windows'ta menü tuşudur (WM_SYSKEYDOWN): pencere menüsü yerine karta gider
                 if ((m.Msg == WM_SYSKEYDOWN || m.Msg == WM_SYSKEYUP) && (int)m.WParam == (int)Keys.F10 && (ModifierKeys & Keys.Alt) == 0)
                 {
-                    if (m.Msg == WM_SYSKEYDOWN) Send(FunctionKeySequence(Keys.F10));
+                    if (m.Msg == WM_SYSKEYDOWN) Send(SerialKeys.FunctionKey(Keys.F10));
                     return;
                 }
                 if (m.Msg == WM_CUT || m.Msg == WM_CLEAR || m.Msg == WM_UNDO) return;
