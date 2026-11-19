@@ -142,7 +142,7 @@ namespace VisionTests
             for (int i = 0; i < 30; i++) sb.Append("Loading kernel " + i + "\r\n");
             string log = Feed(vt, sb.ToString());
             Check.Equal(SerialViewMode.Log, vt.Mode, "ekranın bir boyu kadar akan satırdan sonra günlük");
-            Check.True(log.Contains("günlük görünümüne dönüldü") && log.Contains("Loading kernel 0") && log.Contains("Loading kernel 29"),
+            Check.True(log.Contains("gösterimden çıktı") && log.Contains("Loading kernel 0") && log.Contains("Loading kernel 29"),
                        "akan kısım günlüğe aktarılır: " + log);
         }
 
@@ -158,7 +158,8 @@ namespace VisionTests
             int menu = log.IndexOf("Boot Manager", StringComparison.Ordinal), disk = log.IndexOf("    UEFI: Disk 1", StringComparison.Ordinal);
             int first = log.IndexOf("Loading 0", StringComparison.Ordinal);
             Check.True(menu >= 0 && disk > menu && first > disk, "önce ekranın son hâli, sonra akan satırlar: " + log);
-            Check.Equal(1, CountOf(log, "Loading 0\r\n"), "akan satır iki kez yazılmaz");
+            Check.Equal(1, CountOf(log, "Loading 0"), "akan satır iki kez yazılmaz");
+            Check.Equal(1, CountOf(log, "Loading 25"), "son satır da bir kez");
 
             // Menüden çıkarken BIOS ekranı temizlerse: temizlenmeden önceki ekran aktarılır
             var vt2 = new VtScreen();
