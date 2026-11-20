@@ -63,6 +63,9 @@ namespace Vision
             _overlay.DragDrop += List_DragDrop;
         }
 
+        /// <summary>Seçili kartın ekranda görünen adı ("IP" ya da "IP (Ad)"); ilerleme pencerelerinde hangi kart olduğu için.</summary>
+        private string CardLabel { get { return _card != null ? _card.Label : ""; } }
+
         private bool CanOperate
         {
             get
@@ -318,7 +321,7 @@ namespace Vision
             if (viaFtp && size >= UploadProgressDialog.ShowFromBytes)
             {
                 OpResult res = null;
-                using (var d = new DownloadProgressDialog(e.Name, async tp =>
+                using (var d = new DownloadProgressDialog(CardLabel, e.Name, async tp =>
                 {
                     tp.Begin(size, 1);
                     tp.BeginItem(e.Name + "  ·  " + DeviceSpace.FormatBytes(size));
@@ -382,8 +385,8 @@ namespace Vision
         private async Task InCardTransferAsync(FsEntry e, string destDir, bool copy)
         {
             var tp = new TransferProgress(TransferDirection.InCard);
-            UploadProgressDialog.Watch(FindForm(), copy ? "Kart içinde kopyalama" : "Kart içinde taşıma",
-                                       "\"" + e.Name + "\" → " + destDir, tp);
+            UploadProgressDialog.Watch(FindForm(), (copy ? "Kart içinde kopyalama — " : "Kart içinde taşıma — ") + CardLabel,
+                                       CardLabel + "  ·  \"" + e.Name + "\" → " + destDir, tp);
             try { await _browser.TransferAsync(e, destDir, copy, tp); }
             finally { tp.Finished = true; }
         }
@@ -510,9 +513,10 @@ namespace Vision
             TransferSettings eff = CardTransfer(creds);
             // Büyük yüklemede ilerleme penceresi (G40): boyut hesaplanınca gerekiyorsa açılır, bitince kapanır
             var tp = new TransferProgress(TransferDirection.ToCard);
-            string title = paths.Count == 1 ? "\"" + Path.GetFileName(paths[0].TrimEnd('\\', '/')) + "\" → " + (card.Label ?? card.Ip) + ":" + target
-                                            : paths.Count + " öğe → " + (card.Label ?? card.Ip) + ":" + target;
-            UploadProgressDialog.Watch(FindForm(), title, tp);
+            // Kart başta (1.10.1): birden çok karta aynı anda yüklenirken pencereler ayırt edilsin; satır sığmazsa yol kesilir
+            string what = paths.Count == 1 ? "\"" + Path.GetFileName(paths[0].TrimEnd('\\', '/')) + "\"" : paths.Count + " öğe";
+            string title = card.Label + "  ←  " + what + "  ·  " + target;
+            UploadProgressDialog.Watch(FindForm(), "Karta yükleme — " + card.Label, title, tp);
             await b.UploadAsync(paths, new FtpUploader(eff), eff, null, target, _sessionOf(card).FtpCopies, tp);
         }
 

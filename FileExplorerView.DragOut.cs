@@ -200,7 +200,7 @@ namespace Vision
         /// <summary>İlerleme penceresiyle indirir; başarılıysa bilgisayardaki yol, değilse (hata / iptal) null.</summary>
         private string RunTransferDialog(FsEntry entry, string targetDir)
         {
-            using (var d = new DownloadProgressDialog(entry.Name, tp => DownloadToAsync(entry, targetDir, tp)))
+            using (var d = new DownloadProgressDialog(CardLabel, entry.Name, tp => DownloadToAsync(entry, targetDir, tp)))
             {
                 d.ShowDialog(FindForm());
                 return d.Result;
