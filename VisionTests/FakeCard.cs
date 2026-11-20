@@ -20,7 +20,13 @@ namespace VisionTests
         public const string FtpPrefix = "/host.host/Vision";
 
         public readonly Dictionary<string, byte[]> CardFiles = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
-        public readonly Dictionary<string, byte[]> FtpFiles = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>FTP çalışma klasörü. Birden çok kart aynı FTP sunucusunu kullanıyorsa aynı sözlük verilir.</summary>
+        public readonly Dictionary<string, byte[]> FtpFiles;
+
+        public FakeCard(Dictionary<string, byte[]> sharedFtp = null)
+        {
+            FtpFiles = sharedFtp ?? new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+        }
         public readonly List<string> Commands = new List<string>();
         /// <summary>Hedefi bu metinle biten copy -1 döndürür (kartta kopyalanamayan dosya).</summary>
         public readonly List<string> FailCopyOf = new List<string>();
@@ -242,8 +248,15 @@ namespace VisionTests
             }
             _card.FtpFiles[remoteName] = data;
             if (sent != null) sent(length);
+            if (AfterUpload != null) AfterUpload(remoteName);
             return Task.FromResult(0);
         }
+
+        /// <summary>
+        /// Her FTP gönderiminden sonra çağrılır (aynı anda yükleme testi: bu kartın aktarımı sürerken başka kartın
+        /// yüklemesi burada araya sokulur).
+        /// </summary>
+        public Action<string> AfterUpload;
 
         /// <summary>Bu dosyalar (yerel adı bu metinle bitenler) FTP'ye gönderilemez (klasör yükleme testi).</summary>
         public readonly List<string> FailUploadOf = new List<string>();
@@ -264,6 +277,7 @@ namespace VisionTests
                 string rel = f.Substring(localDir.Length).TrimStart('\\', '/').Replace('\\', '/');
                 _card.FtpFiles[remoteName + "/" + rel] = File.ReadAllBytes(f);
             }
+            if (AfterUpload != null) AfterUpload(remoteName);
             return Task.FromResult(0);
         }
 

@@ -189,7 +189,7 @@ namespace Vision
         {
             List<string> paths = null;
             string title = entries.Count == 1 ? entries[0].Name : entries.Count + " öğe";
-            using (var d = new DownloadProgressDialog(title, async tp =>
+            using (var d = new DownloadProgressDialog(CardLabel, title, async tp =>
             {
                 paths = await DownloadManyToAsync(entries, targetDir, tp);
                 return paths != null ? targetDir : null;

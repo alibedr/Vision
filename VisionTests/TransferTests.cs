@@ -239,5 +239,106 @@ namespace VisionTests
                 Check.True(log.Contains(name), "olay günlüğünde tam liste: " + name + " yok — " + log);
             Directory.Delete(root, true);
         }
+
+        // ---------- Aynı dosya / klasör aynı anda birden çok karta (1.10.1) ----------
+        // Kartlar aynı FTP sunucusunu kullanır. Bir kartın yüklemesi sürerken (dosyası FTP'ye gitmiş, kartta henüz
+        // kopyalanmamışken) başka kartın yüklemesi baştan sona araya girer. Eskiden ikisi de FTP'de aynı adı kullandığı
+        // için ikinci yükleme birincinin dosyasının üzerine yazıyor, bitince de siliyordu.
+
+        private static OpResult UploadNow(FakeCard card, FakeFtp ftp, string local)
+        {
+            return new FileBrowser(card).UploadAsync(new[] { local }, ftp, Settings(), null, "/ata0a", new FtpCopyTracker())
+                                        .GetAwaiter().GetResult();
+        }
+
+        [Test]
+        public async Task Yukleme_AyniAdliDosyaIkiKartaAyniAnda()
+        {
+            string dirA = TempDir(), dirB = TempDir();
+            try
+            {
+                var ftpFiles = new System.Collections.Generic.Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+                var cardA = new FakeCard(ftpFiles);
+                var cardB = new FakeCard(ftpFiles);
+                byte[] dataA = Data(3 * MB, 11), dataB = Data(3 * MB, 12);   // aynı ad, aynı boyut, farklı içerik
+                string localA = LocalFile(dirA, "uygulama.bin", dataA);
+                string localB = LocalFile(dirB, "uygulama.bin", dataB);
+                OpResult rB = null;
+                var ftpA = new FakeFtp(cardA);
+                ftpA.AfterUpload = n => { if (rB == null) rB = UploadNow(cardB, new FakeFtp(cardB), localB); };
+                OpResult rA = await new FileBrowser(cardA).UploadAsync(new[] { localA }, ftpA, Settings(), null, "/ata0a", new FtpCopyTracker());
+
+                Check.True(rB != null && rB.Ok, "araya giren yükleme başarılı olmalı: " + (rB != null ? rB.Message : "çalışmadı"));
+                Check.True(rA.Ok, "ilk yükleme başarılı olmalı: " + rA.Message);
+                Check.SameBytes(dataA, cardA.CardFiles["/ata0a/uygulama.bin"], "A kartındaki dosya kendi içeriği olmalı");
+                Check.SameBytes(dataB, cardB.CardFiles["/ata0a/uygulama.bin"], "B kartındaki dosya kendi içeriği olmalı");
+                Check.Equal(0, ftpFiles.Count, "FTP'de geçici kopya kalmamalı (" + string.Join(", ", ftpFiles.Keys) + ")");
+                Check.True(cardA.Commands.Any(c => c.StartsWith("copy ") && c.Contains("/_tkt_")), "FTP'de işleme özel geçici ad kullanılmalı");
+            }
+            finally { Directory.Delete(dirA, true); Directory.Delete(dirB, true); }
+        }
+
+        [Test]
+        public async Task Yukleme_BuyukDosyaIkiKartaAyniAnda()
+        {
+            string dir = TempDir();
+            try
+            {
+                var ftpFiles = new System.Collections.Generic.Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+                var cardA = new FakeCard(ftpFiles);
+                var cardB = new FakeCard(ftpFiles);
+                byte[] data = Data(70 * MB, 13);                             // 2 parça (64 + 6 MB)
+                string local = LocalFile(dir, "imaj.bin", data);
+                OpResult rB = null;
+                var ftpA = new FakeFtp(cardA);
+                ftpA.AfterUpload = n => { if (rB == null) rB = UploadNow(cardB, new FakeFtp(cardB), local); };   // A'nın 1. parçası FTP'deyken
+                OpResult rA = await new FileBrowser(cardA).UploadAsync(new[] { local }, ftpA, Settings(), null, "/ata0a", new FtpCopyTracker());
+
+                Check.True(rB != null && rB.Ok, "araya giren yükleme başarılı olmalı: " + (rB != null ? rB.Message : "çalışmadı"));
+                Check.True(rA.Ok, "ilk yükleme başarılı olmalı: " + rA.Message);
+                Check.SameBytes(data, cardA.CardFiles["/ata0a/imaj.bin"], "A kartındaki dosya");
+                Check.SameBytes(data, cardB.CardFiles["/ata0a/imaj.bin"], "B kartındaki dosya");
+                Check.Equal(0, ftpFiles.Count, "FTP'de parça kalmamalı (" + string.Join(", ", ftpFiles.Keys) + ")");
+                NoLeftovers(cardA);
+                NoLeftovers(cardB);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Test]
+        public async Task Klasor_AyniKlasorUcKartaAyniAnda()
+        {
+            string root = TempDir();
+            try
+            {
+                string dir = Path.Combine(root, "paket");
+                Directory.CreateDirectory(Path.Combine(dir, "alt"));
+                byte[] f1 = Data(2000, 21), f2 = Data(3000, 22), g1 = Data(500, 23);
+                LocalFile(dir, "f1.bin", f1);
+                LocalFile(dir, "f2.bin", f2);
+                LocalFile(Path.Combine(dir, "alt"), "g1.bin", g1);
+                var ftpFiles = new System.Collections.Generic.Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+                var cards = new[] { new FakeCard(ftpFiles), new FakeCard(ftpFiles), new FakeCard(ftpFiles) };
+                // A'nın klasörü FTP'deyken B, B'ninki FTP'deyken C baştan sona yüklenir; biten silerken diğerlerine dokunmamalı
+                OpResult rB = null, rC = null;
+                var ftpB = new FakeFtp(cards[1]);
+                ftpB.AfterUpload = n => { if (rC == null) rC = UploadNow(cards[2], new FakeFtp(cards[2]), dir); };
+                var ftpA = new FakeFtp(cards[0]);
+                ftpA.AfterUpload = n => { if (rB == null) rB = UploadNow(cards[1], ftpB, dir); };
+                OpResult rA = await new FileBrowser(cards[0]).UploadAsync(new[] { dir }, ftpA, Settings(), null, "/ata0a", new FtpCopyTracker());
+
+                Check.True(rC != null && rC.Ok, "üçüncü kart: " + (rC != null ? rC.Message : "çalışmadı"));
+                Check.True(rB != null && rB.Ok, "ikinci kart: " + (rB != null ? rB.Message : "çalışmadı"));
+                Check.True(rA.Ok, "ilk kart: " + rA.Message);
+                foreach (FakeCard c in cards)
+                {
+                    Check.SameBytes(f1, c.CardFiles["/ata0a/paket/f1.bin"], "f1.bin");
+                    Check.SameBytes(f2, c.CardFiles["/ata0a/paket/f2.bin"], "f2.bin");
+                    Check.SameBytes(g1, c.CardFiles["/ata0a/paket/alt/g1.bin"], "alt/g1.bin");
+                }
+                Check.Equal(0, ftpFiles.Count, "FTP'de geçici klasör kalmamalı (" + string.Join(", ", ftpFiles.Keys) + ")");
+            }
+            finally { Directory.Delete(root, true); }
+        }
     }
 }

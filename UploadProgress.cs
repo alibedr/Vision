@@ -426,12 +426,14 @@ namespace Vision
         private readonly System.Windows.Forms.Timer _timer = new System.Windows.Forms.Timer { Interval = 300 };
         private bool _done;
 
-        public DownloadProgressDialog(string name, Func<TransferProgress, Task<string>> work)
-            : base("Karttan bilgisayara", new Size(600, 270))
+        /// <param name="card">Kartın görünen adı ("IP" ya da "IP (Ad)"): başlıkta ve ilk satırın başında (1.10.1).</param>
+        public DownloadProgressDialog(string card, string name, Func<TransferProgress, Task<string>> work)
+            : base(string.IsNullOrEmpty(card) ? "Karttan bilgisayara" : "Karttan bilgisayara — " + card, new Size(600, 270))
         {
             _work = work;
             ControlBox = false;
-            _panel = new TransferProgressPanel("\"" + name + "\" karttan alınıyor…", 560) { Location = new Point(20, 16) };
+            string what = name.EndsWith(" öğe") ? name : "\"" + name + "\"";
+            _panel = new TransferProgressPanel((string.IsNullOrEmpty(card) ? "" : card + "  →  ") + what + " karttan alınıyor…", 560) { Location = new Point(20, 16) };
             _cancel.Width = 90;
             _cancel.Location = new Point(ClientSize.Width - 20 - _cancel.Width, ClientSize.Height - FooterHeight + 18);
             _cancel.Click += (s, e) => { _p.Cancel(); _cancel.Enabled = false; _panel.CancelText = "İptal ediliyor…"; };
