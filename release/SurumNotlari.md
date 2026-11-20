@@ -1,6 +1,6 @@
-# Vision 1.10 — Sürüm notları
+# Vision 1.10.1 — Sürüm notları
 
-**Yayın tarihi:** 19.11.2026
+**Yayın tarihi:** 20.11.2026
 
 Bu klasörde Vision'ın yalnız **güncel sürümü** bulunur. Eski sürümler kullanılmamalıdır: her sürüm, öncekilerin hatalarını
 düzeltip iyileştirmelerini içerir.
@@ -23,24 +23,19 @@ günlükleri ise `Vision.exe`'nin yanındaki `logs` klasöründedir; bunları sa
 
 ## Bu sürümde yeni
 
-Bu sürüm Seri sekmesini gerçek kartlarla yapılan denemelere göre TeraTerm'e yaklaştırıyor.
+1.10'un hata düzeltmesi; yeni özellik yok. Kart Dosya Gezgini'nde:
 
-- **BIOS / boot manager artık görünüyor.** Kart açılırken Del, F2 ya da F10 ile girilen kurulum ve boot menüleri
-  TeraTerm'deki gibi tam ekran gösterilir (Ekran görünümü): seçili satır, renkler ve çerçeveler yerinde, oklar / Enter /
-  Esc çalışır. Kart tam ekran çizmeye başlayınca pencere kendiliğinden bu görünüme geçer, açılış devam edince günlüğe
-  döner; menünün son hâli günlükte kalır. Renkler temaya uyarlanır.
-- **Telnet'teki gibi alt komut satırı.** Komut yazılıp düzeltilir, Enter ile gönderilir; ↑ / ↓, fare tekerleği ve Ctrl+R
-  ile seri komut geçmişi. Terminale tıklayıp doğrudan (TeraTerm gibi) yazmak da sürüyor.
-- **Tuşlar TeraTerm'deki gibi:** F1–F12, Home / End / PgUp / PgDn karta gider; Delete = DEL, Backspace = BS. Ctrl+C seçili
-  metni kopyalar (seçim yoksa karta kesme gönderir), Ctrl+V yapıştırır. Tuş kodları gönderme gecikmesiyle bölünmez.
-- **Yukarıdayken ekran kaymaz:** eski çıktıyı okurken gelen yeni satırlar sizi aşağı çekmez; "↓ Yeni Satırlar" göstergesi
-  çıkar.
-- **UTF-8** (TeraTerm'deki gibi) ve **çok satırlı yapıştırmada onay**.
-- **Ekran kayıtları ayrı klasörlerde:** Telnet kayıtları `logs\TelnetLoglari`, seri kayıtları `logs\SeriKanalLoglari`.
-- **Düzeltme:** Tamam / Vazgeç düğmeli pencerelerde Enter ve Esc artık çalışır (ör. Seri port ayarları).
+- **Aynı dosya / klasör aynı anda birden çok karta atılabiliyor.** Önceden aynı adlı dosya ya da klasör iki-üç karta aynı
+  anda yüklenince FTP'de birbirine karışıyor (biri ötekinin üzerine yazılıyor ya da ilk biten kart diğerlerinin dosyasını
+  siliyordu), yüklemeler hata veriyordu. Artık her yükleme FTP'de kendine özel geçici bir adla gider; her kart kendi
+  kopyasını alır. Kartta oluşan dosya ve klasör adları değişmedi.
+- **Aktarım pencerelerinde hangi kart olduğu görünüyor.** Karta yükleme, karttan alma ve kart içinde kopyalama / taşıma
+  pencerelerinin başlığında ve ilk satırında kartın IP'si ve adı yazar (ör. *Karta yükleme — 10.0.0.5 (Kart1)*).
 
 ## Önemli notlar
 
+- Vision'ı ağ klasöründen doğrudan çalıştırmayın; `Vision` klasörünü kendi bilgisayarınızda yerel bir klasöre kopyalayıp
+  oradan açın.
 - Seri port aynı anda yalnız bir programda açılabilir: port TeraTerm'de açıksa Vision açamaz ve bunu söyler.
 - "Dosyaya kaydet" kayıtları artık `logs\TelnetLoglari` ve `logs\SeriKanalLoglari` altına gider; eski kayıtlar `logs`
   içinde kalır.
@@ -52,6 +47,7 @@ Bu sürüm Seri sekmesini gerçek kartlarla yapılan denemelere göre TeraTerm'e
 
 | Sürüm | Değişiklikler |
 |---|---|
+| 1.10 | Seri sekmesi TeraTerm'e yaklaştı: BIOS / boot manager tam ekran görünür (Ekran görünümü), Telnet'teki gibi alt komut satırı, F1–F12 / Home / End / PgUp / PgDn karta gider, Delete = DEL, Backspace = BS, Ctrl+C / Ctrl+V, yukarıdayken ekran kaymaz, UTF-8, çok satırlı yapıştırmada onay; ekran kayıtları `logs\TelnetLoglari` ve `logs\SeriKanalLoglari` altında; Tamam / Vazgeç pencerelerinde Enter ve Esc. |
 | 1.9 | Beta geri bildirimi: bütün kartlara bspBootChange tek pencerede (kart listesi + seçilen kartın boot ekranı), boot ayarı sürerken kilitler, Çık (Ctrl+D) her zaman görünür, Temizle onayı, komut satırında tekerlekle geçmiş, ızgarada grup ve IP sırası, Yardım'da log klasörleri, ad pencerelerinde Enter, Ctrl+Shift+L kaldırıldı. |
 | 1.8 | Seri sekmesi: COM portundan karta bağlantı (en fazla 12 port ızgarada, port başına ayarlar ve ad, doğrudan yazma, ayrı seri komut geçmişi). Sekmeye göre değişen ve her sekmede ayrı hatırlanan sol menü; yeni sekme sırası (Ctrl+3 Seri, Ctrl+4 Sentinel, Ctrl+5 Komut Kütüphanesi). Klasör yüklemede gidemeyen dosyalar atlanır, boyutlar doğrulanır, yüklenemeyenler olay günlüğünde tam listelenir. |
 | 1.7 | Kart açılınca loglar reboot'u atana gelir: reboot'u gönderen Vision 2 sn'de bir, habersiz kopan diğerleri 30 sn bekleyip 15 sn'de bir dener. Düzeltmeler: Bağlan / Kes art arda basılınca arka planda bağlantı açık kalması; Boot ayarı kayıtları penceresi genişletilince satırların kayması. |
