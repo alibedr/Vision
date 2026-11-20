@@ -48,6 +48,9 @@ durur.
   - *Not:* Dosya FTP'ye bir kez gönderilir, her kart kendi kopyasını oradan alır (tek tek yüklemekten çok daha hızlı).
     İlerleme ve sonuç kart kart gösterilmeli; bir kartta sorun çıkarsa diğerleri devam etmeli; her kartın olay
     günlüğüne yazılmalı.
+  - *Durum:* 1.10.1'den beri aynı dosya / klasör tek tek aynı anda birden çok karta atılabiliyor (FTP'de her yüklemeye
+    özel geçici ad, G60). Kalan fayda: büyük dosyanın FTP'ye bir kez gitmesi ve tek bırakma. Kullanıcılara 1.10.1
+    verildikten sonra hâlâ istenip istenmediği sorulacak.
 
 ### Küçük işler
 

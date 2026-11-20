@@ -590,8 +590,8 @@ Kart dosyasını bilgisayarınızdaki bir uygulamayla (Notepad++, XML düzenleyi
 
 Yükleme, kartlara dosya atarken elle izlediğiniz yolun aynısını otomatik yapar:
 
-1. Dosya (ya da klasör) **kartın erişebildiği FTP sunucusuna**, FTP klasörünün içindeki **`Vision`** çalışma klasörüne gönderilir — sunucu, kullanıcı ve parola **o kartın kendisinden** alınır (aşağıya bakın). `Vision` klasörü yoksa ilk aktarımda otomatik oluşturulur.
-2. Kartta `copy "FTP-konumu/Vision/dosya", "hedef/dosya"` çalıştırılır. Klasörlerde `xcopy` **kullanılmaz** (FTP üzerinden `xcopy` kartın telnet bağlantısını düşürebiliyordu): kartta önce klasör ve alt klasörler `mkdir` ile açılır, sonra her dosya ayrı `copy` ile kopyalanır. İlerleme "dosya 3/12" gibi gösterilir. Klasörün içindeki öğelerden birinin adında Türkçe / özel karakter varsa yükleme başlamadan bildirilir.
+1. Dosya (ya da klasör) **kartın erişebildiği FTP sunucusuna**, FTP klasörünün içindeki **`Vision`** çalışma klasörüne gönderilir — sunucu, kullanıcı ve parola **o kartın kendisinden** alınır (aşağıya bakın). `Vision` klasörü yoksa ilk aktarımda otomatik oluşturulur. FTP'de bu yüklemeye özel geçici bir ad kullanılır (`_tkt_<rastgele>_dosya`); böylece **aynı dosya ya da klasör aynı anda birden çok karta** yüklenebilir, kopyalar birbirine karışmaz. Kartta dosyanın kendi adı kullanılır.
+2. Kartta `copy "FTP-konumu/Vision/_tkt_<rastgele>_dosya", "hedef/dosya"` çalıştırılır. Klasörlerde `xcopy` **kullanılmaz** (FTP üzerinden `xcopy` kartın telnet bağlantısını düşürebiliyordu): kartta önce klasör ve alt klasörler `mkdir` ile açılır, sonra her dosya ayrı `copy` ile kopyalanır. İlerleme "dosya 3/12" gibi gösterilir. Klasörün içindeki öğelerden birinin adında Türkçe / özel karakter varsa yükleme başlamadan bildirilir.
 3. Dönüş değeri kontrol edilir.
 
 **Klasör yüklerken bir dosya gitmezse:** yükleme durmaz, o dosya atlanır ve kalanlar yüklenir.
@@ -604,7 +604,7 @@ Yükleme, kartlara dosya atarken elle izlediğiniz yolun aynısını otomatik ya
 **Büyük dosyalar:**
 - Hedef `/ata…` ya da `/bd…` diskiyse yüklemeden önce diskin boş alanı (`dosFsShow`) okunur. Yüklenecek toplam boyut sığmıyorsa hiçbir şey gönderilmeden bildirilir. Aynı adla üzerine yazılacak dosyaların boyutu hesaba katılır. Boş alan okunamazsa yükleme engellenmez.
 - **64 MB'tan büyük dosyalar parça parça aktarılır (iki yönde de):** tek `copy` ile 2,5 GB'lık dosya kartın FTP sürücüsünü zorlayıp telnet bağlantısını düşürüyordu. Dosya 64 MB'lık parçalar halinde FTP üzerinden taşınır (kartın RAM'i hangi dosya olursa olsun en fazla bir parça + 8 MB ara bellek kadar kullanılır); kartta parça ile hedef dosya arasındaki aktarım 8 MB'lık bloklarla yapılır (`read` / `write`; kartta 8 MB'lık ara bellek ayrılır, iş bitince bırakılır).
-  - **Karta:** hedef dosya kartta bir kez açılır; her parça FTP'ye gönderilir, kartta açılıp hedefin sonuna eklenir ve FTP'den silinir.
+  - **Karta:** hedef dosya kartta bir kez açılır; her parça FTP'ye bu yüklemeye özel adla (`_parca_<rastgele>_dosya.partN`) gönderilir, kartta açılıp hedefin sonuna eklenir ve FTP'den silinir.
   - **Klasör yüklerken** içindeki 64 MB üstü dosyalar da klasörle birlikte FTP'ye gönderilmez, kartta sırası gelince aynı yolla parça parça aktarılır.
   - **Bilgisayara:** kaynak dosya kartta açılır; her parça kartta FTP'deki geçici bir dosyaya yazılır, bilgisayara indirilip yerel dosyanın sonuna eklenir ve FTP'den silinir.
   - Bir parça aktarılamazsa ya da iptal edilirse yarım kalan dosya (kartta ya da bilgisayarda) silinir ve kaç parçanın aktarıldığı yazılır.

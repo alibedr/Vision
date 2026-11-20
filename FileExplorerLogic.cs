@@ -1386,7 +1386,10 @@ namespace Vision
                         nameProblem = "4 GB ve üstü dosyalar kartın diskine (FAT) yazılamaz";
                     if (nameProblem != null) { failures.Add(name + ": " + nameProblem); continue; }
                     bool inParts = !isDir && fileBytes >= PartThresholdBytes;
-                    if (tracker != null && !inParts) tracker.Add(name, isDir);
+                    // FTP'de bu yüklemeye özel geçici ad (1.10.1): aynı dosya / klasör aynı anda birden çok karta yüklenirken
+                    // kopyalar birbirinin üzerine yazılmaz, biten kartın silmesi diğerlerininkine dokunmaz. Kartta asıl ad kullanılır.
+                    string ftpName = FtpTempName(name);
+                    if (tracker != null && !inParts) tracker.Add(ftpName, isDir);
                     var ftpFailed = new List<KeyValuePair<string, Exception>>();
 
                     // 1) FTP sunucusuna gönder (büyük dosya aşağıda parça parça gönderilir)
@@ -1398,8 +1401,8 @@ namespace Vision
                         if (!inParts) _tp.StartFtp("FTP'ye gönderiliyor", isDir ? plan.SmallBytes : fileBytes);
                         // Klasördeki büyük dosyalar burada gönderilmez: kartta kopyalanırken parça parça gider (G42)
                         // Gönderilemeyen dosya atlanır, klasörün kalanı gider; sonda listelenir
-                        if (isDir) await uploader.UploadDirectoryAsync(local, name, _tp.FtpBytes, _tp.Token, f => LocalSize(f) < PartThresholdBytes, ftpFailed);
-                        else if (!inParts) await uploader.UploadFileAsync(local, name, _tp.FtpBytes, _tp.Token);
+                        if (isDir) await uploader.UploadDirectoryAsync(local, ftpName, _tp.FtpBytes, _tp.Token, f => LocalSize(f) < PartThresholdBytes, ftpFailed);
+                        else if (!inParts) await uploader.UploadFileAsync(local, ftpName, _tp.FtpBytes, _tp.Token);
                         else await uploader.EnsureWorkFolderAsync();
                         _tp.EndFtp();
                     }
@@ -1408,8 +1411,8 @@ namespace Vision
                         failures.Add("yükleme iptal edildi (" + name + " FTP'ye gönderilirken)");
                         if (tracker != null && !inParts)
                         {
-                            try { await uploader.DeleteAsync(name, isDir); tracker.Remove(name); }
-                            catch (Exception ex) { ErrorText.LogTechnical("FTP silme " + name, ex); }
+                            try { await uploader.DeleteAsync(ftpName, isDir); tracker.Remove(ftpName); }
+                            catch (Exception ex) { ErrorText.LogTechnical("FTP silme " + ftpName, ex); }
                         }
                         break;
                     }
@@ -1423,7 +1426,7 @@ namespace Vision
                     if (ftp != null && ftp.ModeNote != null) modeNote = ftp.ModeNote;
 
                     // 2) Kartta FTP konumundan hedef klasöre kopyala
-                    string src = FsPath.Join(settings.CardPathPrefix, name);
+                    string src = FsPath.Join(settings.CardPathPrefix, ftpName);
                     string dst = FsPath.Join(destDir, name);
                     if (isDir)
                     {
@@ -1439,8 +1442,8 @@ namespace Vision
                         ok++;
                         if (settings.DeleteAfterCopy)
                         {
-                            try { await uploader.DeleteAsync(name, true); if (tracker != null) tracker.Remove(name); }
-                            catch (Exception ex) { ErrorText.LogTechnical("FTP silme " + name, ex); }
+                            try { await uploader.DeleteAsync(ftpName, true); if (tracker != null) tracker.Remove(ftpName); }
+                            catch (Exception ex) { ErrorText.LogTechnical("FTP silme " + ftpName, ex); }
                         }
                         continue;
                     }
@@ -1448,7 +1451,7 @@ namespace Vision
                     {
                         // Büyük dosya: tek "copy" kartın FTP sürücüsünü zorlayıp telnet'i düşürüyordu (2,5 GB'ta görüldü).
                         // Dosya parça parça gönderilip kartta birleştirilir.
-                        string partFailure = await UploadInPartsAsync(uploader, settings, local, name, fileBytes, dst, step, progress, tracker);
+                        string partFailure = await UploadInPartsAsync(uploader, settings, local, FtpPartBase(name), fileBytes, dst, step, progress, tracker);
                         if (partFailure != null)
                         {
                             failures.Add(name + ": " + partFailure);
@@ -1474,8 +1477,8 @@ namespace Vision
                     // 3) İsteğe bağlı: FTP'deki geçici kopyayı sil
                     if (settings.DeleteAfterCopy)
                     {
-                        try { await uploader.DeleteAsync(name, isDir); if (tracker != null) tracker.Remove(name); }
-                        catch (Exception ex) { ErrorText.LogTechnical("FTP silme " + name, ex); }
+                        try { await uploader.DeleteAsync(ftpName, isDir); if (tracker != null) tracker.Remove(ftpName); }
+                        catch (Exception ex) { ErrorText.LogTechnical("FTP silme " + ftpName, ex); }
                     }
                     }
                     finally
@@ -1572,7 +1575,7 @@ namespace Vision
                 return new OpResult { Ok = true, Message = "metin", Response = text.Response };
             }
 
-            string temp = "_tkt_" + Guid.NewGuid().ToString("N").Substring(0, 8) + "_" + entry.Name;
+            string temp = FtpTempName(entry.Name);
             string cmd = "copy " + FsPath.Quote(entry.FullPath) + ", " + FsPath.Quote(FsPath.Join(settings.CardPathPrefix, temp));
             long entryBytes = entry.Size ?? 0;
             BeginWork("Kartta FTP konumuna kopyalanıyor" + SizeNote(entryBytes) + "  ·  " + cmd);
@@ -1894,7 +1897,7 @@ namespace Vision
                 if (size >= PartThresholdBytes)
                 {
                     // Büyük dosya FTP'ye klasörle gönderilmedi: parça parça aktarılır (G42); boyutu kendi içinde doğrulanır
-                    string partBase = "_parca_" + Guid.NewGuid().ToString("N").Substring(0, 8) + "_" + System.IO.Path.GetFileName(plan.LocalPathOf(rel));
+                    string partBase = FtpPartBase(System.IO.Path.GetFileName(plan.LocalPathOf(rel)));
                     string partFailure = await UploadInPartsAsync(uploader, settings, plan.LocalPathOf(rel), partBase, size, dst,
                         step + "  ·  dosya " + (k + 1) + "/" + plan.Files.Count + " " + rel, progress, tracker);
                     if (partFailure == null) continue;
@@ -2416,6 +2419,21 @@ namespace Vision
         }
 
         /// <summary>Yüklenecek öğenin adı / varlığıyla ilgili sorun (yoksa null). Kartın kabuğu ASCII dışı adları güvenle işleyemez.</summary>
+        /// <summary>
+        /// FTP çalışma klasöründe tek bir aktarıma özel geçici ad: "_tkt_" + 8 onaltılık + "_" + asıl ad. Aynı ad aynı anda
+        /// birden çok kartın aktarımında kullanılsa da çakışmaz; önek "FTP kopyalarını sil"in artık taramasıyla tanınır.
+        /// </summary>
+        public static string FtpTempName(string name)
+        {
+            return "_tkt_" + Guid.NewGuid().ToString("N").Substring(0, 8) + "_" + name;
+        }
+
+        /// <summary>Büyük dosyanın FTP parçalarının ortak adı (parçalar "….partN"): "_parca_" + 8 onaltılık + "_" + asıl ad.</summary>
+        public static string FtpPartBase(string name)
+        {
+            return "_parca_" + Guid.NewGuid().ToString("N").Substring(0, 8) + "_" + name;
+        }
+
         public static string UploadNameProblem(string localPath, string name, bool isDir)
         {
             if (string.IsNullOrEmpty(name)) return "geçersiz yol";
