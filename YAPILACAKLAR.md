@@ -52,6 +52,42 @@ durur.
     özel geçici ad, G60). Kalan fayda: büyük dosyanın FTP'ye bir kez gitmesi ve tek bırakma. Kullanıcılara 1.10.1
     verildikten sonra hâlâ istenip istenmediği sorulacak.
 
+### Terminalde kolaylık
+
+İkisi de komut satırı / terminal kullanımını hızlandırıyor; birlikte yapılabilir.
+
+- [ ] **Terminalde arama (Ctrl+F)**
+  - *Kaynak:* Ali · 20.11.2026
+  - *İstek:* Telnet ve seri terminalde metin arama: eşleşenler vurgulansın, Enter / F3 ile sonrakine, Shift+F3 ile
+    öncekine gidilsin. Bugün Ctrl+F yalnız Komut Kütüphanesi'nde arıyor.
+  - *Not:* Ctrl+F terminal odaktayken terminalde, Komut Kütüphanesi'ndeyken orada aramalı. Seri pencerede Ctrl+F karta
+    da gidebilir (TeraTerm'de yok, kartta anlamı yok); seri tarafta arama kısayolu ayrıca düşünülmeli. Ekran (BIOS)
+    görünümünde arama gerekmez.
+- [ ] **Komut Kütüphanesi'ndeki komutlar otomatik tamamlamada**
+  - *Kaynak:* Ali · 20.11.2026
+  - *İstek:* Otomatik tamamlama bugün yalnız komut geçmişinden öneriyor; Vision'ı yeni kullanan birinin geçmişi boş
+    olduğu için hiç öneri çıkmıyor. Kütüphanedeki komutlar (yazılışlarıyla) da önerilsin; yeni başlayan biri komut
+    yazmaya başlayınca kütüphaneden tamamlansın.
+  - *Not:* Önce geçmiş (kişinin kendi kullandığı biçim), yoksa kütüphane. Kütüphane önerisi soluk metinde ayırt
+    edilebilir olmalı (ör. yanında kısa açıklama). Seri komut satırında da geçerli olsun mu, karar verilecek.
+
+### Altyapı
+
+- [ ] **Yeni sürüm bildirimi**
+  - *Kaynak:* Ali · 20.11.2026
+  - *İstek:* Herkes Vision'ı iç ağ klasöründen kendi bilgisayarına kopyalıyor; eski sürümle çalışan kalabiliyor. Vision
+    açılışta yeni sürüm olup olmadığına bakıp haber versin ("Vision 1.11 çıktı — klasörü aç").
+  - *Not:* Bakılacak yer ayarlardan (iç ağ klasörünün yolu; boşsa kapalı). Klasöre ulaşılamazsa sessiz geçilir, açılışı
+    geciktirmez. Kendiliğinden güncelleme yok; yalnız bildirim. Sürüm, klasördeki `Vision.exe`'nin dosya sürümünden
+    (1.10.1.0) okunur.
+- [ ] **Çok kartlı kullanımda performans**
+  - *Kaynak:* Kullanıcı sorusu (tek kartta yük yok, Görev Yöneticisi'nde %0,1–0,2) · 20.11.2026
+  - *İstek:* Çok kart aynı anda log basınca ekran çizimi ağırlaşmasın.
+  - *Not:* Kodda bulunanlar: (1) yeni veri gelen her kartın terminali 40 ms'de bir baştan çiziliyor; (2) terminal satır
+    sınırına ulaşınca her eklemede eski satırlar siliniyor (geçmişte %10 pay var, ekranda yok). Öneriler: ekranda da %10
+    pay; pencere küçültülmüşken çizmemek; görünmeyen kartları daha seyrek çizmek; Sentinel sekmesi görünmüyorken
+    sayfayı askıya almak. Önce 20 kartlık sahte log akışıyla ölçülmeli.
+
 ### Küçük işler
 
 Herhangi bir sürüme eklenebilir.
