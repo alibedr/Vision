@@ -24,7 +24,6 @@ Related: [README.md](README.md)
 | Topic | Where | What | Suggested fix |
 |---|---|---|---|
 | Version comments | comment in `AppInfo.cs`, comment on the "Resmî sürümü yayınla" step in `build-exe.yml` | Say the minor version is increased on every merge, without the approval step and the patch case ([versioning.md](versioning.md#rules)) | Reword with the next code change |
-| `AppInfo.DevBuild` | `AppInfo.cs` | Internal build counter is 4 since early versions; unclear if still maintained | Remove or define a rule |
 | DPAPI | `YAPILACAKLAR.md` idea "FTP parolasını şifreli saklama" | `PasswordProtector` (DPAPI) already exists in `FileTransfer.cs` for the legacy manual FTP password; the idea could reuse it | Mention in the backlog item |
 
 ## Not analysed in depth
@@ -40,9 +39,8 @@ Related: [README.md](README.md)
 
 ## Open questions for the product owner
 
-1. Is `AppInfo.DevBuild` still needed?
-2. Branch naming: is one prefix scheme preferred for the future (e.g. only `feature/`, `fix/`, `docs/`)? History mixes
+1. Branch naming: is one prefix scheme preferred for the future (e.g. only `feature/`, `fix/`, `docs/`)? History mixes
    several.
-3. Is the serial break signal (TeraTerm Alt+B) used? (open in `YAPILACAKLAR.md`)
-4. Open bug: some `.txt` files do not open on double-click in the file explorer; needs file name, size, path, error
+2. Is the serial break signal (TeraTerm Alt+B) used? (open in `YAPILACAKLAR.md`)
+3. Open bug: some `.txt` files do not open on double-click in the file explorer; needs file name, size, path, error
    text, `logs\hatalar.log`, and `ll` output.

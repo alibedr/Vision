@@ -19,9 +19,8 @@ All in `AppInfo.cs`, changed together:
 
 CI extracts the version with the regex `public const string Version = "([0-9.]+)"`; keep that line's exact shape.
 
-`AppInfo.DevBuild` (`internal const int`, currently 4) is an old internal build counter. It is not shown and has not
-been updated since early versions (Unknown whether it is still meant to be maintained; see
-[analysis-limitations.md](analysis-limitations.md)).
+There is no separate build counter: the unused `AppInfo.DevBuild` constant and the `GelistirmeDerlemesi` assembly
+metadata were removed on 25.11.2026 (they had stayed at 4 since early versions).
 
 ## Rules
 
