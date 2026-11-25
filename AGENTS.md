@@ -41,8 +41,8 @@ This file holds the project rules for any AI assistant. Details live in [`docs/`
 4. Documentation updated in the same branch, only where affected: user manual, tour, `Yardim/Gereksinimler.md`
    (G section + "Sürüm notları" row), `README.md`, `YAPILACAKLAR.md`, `docs/` — table in
    [`docs/development-workflow.md`](docs/development-workflow.md#7-documentation-and-version-c).
-5. Version raised in `AppInfo.cs` if the app changes (minor for features, patch for bug-fix-only) —
-   [`docs/versioning.md`](docs/versioning.md).
+5. Version: every merge to `main` raises it, **but ask first** — propose a number (minor for features, patch for a
+   bug fix), then set exactly the number the product owner approves or names — [`docs/versioning.md`](docs/versioning.md).
 6. Branch build (`Vision.zip` from the `build-<branch>` pre-release) handed to the product owner, with a test checklist
    when the UI changed.
 
@@ -52,7 +52,7 @@ This file holds the project rules for any AI assistant. Details live in [`docs/`
 - Before merging a code change: refresh `release/Vision/` from the branch build and update `release/SurumNotlari.md` —
   [`docs/release-process.md`](docs/release-process.md).
 - CI on `main` publishes `v<version>` and removes older releases. Never re-use a version number.
-- Documentation-only changes: branch + PR + approved merge, no version change.
+- Documentation-only changes: branch + PR + approved merge; ask about the version for these too.
 
 ## Keeping documentation alive
 

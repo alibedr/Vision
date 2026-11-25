@@ -52,7 +52,7 @@ decision" with date). Keep this file a summary; details go into `Yardim/Gereksin
 |---|---|---|---|
 | W1 | Discuss and plan before coding when asked or when UI / architecture changes | Product owner wants to decide scope and UX | session decisions |
 | W2 | Merge only on explicit approval | Product owner tests every build on real cards first | session decisions |
-| W3 | Feature versions bump minor, bug-fix-only versions bump patch; never re-release a number | Unambiguous bug reports; CI does not overwrite releases | 1.10.1 |
+| W3 | Every merge raises the version; the product owner approves or names the number before the merge (default proposal: minor for features, patch for bug fixes); never re-release a number | Product owner controls versions; unambiguous bug reports; CI does not overwrite releases | 1.10.1, session decision 25.11.2026 |
 | W4 | Only the latest release is kept on GitHub and in `release/` | Users always get the fixed version | G38, PR #22 |
 | W5 | Collect requests in `YAPILACAKLAR.md`, fix bugs immediately, group improvements into versions | Predictable versions that can be tested in one session | YAPILACAKLAR (PR #26) |
 | W6 | Manual test checklists as interactive pages, delivered with the branch build | Product owner request | session decision 1.10 |

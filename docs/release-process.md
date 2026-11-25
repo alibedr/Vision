@@ -26,11 +26,14 @@ sequenceDiagram
   participant PO as Product owner
   participant GH as GitHub
   participant CI as Actions (build-exe.yml)
-  Dev->>GH: push branch (AppInfo.Version already raised)
+  Dev->>GH: push branch
   GH->>CI: build + tests
   CI->>GH: pre-release build-<branch> with Vision.zip
   Dev->>PO: Vision.zip + test checklist
   PO->>Dev: "mergeleyebiliriz"
+  Dev->>PO: propose version number
+  PO->>Dev: approve or name the number
+  Dev->>Dev: set AppInfo.Version, push, wait for CI
   Dev->>GH: download build-<branch>/Vision.zip
   Dev->>Dev: replace release/Vision/, update release/SurumNotlari.md, commit, push
   Note over CI: release/** changes alone do not trigger CI

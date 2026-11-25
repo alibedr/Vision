@@ -10,7 +10,7 @@ Bu belge uygulamanın çalışması için gerekenleri (sistem gereksinimleri) ve
 
 | Gereksinim | Açıklama |
 |---|---|
-| İşletim sistemi | Windows 7 SP1 ve üzeri (Windows 10 / 11 önerilir). |
+| İşletim sistemi | Windows 10 / 11. (Eski sürümlerde Windows 7 SP1 yazıyordu; Windows 7 kullanan kalmadı, Sentinel sayfasının kullandığı Edge WebView2 de Windows 7'yi desteklemiyor.) |
 | .NET Framework | 4.6.1 veya üzeri (Windows 10 / 11 ile birlikte gelir). İnternet bağlantısı gerekmez. |
 | Ağ | Bilgisayardan kartlara TCP erişimi (varsayılan telnet portu 23; grup başına ayarlanabilir). |
 | Kart tarafı | Telnet sunucusu ve komut kabuğu. Dosya Gezgini için `devs` ve `ls` komutları ile `value = N = 0x…` biçiminde dönüş değeri basan (VxWorks benzeri) bir kabuk. |
@@ -26,7 +26,7 @@ Bu belge uygulamanın çalışması için gerekenleri (sistem gereksinimleri) ve
 | IDE | Visual Studio 2019 (16.11) veya üzeri; ".NET masaüstü geliştirme" iş yükü. |
 | Dil | C# 7.3 (VS 2019 / .NET Framework projelerinin varsayılanı). |
 | Hedef | .NET Framework 4.6.1, Windows Forms, klasik (SDK olmayan) `.csproj`. Tek NuGet paketi: `Microsoft.Web.WebView2` (`packages.config`; Sentinel sayfası). |
-| Bağımlılık | Yok. NuGet paketi kullanılmaz; kapalı ağda derlenebilir. |
+| Bağımlılık | Tek NuGet paketi `Microsoft.Web.WebView2` 1.0.1072.54 (Sentinel sayfası). Visual Studio ve CI derlemede indirir; kapalı ağda derlemek için paket önceden `packages\` klasörüne konmalıdır. Başka dış kütüphane yok. |
 | Açma | `Vision.sln` → F5. |
 
 ## İşlevsel gereksinimler

@@ -23,9 +23,7 @@ Related: [README.md](README.md)
 
 | Topic | Where | What | Suggested fix |
 |---|---|---|---|
-| Version increment | `README.md` "Sürümler", comment in `AppInfo.cs`, comment on the "Resmî sürümü yayınla" step in `build-exe.yml` | Say the minor version is increased "on every merge to main". Actually: set by hand in the branch, only for releases that change the app; bug-fix releases use a patch number (1.10.1) | Reword to the rule in [versioning.md](versioning.md) |
-| Supported Windows | `README.md` (Windows 10 / 11) vs `Yardim/Gereksinimler.md` "Çalıştırma" (Windows 7 SP1 and later) | Conflicting minimums | Decide and align. Note: WebView2 Runtime and current .NET 4.8 updates no longer support Windows 7 |
-| Dependencies | `Yardim/Gereksinimler.md` "Geliştirme" table, row "Bağımlılık": "Yok. NuGet paketi kullanılmaz" | Contradicts the next row and `packages.config` (WebView2) | Update the row |
+| Version comments | comment in `AppInfo.cs`, comment on the "Resmî sürümü yayınla" step in `build-exe.yml` | Say the minor version is increased on every merge, without the approval step and the patch case ([versioning.md](versioning.md#rules)) | Reword with the next code change |
 | `AppInfo.DevBuild` | `AppInfo.cs` | Internal build counter is 4 since early versions; unclear if still maintained | Remove or define a rule |
 | DPAPI | `YAPILACAKLAR.md` idea "FTP parolasını şifreli saklama" | `PasswordProtector` (DPAPI) already exists in `FileTransfer.cs` for the legacy manual FTP password; the idea could reuse it | Mention in the backlog item |
 
@@ -42,11 +40,9 @@ Related: [README.md](README.md)
 
 ## Open questions for the product owner
 
-1. Should `README.md`, the `AppInfo.cs` comment and the workflow comment be updated to the actual versioning rule?
-2. Which Windows versions are officially supported (7 SP1 or 10/11)?
-3. Is `AppInfo.DevBuild` still needed?
-4. Branch naming: is one prefix scheme preferred for the future (e.g. only `feature/`, `fix/`, `docs/`)? History mixes
+1. Is `AppInfo.DevBuild` still needed?
+2. Branch naming: is one prefix scheme preferred for the future (e.g. only `feature/`, `fix/`, `docs/`)? History mixes
    several.
-5. Is the serial break signal (TeraTerm Alt+B) used? (open in `YAPILACAKLAR.md`)
-6. Open bug: some `.txt` files do not open on double-click in the file explorer; needs file name, size, path, error
+3. Is the serial break signal (TeraTerm Alt+B) used? (open in `YAPILACAKLAR.md`)
+4. Open bug: some `.txt` files do not open on double-click in the file explorer; needs file name, size, path, error
    text, `logs\hatalar.log`, and `ll` output.

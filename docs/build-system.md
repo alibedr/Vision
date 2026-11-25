@@ -10,7 +10,7 @@ Related: [testing-strategy.md](testing-strategy.md) · [release-process.md](rele
 
 | | |
 |---|---|
-| OS | Windows (WinForms, `System.IO.Ports`, WMI, WebView2) |
+| OS | Windows (WinForms, `System.IO.Ports`, WMI, WebView2); supported: Windows 10 / 11 |
 | IDE / tools | Visual Studio 2019 (16.11) or later with the ".NET desktop development" workload, or MSBuild + .NET Framework 4.6.1 targeting pack |
 | Language | C# 7.3 (default for .NET Framework projects in VS 2019) |
 | Target | .NET Framework 4.6.1, `WinExe`, `AnyCPU`, configurations `Debug` / `Release` |

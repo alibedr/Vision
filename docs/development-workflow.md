@@ -82,7 +82,7 @@ Update in the **same branch**, only what the change affects:
 | Visible UI changed (new tab, control, order) | Application tour: steps in `MainForm.BuildTourSteps`, accessors in `TourAccessors.cs` / `CardView.Tour.cs`; raise `AppSettings.CurrentTourVersion` only if users should see the tour again |
 | Every feature / fix | `Yardim/Gereksinimler.md`: new `### G<n> — <title> (<version>)` section with table rows `No · Gereksinim · Durum · Nasıl karşılandı` (cause, solution, classes / methods, test names), plus a row in the "Sürüm notları" table |
 | Notable feature | `README.md` feature list |
-| Code change to be released | Version in `AppInfo.cs` ([versioning.md](versioning.md)) |
+| Before merge | Version in `AppInfo.cs`, **only the number the product owner approved** ([versioning.md](versioning.md)) |
 | Backlog item done / changed | `YAPILACAKLAR.md` |
 | Architecture, workflow, build, tests, dependencies | the matching file in `docs/` |
 | New convention | `CLAUDE.md` / `AGENTS.md` |
@@ -103,6 +103,9 @@ users, not developers.
 
 - Merge **only** after the product owner says so explicitly (typically "mergeleyebiliriz"). An AI must not merge on its
   own initiative.
+- **Ask for the version number before every merge** (rule of 25.11.2026): propose one (minor for features, patch for a
+  bug fix) and use the number the product owner approves or names. Do not raise the version on your own; see
+  [versioning.md](versioning.md#rules).
 - Before merging a code change, on the branch:
   1. Replace `release/Vision/` with the contents of the branch build's `Vision.zip` (`Vision/Vision.exe`, `Vision/lib/…`).
   2. Update `release/SurumNotlari.md`: new version and date on top, "Bu sürümde yeni" rewritten, the previous version
@@ -111,8 +114,8 @@ users, not developers.
 - Open the pull request and merge with a merge commit (`merge_method=merge`). In the AI environment `gh` GraphQL calls
   return 403, so use REST: `gh api -X POST repos/alibedr/Vision/pulls --input pr.json` and
   `gh api -X PUT repos/alibedr/Vision/pulls/<n>/merge -f merge_method=merge`.
-- Doc-only changes (e.g. `YAPILACAKLAR.md`, `docs/`) follow the same branch → PR → approved merge path, without version
-  or release changes.
+- Doc-only changes (e.g. `YAPILACAKLAR.md`, `docs/`) follow the same branch → PR → approved merge path; ask about the
+  version for them too. If a new number is approved, the `AppInfo.cs` change triggers CI, so also refresh `release/`.
 
 ## 12. After merge (C)
 

@@ -23,6 +23,7 @@ Documentation index: [`docs/README.md`](docs/README.md).
 - If asked to discuss first ("önce tartışalım", "direkt değişiklik yapmak yok"): analyse and propose, no code.
 - Prefer fewer buttons; propose UI additions before building them.
 - Merge only after explicit approval. An approval to *add* something is not an approval to *merge* it.
+- Before every merge, ask which version number to use (propose one); change `AppInfo.cs` only to the approved number.
 - Manual test checklists go out as an interactive, checkable page, together with the branch build.
 
 ## Environment facts (Claude Code session)

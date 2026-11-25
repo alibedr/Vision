@@ -1,8 +1,8 @@
 # Versioning
 
-Vision uses `MAJOR.MINOR` for feature versions and `MAJOR.MINOR.PATCH` for bug-fix-only versions. The version is set
-**by hand** in `AppInfo.cs` on the branch before merging; CI does not increment anything, it only reads the version and
-publishes a release for it.
+Vision uses `MAJOR.MINOR` for feature versions and `MAJOR.MINOR.PATCH` for bug-fix-only versions. **Every merge to
+`main` raises the version, but only after the product owner has approved the number.** The version is set by hand in
+`AppInfo.cs` on the branch; CI does not increment anything, it only reads the version and publishes a release for it.
 
 Related: [release-process.md](release-process.md) · [development-workflow.md](development-workflow.md)
 
@@ -25,12 +25,21 @@ been updated since early versions (Unknown whether it is still meant to be maint
 
 ## Rules
 
-| Change merged to `main` | Version change | Evidence |
+**The product owner decides the number (decision of 25.11.2026).** Before every merge to `main`:
+
+1. Propose a number with a one-line reason, using the defaults below.
+2. Ask. Do not change `AppInfo.cs` before the answer.
+3. Use exactly what the product owner says: "okey" → the proposed number; "1.12 ile mergele" → 1.12; "artırma" → no
+   change.
+4. Commit the version change on the branch, let CI build it, then merge.
+
+Defaults to propose:
+
+| Change merged to `main` | Proposal | Evidence |
 |---|---|---|
 | A feature version (one or more features / a feedback round) | **Minor +1**: 1.9 → 1.10 | Confirmed: v1.0 … v1.10 |
-| Bug fix only, no new feature | **Patch +1**: 1.10 → 1.10.1 | Confirmed: decided for 1.10.1 |
-| Documentation / backlog only (`*.md`, `docs/`) | None | Confirmed: e.g. PR #26, #28 |
-| Release folder / CI only | None, unless the exe changes | Inferred from PR #22 |
+| Bug fix only, no new feature | **Patch +1**: 1.10 → 1.10.1 | Confirmed: 1.10.1 |
+| Documentation / backlog only (`*.md`, `docs/`) | Ask as well; until 25.11.2026 such merges kept the version (PR #26, #28). If a new number is approved, the `AppInfo.cs` change triggers CI and a release with the same exe content | Confirmed rule, history |
 
 - **Never republish the same number** for a different build. CI does not overwrite an existing release (it only
   refreshes its notes), and two different exes with one number make bug reports ambiguous. This was the explicit
@@ -61,9 +70,8 @@ released.
 Full history: "Sürüm notları" table in [`../Yardim/Gereksinimler.md`](../Yardim/Gereksinimler.md) and
 "Önceki sürümlerde gelenler" in [`../release/SurumNotlari.md`](../release/SurumNotlari.md).
 
-## Documented discrepancy
+## Wording in other files
 
-`README.md` ("Sürümler"), the comment in `AppInfo.cs` and the comment on the release step of the workflow say the minor
-version is "increased on every merge to main". In practice it is increased **by hand in the branch**, only for merges
-that change the application, and bug-fix versions use the patch number. These texts were not changed by the
-documentation task; update them when convenient.
+`README.md` ("Sürümler") states the rule above. The comment in `AppInfo.cs` and the comment on the release step of the
+workflow still say "küçük sürüm bir artırılır" on every merge, without the approval step and the patch case; they are
+code / CI files and were left unchanged in a documentation-only change.
