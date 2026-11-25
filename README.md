@@ -61,10 +61,12 @@ Gruplar, kartlar ve ayarlar kullanıcının bilgisayarında `%APPDATA%\TelnetCar
 
 ## Sürümler
 
-İlk resmî yayın **v1.0**. `main`'e her birleştirmede küçük sürüm bir artırılır (v1.1, v1.2, …); her sürüm main derlemesinden kendiliğinden GitHub Releases'ta `Vision.zip` ile yayınlanır. Depodaki [`release/`](release/) klasöründe yalnız **güncel sürüm** bulunur: zipten çıkarılmış `release/Vision/` (`Vision.exe` + `lib/`) ve sürüm notları [`release/SurumNotlari.md`](release/SurumNotlari.md). Eski sürümlerin derlenmiş halleri tutulmaz; her birleştirmede yenisiyle değiştirilir.
+İlk resmî yayın **v1.0**. `main`'e her birleştirmede sürüm artırılır; hangi numarayla birleştirileceği (yeni özelliklerde küçük sürüm, ör. v1.11; yalnız hata düzeltmesinde yama, ör. v1.10.1) her birleştirmeden önce sorulur ve onaylanan numara kullanılır; her sürüm main derlemesinden kendiliğinden GitHub Releases'ta `Vision.zip` ile yayınlanır. Depodaki [`release/`](release/) klasöründe yalnız **güncel sürüm** bulunur: zipten çıkarılmış `release/Vision/` (`Vision.exe` + `lib/`) ve sürüm notları [`release/SurumNotlari.md`](release/SurumNotlari.md). Eski sürümlerin derlenmiş halleri tutulmaz; her birleştirmede yenisiyle değiştirilir.
 
 ## Ayrıntılı belgeler
 
 - [Kullanım Kılavuzu](Yardim/KullanimKilavuzu.md)
 - [Gereksinimler ve sürüm notları](Yardim/Gereksinimler.md)
 - [Yapılacaklar](YAPILACAKLAR.md): kullanıcılardan gelen ve sırada bekleyen istekler
+- [Geliştirici belgeleri](docs/README.md) (İngilizce): mimari, modüller, geliştirme süreci, testler, sürüm ve yayın
+  kuralları; yapay zekâ asistanları için [CLAUDE.md](CLAUDE.md) ve [AGENTS.md](AGENTS.md)

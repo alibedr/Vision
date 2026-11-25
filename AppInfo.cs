@@ -14,7 +14,6 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyVersion("1.10.1.0")]
 [assembly: AssemblyFileVersion("1.10.1.0")]
 [assembly: AssemblyInformationalVersion("1.10.1")]
-[assembly: AssemblyMetadata("GelistirmeDerlemesi", "4")]
 // Test projesi (VisionTests, G48) iç sınıflara ve test kancalarına erişebilsin
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("VisionTests")]
 
@@ -33,11 +32,6 @@ namespace Vision
         /// <summary>Kullanıcıya görünen sürüm (main'e her birleştirmede küçük sürüm bir artar).</summary>
         public const string Version = "1.10.1";
 
-        /// <summary>
-        /// İç geliştirme derleme numarası (artan). Arayüzde gösterilmez. Geçmiş: 1 = ilk sürüm (v1.0 etiketi),
-        /// 2 = Vision adı (v1.1), 3 = cihaz süzme + simge (v1.2), 4 = kart yönetimi iyileştirmeleri.
-        /// </summary>
-        internal const int DevBuild = 4;
         public const string Author = "Ali Bedir";
         public const string Year = "2026";
 
